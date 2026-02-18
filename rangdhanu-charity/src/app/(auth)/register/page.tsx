@@ -1,0 +1,90 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/lib/auth-context";
+import Link from "next/link";
+import { Heart } from "lucide-react";
+
+export default function RegisterPage() {
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const { login } = useAuth();
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        login(email, "user");
+    };
+
+    return (
+        <div className="flex flex-col items-center">
+            <Link href="/" className="mb-8 flex items-center gap-2 font-bold text-2xl text-primary">
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white">
+                    <Heart className="h-6 w-6 fill-current" />
+                </div>
+                <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent">
+                    Rangdhanu
+                </span>
+            </Link>
+
+            <Card className="w-full">
+                <CardHeader className="space-y-1">
+                    <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
+                    <CardDescription>
+                        Enter your email below to create your account
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                            <label htmlFor="name">Full Name</label>
+                            <Input
+                                id="name"
+                                placeholder="John Doe"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label htmlFor="email">Email</label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="m@example.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label htmlFor="password">Password</label>
+                            <Input
+                                id="password"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                            Create account
+                        </Button>
+                    </form>
+                </CardContent>
+                <CardFooter className="flex justify-center">
+                    <p className="text-sm text-muted-foreground">
+                        Already have an account?{" "}
+                        <Link href="/login" className="text-primary hover:underline">
+                            Sign in
+                        </Link>
+                    </p>
+                </CardFooter>
+            </Card>
+        </div>
+    );
+}
