@@ -55,7 +55,7 @@ export function Navbar() {
 
                     {user ? (
                         <div className="flex items-center gap-4">
-                            {(user.role === "admin" || user.role === "moderator") && (
+                            {(user.roles?.includes("admin") || user.roles?.includes("moderator")) && (
                                 <Link href="/admin" className="text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-1">
                                     <LayoutDashboard className="h-4 w-4" />
                                     Admin
@@ -80,9 +80,7 @@ export function Navbar() {
                         </Button>
                     )}
 
-                    <Button asChild size="sm" className="bg-gradient-to-r from-blue-600 to-pink-500 hover:opacity-90 transition-opacity">
-                        <Link href="/donate">Donate Now</Link>
-                    </Button>
+
                 </nav>
 
                 {/* Mobile Menu Toggle */}
@@ -127,9 +125,9 @@ export function Navbar() {
                                 <>
                                     <div className="flex items-center gap-2 px-2">
                                         <UserIcon className="h-4 w-4" />
-                                        <span className="text-sm font-medium">{user.name} ({user.role})</span>
+                                        <span className="text-sm font-medium">{user.name} ({(user.roles || []).join(", ")})</span>
                                     </div>
-                                    {(user.role === "admin" || user.role === "moderator") && (
+                                    {(user.roles?.includes("admin") || user.roles?.includes("moderator")) && (
                                         <Link href="/admin" className="flex items-center gap-2 text-sm font-medium hover:text-primary py-2 px-2">
                                             <LayoutDashboard className="h-4 w-4" />
                                             Admin Dashboard
@@ -146,9 +144,7 @@ export function Navbar() {
                                     Login / Register
                                 </Link>
                             )}
-                            <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-pink-500">
-                                <Link href="/donate">Donate Now</Link>
-                            </Button>
+
                         </nav>
                     </motion.div>
                 )}

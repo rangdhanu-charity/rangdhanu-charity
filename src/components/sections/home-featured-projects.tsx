@@ -8,7 +8,25 @@ import Link from "next/link";
 import { Section } from "@/components/layout/section";
 
 export function HomeFeaturedProjects() {
-    const { projects } = useData();
+    const { projects, isLoading } = useData();
+
+    if (isLoading) {
+        return (
+            <Section id="projects">
+                <div className="container px-4 md:px-6">
+                    <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                        <div className="space-y-2">
+                            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Our Projects</h2>
+                            <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                                Loading projects...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </Section>
+        );
+    }
+
     const featuredProjects = projects.slice(0, 3); // Show top 3
 
     return (

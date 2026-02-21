@@ -7,6 +7,9 @@ import { CookieConsent } from "@/components/common/cookie-consent";
 import { ThemeProvider } from "@/components/common/theme-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { DataProvider } from "@/lib/data-context";
+import { NotificationProvider } from "@/lib/notification-context";
+import { MessageProvider } from "@/lib/message-context";
+import { Toaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,21 +37,26 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col font-sans`}
       >
         <AuthProvider>
-          <DataProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <Navbar />
-              <main className="flex-1">
-                {children}
-              </main>
-              <Footer />
-              <CookieConsent />
-            </ThemeProvider>
-          </DataProvider>
+          <NotificationProvider>
+            <MessageProvider>
+              <DataProvider>
+                <ThemeProvider
+                  attribute="class"
+                  defaultTheme="system"
+                  enableSystem
+                  disableTransitionOnChange
+                >
+                  <Navbar />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <Footer />
+                  <CookieConsent />
+                  <Toaster />
+                </ThemeProvider>
+              </DataProvider>
+            </MessageProvider>
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>

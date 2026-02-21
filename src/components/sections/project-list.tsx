@@ -8,8 +8,11 @@ import Link from "next/link";
 import { Section } from "@/components/layout/section";
 
 export function ProjectList() {
-    const { projects } = useData();
+    const { projects, isLoading } = useData();
 
+    if (isLoading) {
+        return <div className="text-center py-12">Loading projects...</div>;
+    }
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (

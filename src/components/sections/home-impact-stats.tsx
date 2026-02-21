@@ -13,7 +13,7 @@ export function HomeImpactStats() {
                 {impactStats.map((stat, index) => {
                     const Icon = getIcon(stat.icon);
                     return (
-                        <div key={index} className="flex flex-col items-center gap-2 p-4">
+                        <div key={stat.id} className="flex flex-col items-center gap-2 p-4">
                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                                 <Icon className="h-6 w-6" />
                             </div>

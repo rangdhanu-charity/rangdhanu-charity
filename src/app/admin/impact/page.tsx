@@ -27,7 +27,7 @@ export default function ImpactStatsManager() {
     const handleSave = () => {
         setIsSaving(true);
         stats.forEach((stat, index) => {
-            updateImpactStat(index, stat.value);
+            updateImpactStat(stat.id, stat.value);
         });
         setTimeout(() => {
             setIsSaving(false);

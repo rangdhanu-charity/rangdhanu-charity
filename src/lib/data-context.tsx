@@ -18,13 +18,13 @@ interface DataContextType {
     projects: any[];
     testimonials: any[];
     teamMembers: any[];
-    impactStats: { label: string; value: string | number; icon: string }[];
+    impactStats: { id: string; label: string; value: string | number; icon: string }[];
     // Projects
     addProject: (project: any) => Promise<void>;
     updateProject: (id: string, updatedProject: any) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
     // Impact Stats (Keeping LocalStorage for now as it's simple config, or move to a 'settings' collection later if needed)
-    updateImpactStat: (index: number, value: string | number) => void;
+    updateImpactStat: (id: string, value: string | number) => void;
     // Testimonials
     addTestimonial: (testimonial: any) => Promise<void>;
     deleteTestimonial: (id: string) => Promise<void>;
@@ -40,7 +40,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [projects, setProjects] = useState<any[]>([]);
     const [testimonials, setTestimonials] = useState<any[]>([]);
     const [teamMembers, setTeamMembers] = useState<any[]>([]);
-    const [impactStats, setImpactStats] = useState<{ label: string; value: string | number; icon: string }[]>(DEFAULT_IMPACT_STATS);
+    const [impactStats, setImpactStats] = useState<{ id: string; label: string; value: string | number; icon: string }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Initialize/Sync Data
@@ -85,31 +85,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             setTeamMembers(DEFAULT_TEAM_MEMBERS);
         });
 
+        // Impact Stats Listener
+        const qStats = query(collection(db, "stats"));
+        const unsubStats = onSnapshot(qStats, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as { id: string; label: string; value: string | number; icon: string }));
+            // Sort by creation or label if needed, for consistency
+            setImpactStats(data.length > 0 ? data : DEFAULT_IMPACT_STATS.map((s, i) => ({ ...s, id: `default-${i}` })));
+        }, (error) => {
+            console.error("Error fetching stats:", error);
+            setImpactStats(DEFAULT_IMPACT_STATS.map((s, i) => ({ ...s, id: `default-${i}` })));
+        });
+
         setIsLoading(false);
 
         return () => {
             unsubProjects();
             unsubTestimonials();
             unsubTeam();
+            unsubStats();
         };
     }, []);
 
-    // Impact Stats typically might be in a 'settings' collection, but keeping local storage for now to reduce complexity 
-    // unless requested to be dynamic from DB too. 
-    // Let's migrate stats to a single doc in a 'settings' collection for proper real-time updates later if needed.
-    // For now, preserving existing local storage logic for stats to avoid breaking too much at once.
-    useEffect(() => {
-        const storedStats = localStorage.getItem("impactStats");
-        if (storedStats) {
-            try {
-                const parsed = JSON.parse(storedStats);
-                if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0].icon === "string") {
-                    setImpactStats(parsed);
-                }
-            } catch (e) { console.error(e); }
-        }
-    }, []);
-    useEffect(() => { localStorage.setItem("impactStats", JSON.stringify(impactStats)); }, [impactStats]);
+    // LocalStorage effect removed as we are now using Firestore
 
 
     // Project CRUD
@@ -136,11 +133,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    // Impact Stats CRUD (Local Only for now)
-    const updateImpactStat = (index: number, value: string | number) => {
-        const newStats = [...impactStats];
-        newStats[index] = { ...newStats[index], value };
-        setImpactStats(newStats);
+    // Impact Stats CRUD
+    const updateImpactStat = async (id: string, value: string | number) => {
+        try {
+            // Find the doc with this ID
+            await updateDoc(doc(db, "stats", id), { value });
+        } catch (e) {
+            console.error("Error updating stat: ", e);
+        }
     };
 
     // Testimonial CRUD

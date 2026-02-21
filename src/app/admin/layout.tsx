@@ -2,12 +2,17 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Heart, LayoutDashboard, FolderOpen, Users, LogOut, BarChart3, MessageSquareQuote } from "lucide-react";
+import { Heart, LayoutDashboard, FolderOpen, Users, LogOut, BarChart3, MessageSquareQuote, Trash2, Settings, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { FinanceProvider } from "@/lib/finance-context";
+import { SettingsProvider } from "@/lib/settings-context";
+import { Coins, PiggyBank, FileText } from "lucide-react";
 
 export default function AdminLayout({
     children,
@@ -18,22 +23,58 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
 
+    const [requestCount, setRequestCount] = useState(0);
+
     useEffect(() => {
         if (!isLoading) {
-            if (!user || (user.role !== "admin" && user.role !== "moderator")) {
+            if (!user || (!user.roles?.includes("admin") && !user.roles?.includes("moderator"))) {
                 router.push("/login");
             }
         }
     }, [user, isLoading, router]);
 
+
+
+    // Better approach: Direct Firestore listener for real-time updates
+    useEffect(() => {
+        if (user && (user.roles?.includes("admin") || user.roles?.includes("moderator"))) {
+            const q1 = query(collection(db, "registration_requests"), where("status", "==", "pending"));
+            const q2 = query(collection(db, "donation_requests"), where("status", "==", "pending"));
+
+            let regCount = 0;
+            let donationCount = 0;
+
+            const unsub1 = onSnapshot(q1, (snap) => {
+                regCount = snap.size;
+                setRequestCount(regCount + donationCount);
+            });
+
+            const unsub2 = onSnapshot(q2, (snap) => {
+                donationCount = snap.size;
+                setRequestCount(regCount + donationCount);
+            });
+
+            return () => {
+                unsub1();
+                unsub2();
+            };
+        }
+    }, [user]);
+
     if (isLoading) return <div className="p-8">Loading...</div>;
 
-    if (!user || (user.role !== "admin" && user.role !== "moderator")) return null;
+    if (!user || (!user.roles?.includes("admin") && !user.roles?.includes("moderator"))) return null;
 
     const sidebarItems = [
         { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+        { href: "/admin/collections", label: "Collections", icon: Coins },
+        { href: "/admin/finance", label: "Finance", icon: PiggyBank },
+        { href: "/admin/reports", label: "Reports", icon: FileText },
         { href: "/admin/projects", label: "Projects", icon: FolderOpen },
-        { href: "/admin/users", label: "Users", icon: Users },
+        { href: "/admin/users", label: "Members", icon: Users },
+        { href: "/admin/requests", label: "Requests", icon: MessageSquareQuote },
+        { href: "/admin/settings", label: "Settings", icon: Settings },
     ];
 
     return (
@@ -59,6 +100,11 @@ export default function AdminLayout({
                         >
                             <item.icon className="h-4 w-4" />
                             {item.label}
+                            {item.href === "/admin/requests" && requestCount > 0 && (
+                                <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+                                    {requestCount}
+                                </span>
+                            )}
                         </Link>
                     ))}
                     <Button
@@ -72,7 +118,11 @@ export default function AdminLayout({
                 </nav>
             </aside>
             <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-                {children}
+                <SettingsProvider>
+                    <FinanceProvider>
+                        {children}
+                    </FinanceProvider>
+                </SettingsProvider>
             </main>
         </div>
     );

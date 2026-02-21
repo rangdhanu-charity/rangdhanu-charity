@@ -9,9 +9,13 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 export function ProjectDetails() {
-    const { projects } = useData();
+    const { projects, isLoading } = useData();
     const params = useParams();
     const id = params.id as string;
+
+    if (isLoading) {
+        return <div className="container py-20 text-center">Loading project details...</div>;
+    }
 
     const project = projects.find((p) => p.id === id);
 
