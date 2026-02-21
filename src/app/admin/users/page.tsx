@@ -14,12 +14,15 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Plus, Search, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Calendar as CalendarIcon } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { RecycleService } from "@/lib/recycle-service";
+import { ActivityLogService } from "@/lib/activity-log-service";
+import { useSettings, SettingsProvider } from "@/lib/settings-context";
 import {
     Dialog,
     DialogContent,
@@ -45,10 +48,19 @@ interface User {
 }
 
 export default function UsersPage() {
+    return (
+        <SettingsProvider>
+            <UsersContent />
+        </SettingsProvider>
+    );
+}
+
+function UsersContent() {
     const [users, setUsers] = useState<User[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const { user: currentUser, adminUpdateUser } = useAuth();
+    const { settings } = useSettings();
     const { toast } = useToast();
 
     // Password Visibility State
@@ -90,8 +102,22 @@ export default function UsersPage() {
 
     // View Profile State
     const [viewingUser, setViewingUser] = useState<User | null>(null);
+    const [isProfileEditMode, setIsProfileEditMode] = useState(false);
+    const [profileEditForm, setProfileEditForm] = useState<Partial<User>>({});
     const [userPayments, setUserPayments] = useState<any[]>([]);
     const [loadingPayments, setLoadingPayments] = useState(false);
+
+    // Calendar Matrix States
+    const currentYear = new Date().getFullYear();
+    const availableYears = settings?.collectionYears || [currentYear];
+    const [selectedCalendarYear, setSelectedCalendarYear] = useState<number>(currentYear);
+
+    // Auto-select latest year when settings load
+    useEffect(() => {
+        if (settings?.collectionYears && settings.collectionYears.length > 0) {
+            setSelectedCalendarYear(Math.max(...settings.collectionYears));
+        }
+    }, [settings]);
 
     useEffect(() => {
         const q = query(collection(db, "users"));
@@ -239,6 +265,70 @@ export default function UsersPage() {
         }
     };
 
+    // Calendar logic helpers
+    const activeMonthsNum = settings?.collectionMonths?.[selectedCalendarYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const allMonths = [
+        { value: 1, label: "Jan" }, { value: 2, label: "Feb" }, { value: 3, label: "Mar" },
+        { value: 4, label: "Apr" }, { value: 5, label: "May" }, { value: 6, label: "Jun" },
+        { value: 7, label: "Jul" }, { value: 8, label: "Aug" }, { value: 9, label: "Sep" },
+        { value: 10, label: "Oct" }, { value: 11, label: "Nov" }, { value: 12, label: "Dec" }
+    ];
+    const activeMonths = allMonths.filter(m => activeMonthsNum.includes(m.value));
+
+    const getMonthlyStatus = (month: number, year: number) => {
+        const payment = userPayments.find((p: any) => p.type === "monthly" && p.month === month && p.year === year);
+        const currentDate = new Date();
+        const currentYearNum = currentDate.getFullYear();
+        const currentMonthNum = currentDate.getMonth() + 1;
+        const currentDayNum = currentDate.getDate();
+
+        if (payment) return { status: 'paid', payment };
+
+        if (year > currentYearNum || (year === currentYearNum && month > currentMonthNum)) {
+            return { status: 'future' };
+        }
+
+        if (year === currentYearNum && month === currentMonthNum) {
+            return currentDayNum <= 10 ? { status: 'due-yellow' } : { status: 'due-red' };
+        }
+
+        return { status: 'due-red' };
+    };
+
+    const handleProfileEditSave = async () => {
+        if (!viewingUser) return;
+        setIsLoading(true);
+        try {
+            await adminUpdateUser(viewingUser.id, profileEditForm);
+
+            // Log the activity
+            await ActivityLogService.logActivity(
+                currentUser?.id || 'unknown',
+                currentUser?.username || 'admin',
+                'update_user',
+                `Updated profile details for user ${viewingUser.username}`
+            );
+
+            toast({ title: "User Updated", description: "Profile details saved successfully." });
+
+            // Update the local viewingUser object so UI reflects instantly without needing another full snapshot round
+            setViewingUser({ ...viewingUser, ...profileEditForm } as User);
+            setIsProfileEditMode(false);
+
+            // Also update the main users list locally to be safe
+            setUsers(users.map(u => u.id === viewingUser.id ? { ...u, ...profileEditForm } as User : u));
+        } catch (error: any) {
+            console.error("Error updating user profile:", error);
+            toast({
+                title: "Update Failed",
+                description: error.message || "Failed to update profile.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const filteredUsers = users.filter(user =>
         user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -360,7 +450,10 @@ export default function UsersPage() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-2">
-                                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
+                                                        <Button variant="ghost" size="icon" onClick={() => {
+                                                            setViewingUser(user);
+                                                            handleEditClick(user);
+                                                        }}>
                                                             <Pencil className="h-4 w-4" />
                                                         </Button>
                                                         <Button
@@ -386,52 +479,270 @@ export default function UsersPage() {
 
             {/* View User Profile Dialog */}
             <Dialog open={!!viewingUser} onOpenChange={(open) => !open && setViewingUser(null)}>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Member Profile</DialogTitle>
-                        <DialogDescription>Details and financial history for {viewingUser?.name}</DialogDescription>
+                <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50 p-0 sm:p-6 gap-0 sm:gap-4">
+                    <DialogHeader className="p-6 sm:p-0 pb-0">
+                        <DialogTitle className="text-2xl">Member Profile</DialogTitle>
+                        <DialogDescription>Comprehensive dashboard for {viewingUser?.name}</DialogDescription>
                     </DialogHeader>
                     {viewingUser && (
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-md">
-                                <div><span className="font-semibold">Name:</span> {viewingUser.name}</div>
-                                <div><span className="font-semibold">Email:</span> {viewingUser.email}</div>
-                                <div><span className="font-semibold">Username:</span> {viewingUser.username}</div>
-                                <div><span className="font-semibold">Phone:</span> {viewingUser.phone || "N/A"}</div>
-                                <div><span className="font-semibold">Roles:</span> {viewingUser.roles?.join(", ")}</div>
-                                <div><span className="font-semibold">Joined:</span> {viewingUser.createdAt ? new Date(viewingUser.createdAt).toLocaleDateString() : "Unknown"}</div>
-                            </div>
+                        <div className="p-6 sm:p-0 space-y-6">
+                            {/* Top Section: Avatar & Quick Info */}
+                            <div className="flex flex-col md:flex-row gap-6 items-start">
+                                <Card className="flex-shrink-0 w-full md:w-1/3">
+                                    <CardContent className="pt-6 flex flex-col items-center text-center">
+                                        <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-xl mb-4">
+                                            <AvatarImage src={viewingUser.photoURL || ""} alt={viewingUser.name} />
+                                            <AvatarFallback className="text-4xl bg-primary/10 text-primary">
+                                                {viewingUser.name?.charAt(0) || "U"}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <h2 className="text-xl font-bold">{viewingUser.name}</h2>
+                                        <p className="text-sm text-muted-foreground mb-4">@{viewingUser.username}</p>
 
-                            <div>
-                                <h3 className="text-lg font-bold mb-2">Financial History</h3>
-                                {loadingPayments ? (
-                                    <div className="text-muted-foreground">Loading payments...</div>
-                                ) : userPayments.length === 0 ? (
-                                    <div className="text-muted-foreground">No payment history found.</div>
-                                ) : (
-                                    <div className="border rounded-md">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Date</TableHead>
-                                                    <TableHead>Type</TableHead>
-                                                    <TableHead>Amount</TableHead>
-                                                    <TableHead>Method</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {userPayments.map(p => (
-                                                    <TableRow key={p.id}>
-                                                        <TableCell>{p.date?.toDate ? new Date(p.date.toDate()).toLocaleDateString() : new Date(p.date).toLocaleDateString()}</TableCell>
-                                                        <TableCell className="capitalize">{p.type}</TableCell>
-                                                        <TableCell className="font-medium text-green-600">৳{p.amount}</TableCell>
-                                                        <TableCell className="capitalize">{p.method}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                )}
+                                        <div className="flex flex-wrap justify-center gap-1 mb-6">
+                                            {viewingUser.roles?.map((role) => (
+                                                <Badge key={role} variant={role === "admin" ? "default" : role === "moderator" ? "secondary" : "outline"} className="capitalize">
+                                                    {role}
+                                                </Badge>
+                                            ))}
+                                        </div>
+
+                                        {isProfileEditMode ? (
+                                            <div className="w-full space-y-3 text-sm text-left animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <div className="space-y-1">
+                                                    <Label htmlFor="edit-name" className="text-xs text-muted-foreground">Full Name</Label>
+                                                    <Input
+                                                        id="edit-name"
+                                                        value={profileEditForm.name || ""}
+                                                        onChange={(e) => setProfileEditForm({ ...profileEditForm, name: e.target.value })}
+                                                        className="h-8"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label htmlFor="edit-email" className="text-xs text-muted-foreground">Email</Label>
+                                                    <Input
+                                                        id="edit-email"
+                                                        type="email"
+                                                        value={profileEditForm.email || ""}
+                                                        onChange={(e) => setProfileEditForm({ ...profileEditForm, email: e.target.value })}
+                                                        className="h-8"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label htmlFor="edit-username" className="text-xs text-muted-foreground">Username</Label>
+                                                    <Input
+                                                        id="edit-username"
+                                                        value={profileEditForm.username || ""}
+                                                        onChange={(e) => setProfileEditForm({ ...profileEditForm, username: e.target.value })}
+                                                        className="h-8"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label htmlFor="edit-phone" className="text-xs text-muted-foreground">Phone</Label>
+                                                    <Input
+                                                        id="edit-phone"
+                                                        value={profileEditForm.phone || ""}
+                                                        onChange={(e) => setProfileEditForm({ ...profileEditForm, phone: e.target.value })}
+                                                        className="h-8"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label htmlFor="edit-role" className="text-xs text-muted-foreground">Primary Role</Label>
+                                                    <Select
+                                                        value={profileEditForm.roles?.[0] || "member"}
+                                                        onValueChange={(value) => setProfileEditForm({ ...profileEditForm, roles: [value] })}
+                                                    >
+                                                        <SelectTrigger className="h-8">
+                                                            <SelectValue placeholder="Select role" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="member">Member</SelectItem>
+                                                            <SelectItem value="moderator">Moderator</SelectItem>
+                                                            <SelectItem value="admin">Admin</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <div className="flex gap-2 pt-2">
+                                                    <Button className="w-full flex-1" size="sm" onClick={handleSaveUser} disabled={isSaving}>
+                                                        {isSaving ? "Saving..." : "Save Changes"}
+                                                    </Button>
+                                                    <Button className="w-full flex-1" variant="outline" size="sm" onClick={() => setIsProfileEditMode(false)}>
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="w-full space-y-2 text-sm text-left">
+                                                    <div className="flex justify-between pb-2 border-b">
+                                                        <span className="text-muted-foreground">Email</span>
+                                                        <span className="font-medium truncate ml-4" title={viewingUser.email}>{viewingUser.email}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pb-2 border-b">
+                                                        <span className="text-muted-foreground">Phone</span>
+                                                        <span className="font-medium">{viewingUser.phone || "N/A"}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pb-2">
+                                                        <span className="text-muted-foreground">Joined</span>
+                                                        <span className="font-medium">
+                                                            {viewingUser.createdAt ? new Date(viewingUser.createdAt?.toDate ? viewingUser.createdAt.toDate() : viewingUser.createdAt).toLocaleDateString() : "Unknown"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <Button className="w-full mt-6" variant="outline" onClick={() => {
+                                                    setEditingUser(viewingUser);
+                                                    setEditForm({
+                                                        ...viewingUser,
+                                                        roles: viewingUser.roles || ["member"]
+                                                    });
+                                                    setIsProfileEditMode(true);
+                                                }}>
+                                                    <Pencil className="mr-2 h-4 w-4" /> Edit Profile Details
+                                                </Button>
+                                            </>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                <div className="flex-1 w-full space-y-6">
+                                    {/* Financial Summary */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">Financial Summary</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {(() => {
+                                                const totalContributed = userPayments.reduce((sum, item) => sum + Number(item.amount), 0);
+                                                const paidMonthsCount = new Set(userPayments.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`)).size;
+
+                                                let totalPassedMonths = 0;
+                                                const currentMonth = new Date().getMonth() + 1;
+                                                const currentYearNum = new Date().getFullYear();
+
+                                                if (settings?.collectionYears) {
+                                                    settings.collectionYears.forEach((year: number) => {
+                                                        const activeM = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                        if (year < currentYearNum) {
+                                                            totalPassedMonths += activeM.length;
+                                                        } else if (year === currentYearNum) {
+                                                            totalPassedMonths += activeM.filter((m: number) => m <= currentMonth).length;
+                                                        }
+                                                    });
+                                                }
+                                                const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
+
+                                                return (
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/10 flex flex-col items-center text-center justify-center">
+                                                            <span className="text-sm text-muted-foreground mb-1">Total Donated</span>
+                                                            <span className="text-2xl font-bold text-primary">৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col items-center text-center justify-center">
+                                                            <span className="text-sm text-muted-foreground mb-1">Months Paid</span>
+                                                            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{loadingPayments ? "..." : paidMonthsCount}</span>
+                                                        </div>
+                                                        <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-800 flex flex-col items-center text-center justify-center">
+                                                            <span className="text-sm text-muted-foreground mb-1">Months Due</span>
+                                                            <span className="text-2xl font-bold text-red-600 dark:text-red-400">{loadingPayments ? "..." : monthsDue}</span>
+                                                        </div>
+                                                        <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-lg border flex flex-col items-center text-center justify-center">
+                                                            <span className="text-sm text-muted-foreground mb-1">Total Active Months</span>
+                                                            <span className="text-2xl font-bold">{loadingPayments ? "..." : totalPassedMonths}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Annual Collection Calendar */}
+                                    <Card className="border-t-4 border-t-primary/20 shadow-sm">
+                                        <CardHeader className="pb-3">
+                                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                                                <div>
+                                                    <CardTitle className="text-lg flex items-center gap-2">
+                                                        <CalendarIcon className="h-5 w-5 text-primary" /> Collection Matrix
+                                                    </CardTitle>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium">Year:</span>
+                                                    <Select
+                                                        value={selectedCalendarYear.toString()}
+                                                        onValueChange={(v) => setSelectedCalendarYear(Number(v))}
+                                                    >
+                                                        <SelectTrigger className="w-[100px] h-9 bg-background">
+                                                            <SelectValue placeholder="Year" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {availableYears.map((y: number) => (
+                                                                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-4">
+                                                {(!settings?.collectionYears?.includes(selectedCalendarYear) || activeMonths.length === 0) ? (
+                                                    <div className="text-center py-6 text-muted-foreground col-span-full border-2 border-dashed rounded-lg">
+                                                        No collections active for this year.
+                                                    </div>
+                                                ) : (
+                                                    activeMonths.map((month) => {
+                                                        const statusData = getMonthlyStatus(month.value, selectedCalendarYear);
+
+                                                        let bgClass = "bg-background border-dashed opacity-60";
+                                                        let textClass = "text-muted-foreground";
+                                                        let valueDisplay = null;
+
+                                                        if (statusData.status === 'paid') {
+                                                            bgClass = "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800 border-solid";
+                                                            textClass = "text-green-700 dark:text-green-400 font-bold";
+                                                            valueDisplay = `৳${statusData.payment?.amount || 0}`;
+                                                        } else if (statusData.status === 'due-yellow') {
+                                                            bgClass = "bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800 border-solid";
+                                                            textClass = "text-yellow-700 dark:text-yellow-400 font-medium";
+                                                            valueDisplay = "Due";
+                                                        } else if (statusData.status === 'due-red') {
+                                                            bgClass = "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 border-solid";
+                                                            textClass = "text-red-700 dark:text-red-400 font-medium";
+                                                            valueDisplay = "Overdue";
+                                                        }
+
+                                                        return (
+                                                            <div key={month.value} className={`flex flex-col justify-center items-center p-2 rounded-md transition-all border ${bgClass}`}>
+                                                                <span className={`text-xs tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
+                                                                <span className={`text-xs mt-0.5 ${textClass}`}>
+                                                                    {valueDisplay || "-"}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+
+                                            {/* Setup Legend */}
+                                            <div className="flex flex-wrap items-center justify-center gap-4 pt-3 border-t text-xs">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                                                    <span className="text-muted-foreground">Paid</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
+                                                    <span className="text-muted-foreground">Due</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                                                    <span className="text-muted-foreground">Overdue</span>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                </div>
                             </div>
                         </div>
                     )}

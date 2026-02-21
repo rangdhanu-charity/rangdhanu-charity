@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, AlertTriangle, FileJson, Trash2, RotateCcw, Trash } from "lucide-react";
+import { Download, Upload, AlertTriangle, FileJson, Trash2, RotateCcw, Trash, Activity, FileText, FileSpreadsheet } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,13 +25,17 @@ export default function SettingsPage() {
     const [recycleLoading, setRecycleLoading] = useState(true);
     const [recycleCategory, setRecycleCategory] = useState<string>("all");
 
-    // --- RECYCLE BIN EFFECT ---
+    // --- ACTIVITY LOGS STATE ---
+    const [activityLogs, setActivityLogs] = useState<any[]>([]);
+    const [logsLoading, setLogsLoading] = useState(true);
+
+    // --- EFFECTS ---
     useEffect(() => {
         setRecycleLoading(true);
         RecycleService.cleanupOldItems().catch(console.error);
 
         const q = query(collection(db, "recycle_bin"), orderBy("deletedAt", "desc"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribeRecycle = onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as RecycleItem[];
             setDeletedItems(items);
             setRecycleLoading(false);
@@ -41,7 +45,21 @@ export default function SettingsPage() {
             setRecycleLoading(false);
         });
 
-        return () => unsubscribe();
+        const logsQ = query(collection(db, "activity_logs"), orderBy("createdAt", "desc"));
+        const unsubscribeLogs = onSnapshot(logsQ, (snapshot) => {
+            const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setActivityLogs(logs);
+            setLogsLoading(false);
+        }, (error) => {
+            console.error("Error fetching activity logs:", error);
+            toast({ title: "Error", description: "Failed to load activity logs.", variant: "destructive" });
+            setLogsLoading(false);
+        });
+
+        return () => {
+            unsubscribeRecycle();
+            unsubscribeLogs();
+        };
     }, []);
 
     const filteredItems = deletedItems.filter(item => {
@@ -177,9 +195,10 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
 
             <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+                <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
                     <TabsTrigger value="general">General</TabsTrigger>
                     <TabsTrigger value="recycle">Recycle Bin</TabsTrigger>
+                    <TabsTrigger value="activity">Activity Logs</TabsTrigger>
                 </TabsList>
 
                 {/* --- GENERAL TAB --- */}
@@ -241,42 +260,40 @@ export default function SettingsPage() {
                             </CardContent>
                         </Card>
                     </div>
-                    {/* EXPORT DATA */}
-                    <Card>
+
+                    {/* EXPORT CENTER */}
+                    <Card className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-primary/20 mt-6">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileJson className="h-5 w-5" /> Export Data
+                            <CardTitle className="text-xl flex items-center gap-2">
+                                <Download className="h-5 w-5 text-primary" /> Report Export Center
                             </CardTitle>
-                            <CardDescription>
-                                Export financial reports and member records in PDF or Excel.
-                            </CardDescription>
+                            <CardDescription>Generate beautifully formatted PDF and Excel reports for offline analysis and record-keeping.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <Button variant="outline" onClick={async () => {
-                                    const { ExportService } = await import("@/lib/export-service");
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={async () => {
                                     const { getDocs, collection } = await import("firebase/firestore");
                                     const { db } = await import("@/lib/firebase");
+                                    const { ExportService } = await import("@/lib/export-service");
 
-                                    // Fetch Data
                                     const paymentsSnap = await getDocs(collection(db, "payments"));
-                                    const expensesSnap = await getDocs(collection(db, "expenses"));
-
                                     const payments = paymentsSnap.docs.map(d => d.data());
+
+                                    const expensesSnap = await getDocs(collection(db, "expenses"));
                                     const expenses = expensesSnap.docs.map(d => d.data());
 
                                     const totalIncome = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
                                     const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
                                     const combinedData = [
-                                        ...payments.map(p => ({
+                                        ...payments.map((p: any) => ({
                                             date: format(p.date?.toDate ? p.date.toDate() : new Date(p.date), "yyyy-MM-dd"),
                                             description: `Income: ${p.memberName} (${p.type})`,
                                             type: 'Income',
                                             amount: p.amount,
                                             status: 'Completed'
                                         })),
-                                        ...expenses.map(e => ({
+                                        ...expenses.map((e: any) => ({
                                             date: format(e.date?.toDate ? e.date.toDate() : new Date(e.date), "yyyy-MM-dd"),
                                             description: `Expense: ${e.title}`,
                                             type: 'Expense',
@@ -290,20 +307,21 @@ export default function SettingsPage() {
                                         expenses: totalExpenses,
                                         balance: totalIncome - totalExpenses
                                     });
-                                    toast({ title: "Exported", description: "Financial Summary PDF downloaded." });
+                                    toast({ title: "Exported", description: "Financial Summary PDF generated." });
                                 }}>
-                                    <Download className="h-4 w-4 mr-2" /> Summary PDF
+                                    <FileText className="h-6 w-6 text-blue-600" />
+                                    <span className="font-medium">Financial Summary (PDF)</span>
                                 </Button>
 
-                                <Button variant="outline" onClick={async () => {
-                                    const { ExportService } = await import("@/lib/export-service");
+                                <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={async () => {
                                     const { getDocs, collection } = await import("firebase/firestore");
                                     const { db } = await import("@/lib/firebase");
+                                    const { ExportService } = await import("@/lib/export-service");
 
                                     const usersSnap = await getDocs(collection(db, "users"));
-                                    const paymentsSnap = await getDocs(collection(db, "payments"));
-
                                     const users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                                    const paymentsSnap = await getDocs(collection(db, "payments"));
                                     const payments = paymentsSnap.docs.map(d => {
                                         const data = d.data();
                                         return {
@@ -313,98 +331,33 @@ export default function SettingsPage() {
                                     });
 
                                     ExportService.exportMemberRecordsPDF(users, payments);
-                                    toast({ title: "Exported", description: "Member Records PDF downloaded." });
+                                    toast({ title: "Exported", description: "Member Detailed Records PDF generated." });
                                 }}>
-                                    <Download className="h-4 w-4 mr-2" /> Member Records PDF
+                                    <FileText className="h-6 w-6 text-green-600" />
+                                    <span className="font-medium">Member Records (PDF)</span>
+                                </Button>
+
+                                <Button variant="outline" className="h-24 flex flex-col items-center justify-center gap-2 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20" onClick={async () => {
+                                    const { getDocs, getDoc, doc, collection } = await import("firebase/firestore");
+                                    const { db } = await import("@/lib/firebase");
+                                    const { ExportService } = await import("@/lib/export-service");
+
+                                    const usersSnap = await getDocs(collection(db, "users"));
+                                    const users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                                    const paymentsSnap = await getDocs(collection(db, "payments"));
+                                    const payments = paymentsSnap.docs.map(d => d.data());
+
+                                    const settingsSnap = await getDoc(doc(db, "system_settings", "general"));
+                                    const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+
+                                    ExportService.exportCollectionMatrixExcel(users, payments, settings);
+                                    toast({ title: "Exported", description: "Collection Matrix Excel generated." });
+                                }}>
+                                    <FileSpreadsheet className="h-6 w-6 text-purple-600" />
+                                    <span className="font-medium">Collection Matrix (Excel)</span>
                                 </Button>
                             </div>
-                            <Button variant="outline" onClick={async () => {
-                                const { ExportService } = await import("@/lib/export-service");
-                                const { getDocs, collection } = await import("firebase/firestore");
-                                const { db } = await import("@/lib/firebase");
-
-                                // Fetch Data
-                                const paymentsSnap = await getDocs(collection(db, "payments"));
-                                const expensesSnap = await getDocs(collection(db, "expenses"));
-
-                                const payments = paymentsSnap.docs.map(d => d.data());
-                                const expenses = expensesSnap.docs.map(d => d.data());
-
-                                const combinedData = [
-                                    ...payments.map(p => ({
-                                        Date: format(p.date?.toDate ? p.date.toDate() : new Date(p.date), "yyyy-MM-dd"),
-                                        'Transaction ID': p.transactionId || '-',
-                                        Description: `Income: ${p.memberName} (${p.type})`,
-                                        Type: 'Income',
-                                        Amount: p.amount,
-                                        Status: 'Completed'
-                                    })),
-                                    ...expenses.map(e => ({
-                                        Date: format(e.date?.toDate ? e.date.toDate() : new Date(e.date), "yyyy-MM-dd"),
-                                        'Transaction ID': '-',
-                                        Description: `Expense: ${e.title}`,
-                                        Type: 'Expense',
-                                        Amount: -Number(e.amount),
-                                        Status: 'Completed'
-                                    }))
-                                ].sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
-
-                                ExportService.exportToExcel(combinedData, "Financial_Summary");
-                                toast({ title: "Exported", description: "Financial Summary Excel downloaded." });
-                            }}>
-                                <FileJson className="h-4 w-4 mr-2" /> Summary Excel
-                            </Button>
-
-                            <Button variant="outline" onClick={async () => {
-                                const { ExportService } = await import("@/lib/export-service");
-                                const { getDocs, collection } = await import("firebase/firestore");
-                                const { db } = await import("@/lib/firebase");
-
-                                const usersSnap = await getDocs(collection(db, "users"));
-                                const paymentsSnap = await getDocs(collection(db, "payments"));
-
-                                const users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                                const payments = paymentsSnap.docs.map(d => {
-                                    const data = d.data();
-                                    return {
-                                        ...data,
-                                        date: data.date?.toDate ? data.date.toDate() : new Date(data.date)
-                                    };
-                                });
-
-                                // Prepare flat data for Excel
-                                const flatData: any[] = [];
-                                users.forEach((u: any) => {
-                                    const userPayments = payments.filter((p: any) => p.userId === u.id);
-                                    if (userPayments.length === 0) {
-                                        flatData.push({
-                                            Member: u.name || u.username,
-                                            Email: u.email,
-                                            Phone: u.phone,
-                                            Type: "No Payments",
-                                            Amount: 0,
-                                            Date: "-"
-                                        });
-                                    } else {
-                                        userPayments.forEach((p: any) => {
-                                            flatData.push({
-                                                Member: u.name || u.username,
-                                                Email: u.email,
-                                                Phone: u.phone,
-                                                Type: p.type,
-                                                Amount: p.amount,
-                                                Date: format(p.date, "yyyy-MM-dd"),
-                                                Notes: p.notes || ""
-                                            });
-                                        });
-                                    }
-                                });
-
-                                ExportService.exportToExcel(flatData, "Member_Records");
-                                toast({ title: "Exported", description: "Member Records Excel downloaded." });
-                            }}>
-                                <FileJson className="h-4 w-4 mr-2" /> Member Records Excel
-                            </Button>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -480,6 +433,52 @@ export default function SettingsPage() {
                                                             <Trash2 className="h-4 w-4 mr-2" /> Delete
                                                         </Button>
                                                     </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* --- ACTIVITY LOGS TAB --- */}
+                <TabsContent value="activity" className="space-y-6 mt-6">
+                    <div>
+                        <h2 className="text-xl font-bold tracking-tight">Activity Logs</h2>
+                        <p className="text-muted-foreground">Monitor recent admin actions across the system (Last 100 entries).</p>
+                    </div>
+
+                    <Card>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date & Time</TableHead>
+                                        <TableHead>Admin</TableHead>
+                                        <TableHead>Action</TableHead>
+                                        <TableHead>Details</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {logsLoading ? (
+                                        <TableRow><TableCell colSpan={4} className="text-center h-24">Loading...</TableCell></TableRow>
+                                    ) : activityLogs.length === 0 ? (
+                                        <TableRow><TableCell colSpan={4} className="text-center h-24 text-muted-foreground">No activity logs recorded yet.</TableCell></TableRow>
+                                    ) : (
+                                        activityLogs.map(log => {
+                                            const logDate = log.createdAt?.toDate ? log.createdAt.toDate() : new Date();
+                                            return (
+                                                <TableRow key={log.id}>
+                                                    <TableCell className="whitespace-nowrap">{format(logDate, "MMM d, yyyy - HH:mm")}</TableCell>
+                                                    <TableCell className="font-medium">{log.adminName}</TableCell>
+                                                    <TableCell>
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground">
+                                                            {log.action}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground">{log.details}</TableCell>
                                                 </TableRow>
                                             );
                                         })

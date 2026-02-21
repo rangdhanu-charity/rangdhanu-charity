@@ -19,9 +19,10 @@ import { User as UserIcon } from "lucide-react";
 import { format } from "date-fns";
 import { collection, query, orderBy, getDocs, onSnapshot, addDoc, updateDoc, doc, Timestamp, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { ActivityLogService } from "@/lib/activity-log-service";
 
 export default function RequestsPage() {
-    const { getRegistrationRequests, approveRegistrationRequest, rejectRegistrationRequest } = useAuth();
+    const { user, getRegistrationRequests, approveRegistrationRequest, rejectRegistrationRequest } = useAuth();
     const { sendNotification } = useNotifications();
     const [requests, setRequests] = useState<any[]>([]);
     const [donationRequests, setDonationRequests] = useState<any[]>([]);
@@ -137,6 +138,9 @@ export default function RequestsPage() {
         });
 
         if (result.success) {
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Approve Registration", `Approved user registration for ${request.name}`);
+            }
             toast({
                 title: "Request Approved",
                 description: `User ${request.name} has been approved.`,
@@ -157,6 +161,9 @@ export default function RequestsPage() {
 
         const result = await rejectRegistrationRequest(requestId);
         if (result.success) {
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Reject Registration", `Rejected user registration for request ID ${requestId}`);
+            }
             toast({
                 title: "Request Rejected",
                 description: "The registration request has been rejected.",
@@ -232,8 +239,17 @@ export default function RequestsPage() {
                         const existingAmount = Number(existingDoc.data().amount) || 0;
                         await updateDoc(doc(db, "payments", existingDoc.id), {
                             amount: existingAmount + amountToAdd,
-                            updatedAt: Timestamp.now()
+                            updatedAt: Timestamp.now(),
+                            hiddenFromProfile: false
                         });
+
+                        // Clean up any duplicates
+                        if (snap.docs.length > 1) {
+                            const { deleteDoc } = await import("firebase/firestore");
+                            for (let i = 1; i < snap.docs.length; i++) {
+                                await deleteDoc(doc(db, "payments", snap.docs[i].id));
+                            }
+                        }
                     } else {
                         await addDoc(collection(db, "payments"), {
                             amount: amountToAdd,
@@ -246,7 +262,8 @@ export default function RequestsPage() {
                             method: request.method,
                             notes: request.notes,
                             transactionId: request.transactionId || "",
-                            createdAt: Timestamp.now()
+                            createdAt: Timestamp.now(),
+                            hiddenFromProfile: false
                         });
                     }
                 } else {
@@ -260,7 +277,8 @@ export default function RequestsPage() {
                         method: request.method,
                         notes: request.notes,
                         transactionId: request.transactionId || "",
-                        createdAt: Timestamp.now()
+                        createdAt: Timestamp.now(),
+                        hiddenFromProfile: false
                     });
                 }
             }
@@ -270,6 +288,10 @@ export default function RequestsPage() {
                 status: "approved",
                 approvedAt: Timestamp.now()
             });
+
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Approve Donation", `Approved ${request.type} donation of ৳${request.amount} from ${request.userName}`);
+            }
 
             await addDoc(collection(db, "notifications"), {
                 userId: request.userId,
@@ -352,6 +374,10 @@ export default function RequestsPage() {
             const { updateDoc, doc } = await import("firebase/firestore");
             const { db } = await import("@/lib/firebase");
             await updateDoc(doc(db, "donation_requests", requestId), { status: "rejected" });
+
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Reject Donation", `Rejected donation request ID ${requestId} from user ID ${userId}`);
+            }
 
             await sendNotification(
                 userId,

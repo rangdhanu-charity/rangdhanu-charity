@@ -44,6 +44,9 @@ export const ExportService = {
                 item.amount,
                 item.status || '-'
             ]),
+            styles: { fontSize: 9, cellPadding: 4 },
+            headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255] },
+            alternateRowStyles: { fillColor: [245, 245, 245] }
         });
 
         doc.save(`${title.replace(/\s+/g, '_').toLowerCase()}.pdf`);
@@ -81,9 +84,49 @@ export const ExportService = {
                     p.amount,
                     p.notes || '-'
                 ]),
+                styles: { fontSize: 9, cellPadding: 4 },
+                headStyles: { fillColor: [46, 204, 113], textColor: [255, 255, 255] },
+                alternateRowStyles: { fillColor: [245, 245, 245] }
             });
         });
 
         doc.save("member_financial_records.pdf");
+    },
+
+    exportCollectionMatrixExcel: (users: any[], payments: any[], settings: any) => {
+        const data: any[] = [];
+        const currentYear = new Date().getFullYear();
+        const years = settings?.collectionYears || [currentYear];
+
+        users.forEach(user => {
+            const row: any = {
+                Name: user.name || user.username,
+                Email: user.email,
+                Phone: user.phone || '-'
+            };
+
+            years.forEach((yr: number) => {
+                const months = settings?.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                months.forEach((m: number) => {
+                    const monthName = new Date(0, m - 1).toLocaleString('default', { month: 'short' });
+                    // Handle duplicate payments natively by reducing
+                    const monthPayments = payments.filter(p => p.userId === user.id && p.type === 'monthly' && p.year === yr && p.month === m);
+                    const amountPaid = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+                    const targetAmount = settings?.donationAmount || 500;
+
+                    if (amountPaid >= targetAmount) {
+                        row[`${monthName} ${yr}`] = "Paid";
+                    } else if (amountPaid > 0) {
+                        row[`${monthName} ${yr}`] = `Partial (${amountPaid})`;
+                    } else {
+                        row[`${monthName} ${yr}`] = "Due";
+                    }
+                });
+            });
+
+            data.push(row);
+        });
+
+        ExportService.exportToExcel(data, "Collection_Matrix", "Matrix");
     }
 };

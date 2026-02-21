@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, query, where, getDocs, updateDoc, doc, addDoc, getDoc, setDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { ActivityLogService } from "@/lib/activity-log-service";
 
 // Roles can be 'admin', 'moderator', 'member'
 type UserRole = "admin" | "moderator" | "member";
@@ -142,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                     setUser(authenticatedUser);
                     sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
+                    ActivityLogService.logActivity(authenticatedUser.id, authenticatedUser.name || authenticatedUser.username, "Login", "Admin logged in");
                     router.push("/admin");
                     setIsLoading(false);
                     return { success: true };
@@ -196,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                         setUser(authenticatedUser);
                         sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
+                        ActivityLogService.logActivity(authenticatedUser.id, authenticatedUser.name || authenticatedUser.username, "Login", "Admin logged in via recovery");
                         router.push("/admin");
                         setIsLoading(false);
                         return { success: true };
@@ -621,6 +624,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const logout = () => {
+        if (user && (user.roles.includes("admin") || user.roles.includes("moderator"))) {
+            ActivityLogService.logActivity(user.id, user.name || user.username, "Logout", "Admin logged out");
+        }
         setUser(null);
         sessionStorage.removeItem("auth_user");
         router.push("/login");

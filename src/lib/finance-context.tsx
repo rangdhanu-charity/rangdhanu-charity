@@ -5,6 +5,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { RecycleService } from "@/lib/recycle-service";
+import { ActivityLogService } from "@/lib/activity-log-service";
 import { toast } from "@/hooks/use-toast";
 
 // Types
@@ -126,6 +127,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                 createdAt: Timestamp.now()
             });
 
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Add Payment", `Recorded payment of ৳${data.amount} for ${data.memberName}`);
+            }
+
             toast({ title: "Success", description: "Payment recorded successfully." });
             return { success: true };
         } catch (error: any) {
@@ -142,6 +147,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             if (data.date) updateData.date = Timestamp.fromDate(data.date);
             await updateDoc(docRef, updateData);
 
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Update Payment", `Updated payment ID ${id} (new amount: ৳${data.amount || 'no change'})`);
+            }
+
             toast({ title: "Success", description: "Payment updated." });
             return { success: true };
         } catch (error: any) {
@@ -156,6 +165,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             const payment = payments.find(p => p.id === id); // Find payment before soft deleting
 
             await RecycleService.softDelete("payments", id, "payment", name, user?.username || "admin", additionalData);
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Delete Payment", `Removed payment ID ${id} (${name})`);
+            }
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -170,6 +182,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                 createdAt: Timestamp.now(),
                 recordedBy: user?.username || "Admin"
             });
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Add Expense", `Recorded expense of ৳${data.amount} for ${data.title}`);
+            }
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -179,6 +194,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const deleteExpense = async (id: string, name: string = "Expense") => {
         try {
             await RecycleService.softDelete("expenses", id, "other", name, user?.username || "admin");
+            if (user) {
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Delete Expense", `Removed expense ID ${id} (${name})`);
+            }
             // await deleteDoc(doc(db, "expenses", id));
             return { success: true };
         } catch (error: any) {

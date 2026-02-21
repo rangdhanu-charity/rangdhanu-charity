@@ -188,14 +188,17 @@ export default function CollectionsPage() {
     // --- Helper Functions ---
 
     const getCellStatus = (userId: string, col: ColumnConfig) => {
-        const payment = payments.find(p =>
+        const monthPayments = payments.filter(p =>
             p.userId === userId &&
             p.type === 'monthly' &&
             p.month === col.month &&
             p.year === col.year
         );
 
-        if (payment) return { status: 'paid', payment };
+        if (monthPayments.length > 0) {
+            const totalAmount = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+            return { status: 'paid', payment: { ...monthPayments[0], amount: totalAmount } };
+        }
 
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
@@ -215,13 +218,15 @@ export default function CollectionsPage() {
     // Row Total (Total for selected year)
     const getUserRowTotal = (userId: string) => {
         return visibleColumns.reduce((sum, col) => {
-            const payment = payments.find(p =>
-                p.userId === userId &&
-                p.type === 'monthly' &&
-                p.month === col.month &&
-                p.year === col.year
-            );
-            return sum + (payment ? Number(payment.amount) : 0);
+            const totalForMonth = payments
+                .filter(p =>
+                    p.userId === userId &&
+                    p.type === 'monthly' &&
+                    p.month === col.month &&
+                    p.year === col.year
+                )
+                .reduce((s, p) => s + Number(p.amount), 0);
+            return sum + totalForMonth;
         }, 0);
     };
 
@@ -245,13 +250,21 @@ export default function CollectionsPage() {
         const col = allColumns.find(c => c.id === colId);
         if (!col) return;
 
-        const status = getCellStatus(userId, col);
-        const { addDoc, collection } = await import("firebase/firestore");
+        const monthPayments = payments.filter(p =>
+            p.userId === userId &&
+            p.type === 'monthly' &&
+            p.month === col.month &&
+            p.year === col.year
+        );
+
+        const { addDoc, collection, Timestamp } = await import("firebase/firestore");
 
         if (!editValue || editValue.trim() === "" || Number(editValue) === 0) {
-            if (status.payment) {
-                const memberName = users.find(u => u.id === status.payment?.userId)?.name || "Member";
-                await deletePayment(status.payment.id, `Monthly: ${memberName} (${col.label} ${col.year})`);
+            if (monthPayments.length > 0) {
+                const memberName = users.find(u => u.id === userId)?.name || "Member";
+                for (const p of monthPayments) {
+                    await deletePayment(p.id, `Monthly: ${memberName} (${col.label} ${col.year})`);
+                }
                 await addDoc(collection(db, "notifications"), {
                     userId,
                     title: "Payment Removed",
@@ -264,9 +277,13 @@ export default function CollectionsPage() {
             }
         } else {
             const amount = Number(editValue);
-            if (status.payment) {
-                if (Number(status.payment.amount) !== amount) {
-                    await updatePayment(status.payment.id, { amount });
+            if (monthPayments.length > 0) {
+                const currentTotal = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+                if (currentTotal !== amount) {
+                    await updatePayment(monthPayments[0].id, { amount, hiddenFromProfile: false } as any);
+                    for (let i = 1; i < monthPayments.length; i++) {
+                        await deletePayment(monthPayments[i].id, `Duplicate cleanup`);
+                    }
                     await addDoc(collection(db, "notifications"), {
                         userId,
                         title: "Payment Updated",
@@ -286,8 +303,9 @@ export default function CollectionsPage() {
                     type: "monthly",
                     month: col.month,
                     year: col.year,
-                    notes: "Inline entry"
-                });
+                    notes: "Inline entry",
+                    hiddenFromProfile: false
+                } as any);
                 await addDoc(collection(db, "notifications"), {
                     userId,
                     title: "Payment Added",
@@ -296,6 +314,7 @@ export default function CollectionsPage() {
                     read: false,
                     createdAt: Timestamp.now()
                 });
+                toast({ title: "Saved", description: "New payment recorded." });
             }
         }
         setEditingCell(null);
@@ -415,47 +434,64 @@ export default function CollectionsPage() {
         e.preventDefault();
         if (!selectedMemberSummary) return;
 
-        const totalAmount = Number(multiMonthFormData.amount) || 0;
+        let totalAmount = Number(multiMonthFormData.amount) || 0;
         const allocatedSum = multiMonthFormData.months.reduce((sum, m) => sum + (Number(multiMonthFormData.allocations[m]) || 0), 0);
 
         if (multiMonthFormData.months.length === 0) {
             toast({ title: "Error", description: "Please select at least one active month.", variant: "destructive" });
             return;
         }
-        if (multiMonthFormData.months.length > 1 && allocatedSum > totalAmount) {
+
+        let allocationsToSave = { ...multiMonthFormData.allocations };
+
+        // Auto-distribute if total amount provided but not allocated per month
+        if (totalAmount > 0 && allocatedSum === 0) {
+            const amountPerMonth = totalAmount / multiMonthFormData.months.length;
+            multiMonthFormData.months.forEach(m => {
+                allocationsToSave[m] = amountPerMonth.toString();
+            });
+        }
+
+        const finalAllocatedSum = multiMonthFormData.months.reduce((sum, m) => sum + (Number(allocationsToSave[m]) || 0), 0);
+
+        if (finalAllocatedSum === 0) {
+            toast({ title: "Error", description: "Please enter the amount for the selected months.", variant: "destructive" });
+            return;
+        }
+
+        if (totalAmount > 0 && Math.round(finalAllocatedSum) > Math.round(totalAmount)) {
             toast({ title: "Error", description: "Distributed amounts cannot exceed total amount.", variant: "destructive" });
             return;
         }
 
         try {
             const { addDoc, collection } = await import("firebase/firestore");
-            let allocationsToSave = {} as Record<number, string>;
-
-            if (multiMonthFormData.months.length === 1) {
-                allocationsToSave = { [multiMonthFormData.months[0]]: multiMonthFormData.amount };
-            } else {
-                allocationsToSave = multiMonthFormData.allocations;
-            }
 
             for (const month of multiMonthFormData.months) {
                 const monthAmount = Number(allocationsToSave[month]) || 0;
                 if (monthAmount <= 0) continue;
 
                 // Check for existing monthly payment for this user, year, and month
-                const existingPayment = payments.find(p =>
+                const monthPayments = payments.filter(p =>
                     p.userId === selectedMemberSummary.id &&
                     p.type === 'monthly' &&
                     p.month === month &&
                     p.year === Number(multiMonthFormData.year)
                 );
 
-                if (existingPayment) {
-                    await updatePayment(existingPayment.id, {
-                        amount: Number(existingPayment.amount) + monthAmount,
-                        notes: existingPayment.notes
-                            ? `${existingPayment.notes} | ${multiMonthFormData.notes || 'Admin added more'}`
-                            : (multiMonthFormData.notes || `Admin added more`)
-                    });
+                if (monthPayments.length > 0) {
+                    const currentTotal = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+                    await updatePayment(monthPayments[0].id, {
+                        amount: currentTotal + monthAmount,
+                        hiddenFromProfile: false,
+                        notes: monthPayments[0].notes
+                            ? `${monthPayments[0].notes} | Admin added directly`
+                            : `Admin added directly`
+                    } as any);
+
+                    for (let i = 1; i < monthPayments.length; i++) {
+                        await deletePayment(monthPayments[i].id, `Duplicate cleanup`);
+                    }
 
                     await addDoc(collection(db, "notifications"), {
                         userId: selectedMemberSummary.id,
@@ -470,17 +506,18 @@ export default function CollectionsPage() {
                         userId: selectedMemberSummary.id,
                         memberName: selectedMemberSummary.name || selectedMemberSummary.username || "Unknown",
                         amount: monthAmount,
-                        date: new Date(multiMonthFormData.date),
+                        date: new Date(),
                         type: "monthly",
                         month: month,
                         year: Number(multiMonthFormData.year),
-                        notes: multiMonthFormData.notes || `Admin bulk entry - ${multiMonthFormData.method} ${multiMonthFormData.transactionId ? '(' + multiMonthFormData.transactionId + ')' : ''}`.trim()
-                    });
+                        notes: "Admin added directly",
+                        hiddenFromProfile: false
+                    } as any);
 
                     await addDoc(collection(db, "notifications"), {
                         userId: selectedMemberSummary.id,
                         title: "Payment Added",
-                        message: `An admin has recorded a bulk payment of ৳${monthAmount} for ${format(new Date(2000, month - 1, 1), 'MMM')} ${multiMonthFormData.year}.`,
+                        message: `An admin has recorded a payment of ৳${monthAmount} for ${format(new Date(2000, month - 1, 1), 'MMM')} ${multiMonthFormData.year}.`,
                         type: "success",
                         read: false,
                         createdAt: Timestamp.now()
@@ -508,7 +545,8 @@ export default function CollectionsPage() {
                 ...formData,
                 amount: Number(formData.amount),
                 date: new Date(formData.date),
-                type: "one-time" as const
+                type: "one-time" as const,
+                hiddenFromProfile: false
             };
             if (editingPayment) {
                 await updatePayment(editingPayment.id, dataToSave);
@@ -892,15 +930,15 @@ export default function CollectionsPage() {
 
                             <div className="grid grid-cols-3 gap-2">
                                 <div className="p-2 border rounded text-center bg-background">
-                                    <div className="text-xs text-muted-foreground">Passed</div>
+                                    <div className="text-xs text-muted-foreground">Passed months</div>
                                     <div className="text-lg font-bold">{selectedMemberSummary.totalPassedMonths}</div>
                                 </div>
                                 <div className="p-2 border rounded text-center bg-green-50/50 dark:bg-green-900/10">
-                                    <div className="text-xs text-green-700 dark:text-green-400">Paid</div>
+                                    <div className="text-xs text-green-700 dark:text-green-400">Paid months</div>
                                     <div className="text-lg font-bold text-green-700 dark:text-green-400">{selectedMemberSummary.paidMonthsCount}</div>
                                 </div>
                                 <div className="p-2 border rounded text-center bg-red-50/50 dark:bg-red-900/10">
-                                    <div className="text-xs text-red-700 dark:text-red-400">Due</div>
+                                    <div className="text-xs text-red-700 dark:text-red-400">Due months</div>
                                     <div className="text-lg font-bold text-red-700 dark:text-red-400">{selectedMemberSummary.monthsDue}</div>
                                 </div>
                             </div>
@@ -919,32 +957,56 @@ export default function CollectionsPage() {
                                     </CardHeader>
                                     <CardContent>
                                         <form className="space-y-4" onSubmit={handleAdminRecordMonthlySubmit}>
-                                            <div className="space-y-2">
-                                                <Label>Total Amount (৳)</Label>
-                                                <Input
-                                                    type="number"
-                                                    required
-                                                    min="10"
-                                                    value={multiMonthFormData.amount}
-                                                    onChange={e => setMultiMonthFormData(prev => ({ ...prev, amount: e.target.value }))}
-                                                />
-                                            </div>
 
                                             <div className="grid grid-cols-1 gap-4 p-3 bg-muted/20 rounded-md border">
                                                 <div>
                                                     <Label className="mb-2 block">Select Months</Label>
                                                     <div className="grid grid-cols-4 gap-2">
                                                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
-                                                            const activeMonths = settings.collectionMonths?.[Number(multiMonthFormData.year)] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                            const yearNum = Number(multiMonthFormData.year);
+                                                            const activeMonths = settings.collectionMonths?.[yearNum] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                                                             const isActive = activeMonths.includes(m);
                                                             const isSelected = multiMonthFormData.months.includes(m);
-                                                            const isAlreadyPaid = multiMonthPaidMonths.includes(m);
+
+                                                            const isAlreadyPaid = payments.some(p => p.userId === selectedMemberSummary.id && p.type === 'monthly' && p.month === m && p.year === yearNum);
+
+                                                            const currentYear = new Date().getFullYear();
+                                                            const currentMonth = new Date().getMonth() + 1;
+                                                            const currentDate = new Date().getDate();
+
+                                                            let status = 'future';
+                                                            if (isAlreadyPaid) {
+                                                                status = 'paid';
+                                                            } else if (yearNum < currentYear) {
+                                                                status = 'due-red';
+                                                            } else if (yearNum > currentYear) {
+                                                                status = 'future';
+                                                            } else {
+                                                                if (m < currentMonth) status = 'due-red';
+                                                                else if (m > currentMonth) status = 'future';
+                                                                else status = currentDate <= 10 ? 'due-yellow' : 'due-red';
+                                                            }
+
+                                                            let baseStyle = "";
+                                                            if (!isActive) {
+                                                                baseStyle = "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed";
+                                                            } else if (isSelected) {
+                                                                if (status === 'paid') baseStyle = "bg-green-600 border-green-700 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
+                                                                else if (status === 'due-red') baseStyle = "bg-red-600 border-red-700 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
+                                                                else if (status === 'due-yellow') baseStyle = "bg-yellow-500 border-yellow-600 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
+                                                                else baseStyle = "bg-primary border-primary text-primary-foreground font-bold cursor-pointer shadow-inner";
+                                                            } else {
+                                                                if (status === 'paid') baseStyle = "bg-green-100 border-green-500 text-green-800 hover:bg-green-200 cursor-pointer";
+                                                                else if (status === 'due-red') baseStyle = "bg-red-100 border-red-500 text-red-800 hover:bg-red-200 cursor-pointer";
+                                                                else if (status === 'due-yellow') baseStyle = "bg-yellow-100 border-yellow-500 text-yellow-800 hover:bg-yellow-200 cursor-pointer";
+                                                                else baseStyle = "bg-background border-input text-muted-foreground hover:bg-muted cursor-pointer";
+                                                            }
 
                                                             return (
                                                                 <div
                                                                     key={m}
                                                                     onClick={() => isActive && toggleMultiMonth(m)}
-                                                                    className={`text-center text-xs py-1.5 rounded border select-none transition-colors ${!isActive ? "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed" : isSelected ? isAlreadyPaid ? "bg-yellow-500 text-white border-yellow-600 font-medium cursor-pointer" : "bg-primary text-primary-foreground border-primary font-medium cursor-pointer" : isAlreadyPaid ? "bg-yellow-100/50 hover:bg-yellow-100 border-yellow-200 text-yellow-800 cursor-pointer" : "bg-background hover:bg-muted border-input text-muted-foreground hover:text-foreground cursor-pointer"}`}
+                                                                    className={`text-center text-xs py-1.5 rounded border select-none transition-colors ${baseStyle}`}
                                                                 >
                                                                     {format(new Date(2000, m - 1, 1), 'MMM')}
                                                                 </div>
@@ -963,9 +1025,9 @@ export default function CollectionsPage() {
                                                     </select>
                                                 </div>
 
-                                                {multiMonthFormData.months.length > 1 && multiMonthFormData.amount && (
+                                                {multiMonthFormData.months.length > 0 && (
                                                     <div className="space-y-2 pt-2 border-t border-muted">
-                                                        <Label className="text-xs text-muted-foreground">Distribute Amount</Label>
+                                                        <Label className="text-xs text-muted-foreground">Amount per month</Label>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             {multiMonthFormData.months.map(m => (
                                                                 <div key={m} className="flex items-center gap-2">
@@ -980,9 +1042,6 @@ export default function CollectionsPage() {
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                        {multiMonthFormData.months.length > 1 && Number(multiMonthFormData.amount) > 0 && (multiMonthFormData.months.reduce((sum, m) => sum + (Number(multiMonthFormData.allocations[m]) || 0), 0) > Number(multiMonthFormData.amount)) && (
-                                                            <div className="text-xs text-red-500 font-medium mt-1">Total allocated exceeds {multiMonthFormData.amount}.</div>
-                                                        )}
                                                     </div>
                                                 )}
 
@@ -996,29 +1055,11 @@ export default function CollectionsPage() {
                                                 )}
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <Label className="text-xs">Method</Label>
-                                                    <select
-                                                        className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
-                                                        value={multiMonthFormData.method}
-                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, method: e.target.value }))}
-                                                    >
-                                                        <option value="bkash">Bkash</option>
-                                                        <option value="nagad">Nagad</option>
-                                                        <option value="bank">Bank</option>
-                                                        <option value="cash">Cash</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs">Date</Label>
-                                                    <Input type="date" className="h-8 text-xs" required value={multiMonthFormData.date} onChange={e => setMultiMonthFormData(prev => ({ ...prev, date: e.target.value }))} />
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <Label className="text-xs">Transaction ID (Optional)</Label>
-                                                <Input className="h-8 text-xs" value={multiMonthFormData.transactionId} onChange={e => setMultiMonthFormData(prev => ({ ...prev, transactionId: e.target.value }))} />
+                                            <div className="flex justify-between items-center py-3 px-4 bg-muted/40 rounded-md border text-sm">
+                                                <Label className="font-bold cursor-default">Total Expected Payment</Label>
+                                                <span className="text-lg font-bold text-primary">
+                                                    ৳{multiMonthFormData.months.reduce((sum, m) => sum + (Number(multiMonthFormData.allocations[m]) || 0), 0)}
+                                                </span>
                                             </div>
 
                                             <Button type="submit" className="w-full h-8 text-sm bg-green-600 hover:bg-green-700">Save Monthly Payments</Button>

@@ -265,27 +265,50 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                             {/* Always map over 1-12 to keep grid intact, but disable inactive ones */}
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
-                                const activeMonths = settings.collectionMonths?.[Number(formData.year)] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                const yearNum = Number(formData.year);
+                                const activeMonths = settings.collectionMonths?.[yearNum] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                                 const isActive = activeMonths.includes(m);
                                 const isSelected = formData.months.includes(m);
-                                const isAlreadyPaid = paidMonths.includes(m);
+
+                                const isAlreadyPaid = paymentHistory.some(p => p.type === 'monthly' && p.month === m && p.year === yearNum);
+
+                                const currentYear = new Date().getFullYear();
+                                const currentMonth = new Date().getMonth() + 1;
+                                const currentDate = new Date().getDate();
+
+                                let status = 'future';
+                                if (isAlreadyPaid) {
+                                    status = 'paid';
+                                } else if (yearNum < currentYear) {
+                                    status = 'due-red';
+                                } else if (yearNum > currentYear) {
+                                    status = 'future';
+                                } else {
+                                    if (m < currentMonth) status = 'due-red';
+                                    else if (m > currentMonth) status = 'future';
+                                    else status = currentDate <= 10 ? 'due-yellow' : 'due-red';
+                                }
+
+                                let baseStyle = "";
+                                if (!isActive) {
+                                    baseStyle = "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed";
+                                } else if (isSelected) {
+                                    if (status === 'paid') baseStyle = "bg-green-600 border-green-700 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
+                                    else if (status === 'due-red') baseStyle = "bg-red-600 border-red-700 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
+                                    else if (status === 'due-yellow') baseStyle = "bg-yellow-500 border-yellow-600 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
+                                    else baseStyle = "bg-primary border-primary text-primary-foreground font-bold cursor-pointer shadow-inner";
+                                } else {
+                                    if (status === 'paid') baseStyle = "bg-green-100 border-green-500 text-green-800 hover:bg-green-200 cursor-pointer";
+                                    else if (status === 'due-red') baseStyle = "bg-red-100 border-red-500 text-red-800 hover:bg-red-200 cursor-pointer";
+                                    else if (status === 'due-yellow') baseStyle = "bg-yellow-100 border-yellow-500 text-yellow-800 hover:bg-yellow-200 cursor-pointer";
+                                    else baseStyle = "bg-background border-input text-muted-foreground hover:bg-muted cursor-pointer";
+                                }
 
                                 return (
                                     <div
                                         key={m}
                                         onClick={() => isActive && toggleMonth(m)}
-                                        className={`
-                                            text-center text-xs py-2 rounded border select-none transition-colors
-                                            ${!isActive
-                                                ? "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed"
-                                                : isSelected
-                                                    ? isAlreadyPaid
-                                                        ? "bg-yellow-500 text-white border-yellow-600 font-medium cursor-pointer"
-                                                        : "bg-primary text-primary-foreground border-primary font-medium cursor-pointer"
-                                                    : isAlreadyPaid
-                                                        ? "bg-yellow-100/50 hover:bg-yellow-100 border-yellow-200 text-yellow-800 cursor-pointer"
-                                                        : "bg-background hover:bg-muted border-input text-muted-foreground hover:text-foreground cursor-pointer"}
-                                        `}
+                                        className={`text-center text-xs py-2 rounded border select-none transition-colors ${baseStyle}`}
                                     >
                                         {format(new Date(2000, m - 1, 1), 'MMM')}
                                     </div>
@@ -438,14 +461,16 @@ function ProfileContent() {
     }, [settings, selectedCalendarYear]);
 
     const getMonthlyStatus = (month: number, year: number) => {
-        const payment = paymentHistory.find(p =>
-            !p.hiddenFromProfile &&
+        const monthPayments = paymentHistory.filter(p =>
             p.type === 'monthly' &&
             p.month === month &&
             p.year === year
         );
 
-        if (payment) return { status: 'paid', payment };
+        if (monthPayments.length > 0) {
+            const totalAmount = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+            return { status: 'paid', payment: { ...monthPayments[0], amount: totalAmount } };
+        }
 
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
@@ -477,6 +502,34 @@ function ProfileContent() {
             toast({ title: "Deleted", description: "Request deleted from your profile." });
         } catch (error) {
             toast({ title: "Error", description: "Failed to delete request.", variant: "destructive" });
+        }
+    };
+
+    const handleClearAllHistory = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to clear your entire donation history?")) return;
+        try {
+            const batch = paymentHistory.filter(p => !p.hiddenFromProfile).map(p =>
+                updateDoc(doc(db, "payments", p.id), { hiddenFromProfile: true })
+            );
+            await Promise.all(batch);
+            toast({ title: "Cleared", description: "All history records hidden." });
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to clear history.", variant: "destructive" });
+        }
+    };
+
+    const handleClearAllRequests = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to clear all requests?")) return;
+        try {
+            const batch = myRequests.filter(r => !r.hiddenFromProfile).map(r =>
+                updateDoc(doc(db, "donation_requests", r.id), { hiddenFromProfile: true })
+            );
+            await Promise.all(batch);
+            toast({ title: "Cleared", description: "All requests hidden." });
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to clear requests.", variant: "destructive" });
         }
     };
 
@@ -1181,9 +1234,16 @@ function ProfileContent() {
                                                 </CardTitle>
                                                 <CardDescription>Your past contributions.</CardDescription>
                                             </div>
-                                            <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
-                                                {isDonationHistoryOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                {paymentHistory.filter(d => !d.hiddenFromProfile).length > 0 && (
+                                                    <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleClearAllHistory}>
+                                                        Clear All
+                                                    </Button>
+                                                )}
+                                                <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                                                    {isDonationHistoryOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                </Button>
+                                            </div>
                                         </div>
                                     </CardHeader>
                                     {isDonationHistoryOpen && <CardContent>
@@ -1197,8 +1257,14 @@ function ProfileContent() {
                                                     return (
                                                         <div key={donation.id} className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0">
                                                             <div>
-                                                                <p className="font-medium">{donation.method === 'bkash' ? 'Bkash Payment' : donation.type === 'monthly' ? 'Monthly Subscription' : 'One-time Donation'}</p>
-                                                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                                                <div className="font-medium text-sm">
+                                                                    {donation.type === 'monthly' ? (
+                                                                        <span className="flex items-center gap-1.5">
+                                                                            Monthly Subscription: <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-primary/10 text-primary hover:bg-primary/20">{format(new Date(2000, (donation.month || 1) - 1, 1), 'MMM')} {donation.year}</Badge>
+                                                                        </span>
+                                                                    ) : donation.method === 'bkash' ? 'Bkash Payment' : 'One-time Donation'}
+                                                                </div>
+                                                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 border-t border-muted/30 pt-1">
                                                                     <Calendar className="h-3 w-3" />
                                                                     {(() => {
                                                                         try {
@@ -1239,9 +1305,16 @@ function ProfileContent() {
                                                 </CardTitle>
                                                 <CardDescription>Status of your submitted requests.</CardDescription>
                                             </div>
-                                            <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
-                                                {isMyRequestsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                {myRequests.filter(r => !r.hiddenFromProfile).length > 0 && (
+                                                    <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleClearAllRequests}>
+                                                        Clear All
+                                                    </Button>
+                                                )}
+                                                <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                                                    {isMyRequestsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                </Button>
+                                            </div>
                                         </div>
                                     </CardHeader>
                                     {isMyRequestsOpen && <CardContent>
@@ -1276,7 +1349,20 @@ function ProfileContent() {
                                                                     }
                                                                 })()}
                                                             </TableCell>
-                                                            <TableCell className="capitalize text-xs">{req.type}</TableCell>
+                                                            <TableCell className="capitalize text-xs max-w-[120px]">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span>{req.type}</span>
+                                                                    {req.type === 'monthly' && req.months && (
+                                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                                            {req.months.map((m: number) => (
+                                                                                <Badge key={m} variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/20">
+                                                                                    {format(new Date(2000, m - 1, 1), 'MMM')} {req.year}
+                                                                                </Badge>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
                                                             <TableCell className="font-medium">৳{req.amount}</TableCell>
                                                             <TableCell>
                                                                 <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">
