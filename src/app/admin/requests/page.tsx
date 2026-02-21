@@ -171,30 +171,54 @@ export default function RequestsPage() {
         }
     };
 
-    const submitDistributionOverride = async () => {
-        if (!distributionRequest) return;
+    const processDonationApproval = async (request: any, overrideAllocations: Record<number, string> | null = null) => {
         setIsSubmittingDistribution(true);
         try {
-            // Verify total equals the original amount
-            const totalAllocated = Object.values(distributionAllocations).reduce((sum, val) => sum + (Number(val) || 0), 0);
-            if (Math.abs(totalAllocated - Number(distributionRequest.amount)) > 0.1) {
-                toast({ title: "Distribution Mismatch", description: `Allocated sum (${totalAllocated}) does not match donation amount (${distributionRequest.amount}).`, variant: "destructive" });
-                setIsSubmittingDistribution(false);
-                return;
+            const isMonthly = request.type === 'monthly';
+            const paymentDate = request.userDate ? (request.userDate.toDate ? request.userDate : Timestamp.fromDate(new Date(request.userDate))) : Timestamp.now();
+            const paymentYear = request.year ? Number(request.year) : (paymentDate.toDate ? paymentDate.toDate().getFullYear() : new Date().getFullYear());
+            const fallbackMonth = paymentDate.toDate ? paymentDate.toDate().getMonth() + 1 : new Date().getMonth() + 1;
+
+            const monthsToProcess = isMonthly && request.months?.length > 0 ? request.months : [fallbackMonth];
+
+            let finalAllocations: Record<number, string> = {};
+
+            if (isMonthly) {
+                if (overrideAllocations) {
+                    finalAllocations = overrideAllocations;
+                    const totalAllocated = Object.values(finalAllocations).reduce((sum, val) => sum + (Number(val) || 0), 0);
+                    if (Math.abs(totalAllocated - Number(request.amount)) > 0.1) {
+                        toast({ title: "Distribution Mismatch", description: `Allocated sum (${totalAllocated}) does not match donation amount (${request.amount}).`, variant: "destructive" });
+                        setIsSubmittingDistribution(false);
+                        return false;
+                    }
+                } else {
+                    // Calculate automatic default allocation
+                    let userProvidedTotal = 0;
+                    if (request.allocations && Object.keys(request.allocations).length > 0) {
+                        monthsToProcess.forEach((m: number) => {
+                            finalAllocations[m] = request.allocations[m] || "";
+                            userProvidedTotal += Number(request.allocations[m]) || 0;
+                        });
+                    }
+                    if (userProvidedTotal === 0) {
+                        const amountPerMonth = (Number(request.amount) / monthsToProcess.length).toFixed(2);
+                        monthsToProcess.forEach((m: number) => {
+                            finalAllocations[m] = amountPerMonth;
+                        });
+                    }
+                }
             }
 
-            const paymentDate = distributionRequest.userDate ? (distributionRequest.userDate.toDate ? distributionRequest.userDate : Timestamp.fromDate(new Date(distributionRequest.userDate))) : Timestamp.now();
-            const paymentYear = distributionRequest.year ? Number(distributionRequest.year) : (paymentDate.toDate ? paymentDate.toDate().getFullYear() : new Date().getFullYear());
-
-            for (const m of distributionRequest.months) {
-                const amountToAdd = Number(distributionAllocations[m]);
+            for (const m of monthsToProcess) {
+                const amountToAdd = isMonthly ? Number(finalAllocations[m]) : Number(request.amount);
                 const paymentMonth = Number(m);
                 const paymentYearValue = Number(paymentYear);
 
                 const q = query(
                     collection(db, "payments"),
-                    where("userId", "==", distributionRequest.userId),
-                    where("type", "==", "monthly"),
+                    where("userId", "==", request.userId),
+                    where("type", "==", request.type || "one-time"),
                     where("month", "==", paymentMonth),
                     where("year", "==", paymentYearValue)
                 );
@@ -214,41 +238,58 @@ export default function RequestsPage() {
                         date: paymentDate,
                         month: paymentMonth,
                         year: paymentYearValue,
-                        memberName: distributionRequest.userName,
-                        type: 'monthly',
-                        userId: distributionRequest.userId,
-                        method: distributionRequest.method,
-                        notes: distributionRequest.notes,
-                        transactionId: distributionRequest.transactionId || "",
+                        memberName: request.userName,
+                        type: request.type || "one-time",
+                        userId: request.userId,
+                        method: request.method,
+                        notes: request.notes,
+                        transactionId: request.transactionId || "",
                         createdAt: Timestamp.now()
                     });
                 }
             }
 
             // Update status
-            await updateDoc(doc(db, "donation_requests", distributionRequest.id), {
+            await updateDoc(doc(db, "donation_requests", request.id), {
                 status: "approved",
                 approvedAt: Timestamp.now()
             });
 
             await addDoc(collection(db, "notifications"), {
-                userId: distributionRequest.userId,
+                userId: request.userId,
                 title: "Donation Approved",
-                message: `Your donation of ৳${distributionRequest.amount} has been verified and applied.`,
+                message: `Your donation of ৳${request.amount} has been verified and applied.`,
                 type: "success",
                 read: false,
                 createdAt: new Date().toISOString()
             });
 
             toast({ title: "Approved", description: "Donation verified and distributed." });
-            setDistributionRequest(null);
-            setViewingUser(null);
+            return true;
         } catch (error) {
             console.error(error);
             toast({ title: "Error", description: "Failed to apply distribution.", variant: "destructive" });
+            return false;
         } finally {
             setIsSubmittingDistribution(false);
         }
+    };
+
+    const submitDistributionOverride = async () => {
+        if (!distributionRequest) return;
+        const success = await processDonationApproval(distributionRequest, distributionAllocations);
+        if (success) {
+            setDistributionRequest(null);
+            setViewingUser(null);
+            setUserPayments([]);
+            fetchRequests();
+        }
+    };
+
+    const handleDirectApproveDonation = async (request: any) => {
+        if (!confirm("Approve this donation directly without reviewing?")) return;
+        const success = await processDonationApproval(request, null);
+        if (success) fetchRequests();
     };
 
     const handleApproveDonation = async (request: any) => {
@@ -386,10 +427,7 @@ export default function RequestsPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <div
-                                                className="font-medium text-blue-600 hover:underline cursor-pointer"
-                                                onClick={() => handleViewUserDetails(req.userId)}
-                                            >
+                                            <div className="font-medium">
                                                 {req.userName}
                                             </div>
                                             <div className="text-xs text-muted-foreground capitalize">{req.method} • {req.transactionId}</div>
@@ -408,6 +446,9 @@ export default function RequestsPage() {
                                         <TableCell className="text-right space-x-2">
                                             <Button size="sm" variant="outline" className="text-blue-600 hover:bg-blue-50" onClick={() => handleApproveDonation(req)}>
                                                 Review
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50" onClick={() => handleDirectApproveDonation(req)}>
+                                                <Check className="h-4 w-4" />
                                             </Button>
                                             <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => handleRejectDonation(req.id, req.userId)}>
                                                 <X className="h-4 w-4" />
@@ -622,7 +663,7 @@ export default function RequestsPage() {
             </Dialog>
 
             {/* User Profile Modal */}
-            <Dialog open={!!viewingUser} onOpenChange={(open: boolean) => !open && setViewingUser(null)}>
+            <Dialog open={!!viewingUser && !distributionRequest} onOpenChange={(open: boolean) => !open && setViewingUser(null)}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Member Verification Details</DialogTitle>
