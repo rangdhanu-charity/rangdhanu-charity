@@ -58,6 +58,34 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
         allocations: {} as Record<number, string> // month -> amount
     });
 
+    // Sync selected months with active months from settings
+    useEffect(() => {
+        if (!settings || formData.type !== 'monthly') return;
+
+        const activeMonths = settings.collectionMonths?.[Number(formData.year)] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+        setFormData(prev => {
+            const validMonths = prev.months.filter(m => activeMonths.includes(m));
+
+            // If nothing changed, return previous state to avoid infinite loop
+            if (validMonths.length === prev.months.length) return prev;
+
+            // Clean up allocations for removed months
+            const newAllocations = { ...prev.allocations };
+            prev.months.forEach(m => {
+                if (!validMonths.includes(m)) {
+                    delete newAllocations[m];
+                }
+            });
+
+            return {
+                ...prev,
+                months: validMonths,
+                allocations: newAllocations
+            };
+        });
+    }, [settings, formData.year, formData.type]);
+
     const paidMonths = useMemo(() => {
         if (formData.type !== 'monthly') return [];
         return formData.months.filter(m =>
@@ -121,17 +149,23 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
 
     const totalAmount = Number(formData.amount) || 0;
     const allocatedSum = formData.months.reduce((sum, m) => sum + (Number(formData.allocations[m]) || 0), 0);
-    const isOverAllocated = totalAmount > 0 && allocatedSum > totalAmount;
-
+    const isOverAllocated = formData.months.length > 1 && totalAmount > 0 && allocatedSum > totalAmount;
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const { addDoc, collection, Timestamp } = await import("firebase/firestore");
             const { db } = await import("@/lib/firebase");
 
-            if (formData.type === 'monthly' && formData.months.length === 0) {
-                toast({ title: "Error", description: "Please select at least one month.", variant: "destructive" });
-                return;
+            if (formData.type === 'monthly') {
+                if (formData.months.length === 0) {
+                    toast({ title: "Error", description: "Please select at least one active month.", variant: "destructive" });
+                    return;
+                }
+                const activeMonths = settings.collectionMonths?.[Number(formData.year)] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                if (formData.months.some(m => !activeMonths.includes(m))) {
+                    toast({ title: "Error", description: "One or more selected months are inactive or have been removed.", variant: "destructive" });
+                    return;
+                }
             }
 
             if (isOverAllocated) {
@@ -141,7 +175,15 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
 
             const userTimestamp = formData.userDate ? Timestamp.fromDate(new Date(formData.userDate)) : Timestamp.now();
 
-            const allocationsToSave = formData.type === 'monthly' ? formData.allocations : {};
+            let allocationsToSave = {};
+            if (formData.type === 'monthly') {
+                if (formData.months.length === 1) {
+                    // Auto-allocate 100% to the single month behind the scenes
+                    allocationsToSave = { [formData.months[0]]: formData.amount };
+                } else if (formData.months.length > 1) {
+                    allocationsToSave = formData.allocations;
+                }
+            }
 
             await addDoc(collection(db, "donation_requests"), {
                 userId: user.id,
@@ -221,17 +263,28 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
                     <div>
                         <Label className="mb-2 block">Select Months</Label>
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {(settings.collectionMonths?.[Number(formData.year)] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).map(m => {
+                            {/* Always map over 1-12 to keep grid intact, but disable inactive ones */}
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
+                                const activeMonths = settings.collectionMonths?.[Number(formData.year)] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                const isActive = activeMonths.includes(m);
                                 const isSelected = formData.months.includes(m);
+                                const isAlreadyPaid = paidMonths.includes(m);
+
                                 return (
                                     <div
                                         key={m}
-                                        onClick={() => toggleMonth(m)}
+                                        onClick={() => isActive && toggleMonth(m)}
                                         className={`
-                                            cursor-pointer text-center text-xs py-2 rounded border transition-colors select-none
-                                            ${isSelected
-                                                ? "bg-primary text-primary-foreground border-primary font-medium"
-                                                : "bg-background hover:bg-muted border-input text-muted-foreground hover:text-foreground"}
+                                            text-center text-xs py-2 rounded border select-none transition-colors
+                                            ${!isActive
+                                                ? "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed"
+                                                : isSelected
+                                                    ? isAlreadyPaid
+                                                        ? "bg-yellow-500 text-white border-yellow-600 font-medium cursor-pointer"
+                                                        : "bg-primary text-primary-foreground border-primary font-medium cursor-pointer"
+                                                    : isAlreadyPaid
+                                                        ? "bg-yellow-100/50 hover:bg-yellow-100 border-yellow-200 text-yellow-800 cursor-pointer"
+                                                        : "bg-background hover:bg-muted border-input text-muted-foreground hover:text-foreground cursor-pointer"}
                                         `}
                                     >
                                         {format(new Date(2000, m - 1, 1), 'MMM')}

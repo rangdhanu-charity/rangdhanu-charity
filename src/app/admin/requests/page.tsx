@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User as UserIcon } from "lucide-react";
 import { format } from "date-fns";
 import { collection, query, orderBy, getDocs, onSnapshot, addDoc, updateDoc, doc, Timestamp, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -36,6 +38,13 @@ export default function RequestsPage() {
     const [distributionAllocations, setDistributionAllocations] = useState<Record<number, string>>({});
     const [isSubmittingDistribution, setIsSubmittingDistribution] = useState(false);
 
+    // Registration Review State
+    const [registrationReview, setRegistrationReview] = useState<any>(null);
+
+    // Track user payments to check for previously paid months
+    const [userPayments, setUserPayments] = useState<any[]>([]);
+    const [loadingPayments, setLoadingPayments] = useState(false);
+
     const handleViewUserDetails = async (userId: string) => {
         setLoadingUser(true);
         try {
@@ -52,6 +61,26 @@ export default function RequestsPage() {
             toast({ title: "Error", description: "Failed to fetch user details.", variant: "destructive" });
         } finally {
             setLoadingUser(false);
+        }
+    };
+
+    const fetchUserPayments = async (userId: string) => {
+        setLoadingPayments(true);
+        try {
+            const { getDocs, query, collection, where } = await import("firebase/firestore");
+            const { db } = await import("@/lib/firebase");
+            const q = query(
+                collection(db, "payments"),
+                where("userId", "==", userId),
+                where("type", "==", "monthly")
+            );
+            const snap = await getDocs(q);
+            const payments = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setUserPayments(payments);
+        } catch (error) {
+            console.error("Error fetching user payments:", error);
+        } finally {
+            setLoadingPayments(false);
         }
     };
 
@@ -213,6 +242,7 @@ export default function RequestsPage() {
 
             toast({ title: "Approved", description: "Donation verified and distributed." });
             setDistributionRequest(null);
+            setViewingUser(null);
         } catch (error) {
             console.error(error);
             toast({ title: "Error", description: "Failed to apply distribution.", variant: "destructive" });
@@ -227,7 +257,6 @@ export default function RequestsPage() {
             const paymentYear = request.year ? Number(request.year) : (paymentDate.toDate ? paymentDate.toDate().getFullYear() : new Date().getFullYear());
 
             if (request.type === 'monthly' && request.months && Array.isArray(request.months) && request.months.length > 0) {
-                // ALWAYS open modal for admin distribution to verify/edit
                 const initialAllocations: Record<number, string> = {};
                 let userProvidedTotal = 0;
 
@@ -238,89 +267,22 @@ export default function RequestsPage() {
                     });
                 }
 
-                // If user didn't provide complete allocations, calculate defaults
                 if (userProvidedTotal === 0) {
                     const amountPerMonth = (Number(request.amount) / request.months.length).toFixed(2);
                     request.months.forEach((m: number) => {
                         initialAllocations[m] = amountPerMonth;
                     });
                 }
-
                 setDistributionAllocations(initialAllocations);
-                setDistributionRequest(request);
-                return; // Stop here, modal will handle the rest
             } else {
-                // Single month or One-time logic
-                const paymentMonth = request.month ? Number(request.month) : (paymentDate.toDate ? paymentDate.toDate().getMonth() + 1 : new Date().getMonth() + 1);
-                const amountToAdd = Number(request.amount);
-                const isMonthly = request.type === 'monthly';
-
-                if (isMonthly) {
-                    const q = query(
-                        collection(db, "payments"),
-                        where("userId", "==", request.userId),
-                        where("type", "==", "monthly"),
-                        where("month", "==", paymentMonth),
-                        where("year", "==", paymentYear)
-                    );
-                    const snap = await getDocs(q);
-
-                    if (!snap.empty) {
-                        const existingDoc = snap.docs[0];
-                        const existingAmount = Number(existingDoc.data().amount) || 0;
-                        await updateDoc(doc(db, "payments", existingDoc.id), {
-                            amount: existingAmount + amountToAdd,
-                            updatedAt: Timestamp.now()
-                        });
-                    } else {
-                        await addDoc(collection(db, "payments"), {
-                            amount: amountToAdd,
-                            date: paymentDate,
-                            month: paymentMonth,
-                            year: paymentYear,
-                            memberName: request.userName,
-                            type: 'monthly',
-                            userId: request.userId,
-                            method: request.method,
-                            notes: request.notes,
-                            transactionId: request.transactionId || "",
-                            createdAt: Timestamp.now()
-                        });
-                    }
-                } else {
-                    await addDoc(collection(db, "payments"), {
-                        amount: amountToAdd,
-                        date: paymentDate,
-                        month: paymentMonth,
-                        year: paymentYear,
-                        memberName: request.userName,
-                        type: 'one-time',
-                        userId: request.userId,
-                        method: request.method,
-                        notes: request.notes,
-                        transactionId: request.transactionId || "",
-                        createdAt: Timestamp.now()
-                    });
-                }
-
-                // Update request status
-                await updateDoc(doc(db, "donation_requests", request.id), {
-                    status: "approved",
-                    approvedAt: Timestamp.now()
-                });
-
-                // Notify User
-                await addDoc(collection(db, "notifications"), {
-                    userId: request.userId,
-                    title: "Donation Approved",
-                    message: `Your donation of ৳${request.amount} has been verified.`,
-                    type: "success",
-                    read: false,
-                    createdAt: new Date().toISOString()
-                });
-
-                toast({ title: "Approved", description: "Donation verified and recorded." });
+                setDistributionAllocations({});
             }
+
+            setDistributionRequest(request);
+            handleViewUserDetails(request.userId);
+            fetchUserPayments(request.userId);
+
+            return;
         } catch (error) {
             console.error(error);
             toast({ title: "Error", description: "Failed to approve donation.", variant: "destructive" });
@@ -399,6 +361,9 @@ export default function RequestsPage() {
                                         </TableCell>
                                         <TableCell><Badge variant="secondary">Pending</Badge></TableCell>
                                         <TableCell className="text-right space-x-2">
+                                            <Button size="sm" variant="outline" className="text-blue-600 hover:bg-blue-50" onClick={() => setRegistrationReview(req)}>
+                                                Review
+                                            </Button>
                                             <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50" onClick={() => handleApprove(req)}>
                                                 <Check className="h-4 w-4" />
                                             </Button>
@@ -441,8 +406,8 @@ export default function RequestsPage() {
                                         </TableCell>
                                         <TableCell><Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge></TableCell>
                                         <TableCell className="text-right space-x-2">
-                                            <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50" onClick={() => handleApproveDonation(req)}>
-                                                <Check className="h-4 w-4" />
+                                            <Button size="sm" variant="outline" className="text-blue-600 hover:bg-blue-50" onClick={() => handleApproveDonation(req)}>
+                                                Review
                                             </Button>
                                             <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => handleRejectDonation(req.id, req.userId)}>
                                                 <X className="h-4 w-4" />
@@ -482,43 +447,172 @@ export default function RequestsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Distribution Override Modal */}
-            <Dialog open={!!distributionRequest} onOpenChange={(open: boolean) => !open && setDistributionRequest(null)}>
+            {/* Registration Request Review Modal */}
+            <Dialog open={!!registrationReview} onOpenChange={(open: boolean) => !open && setRegistrationReview(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Verify Donation Distribution</DialogTitle>
+                        <DialogTitle>Review Registration Request</DialogTitle>
                         <DialogDescription>
-                            Review or edit how the total ৳{distributionRequest?.amount} should be distributed across the requested months.
+                            Review the user's submitted details before approving their registration.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {registrationReview && (
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-3 gap-4 border-b pb-4">
+                                <div className="font-semibold text-muted-foreground">Name</div>
+                                <div className="col-span-2 font-medium">{registrationReview.name}</div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 border-b pb-4">
+                                <div className="font-semibold text-muted-foreground">Username</div>
+                                <div className="col-span-2">{registrationReview.username || "Not provided (will default to email prefix)"}</div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 border-b pb-4">
+                                <div className="font-semibold text-muted-foreground">Email</div>
+                                <div className="col-span-2">{registrationReview.email}</div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 border-b pb-4">
+                                <div className="font-semibold text-muted-foreground">Phone</div>
+                                <div className="col-span-2">{registrationReview.phone || "Not provided"}</div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="font-semibold text-muted-foreground">Submitted At</div>
+                                <div className="col-span-2">{new Date(registrationReview.createdAt).toLocaleString()}</div>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRegistrationReview(null)}>Cancel</Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                handleReject(registrationReview.id);
+                                setRegistrationReview(null);
+                            }}
+                        >
+                            <X className="mr-2 h-4 w-4" /> Reject
+                        </Button>
+                        <Button
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => {
+                                handleApprove(registrationReview);
+                                setRegistrationReview(null);
+                            }}
+                        >
+                            <Check className="mr-2 h-4 w-4" /> Approve User
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Distribution Override Modal */}
+            <Dialog open={!!distributionRequest} onOpenChange={(open: boolean) => !open && setDistributionRequest(null)}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Verify Donation Details</DialogTitle>
+                        <DialogDescription>
+                            Review the member's profile and verify the donation details before approving.
                         </DialogDescription>
                     </DialogHeader>
                     {distributionRequest && (
-                        <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                {distributionRequest.months.map((m: number) => (
-                                    <div key={m} className="flex items-center gap-2">
-                                        <Label className="w-16">{format(new Date(2000, m - 1, 1), 'MMM')}</Label>
-                                        <Input
-                                            type="number"
-                                            value={distributionAllocations[m] || ""}
-                                            onChange={(e) => setDistributionAllocations({
-                                                ...distributionAllocations,
-                                                [m]: e.target.value
-                                            })}
-                                        />
+                        <div className="space-y-6 py-4">
+                            {/* Membership Basic Info */}
+                            {loadingUser ? (
+                                <div className="flex justify-center items-center w-full h-24"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                            ) : viewingUser ? (
+                                <div className="flex flex-col md:flex-row gap-6 p-4 bg-muted/20 border rounded-lg">
+                                    <Avatar className="w-24 h-24 border-2 border-primary shrink-0 self-center md:self-start">
+                                        <AvatarImage src={viewingUser.photoURL || "/default-avatar.png"} alt={viewingUser.name || "User"} />
+                                        <AvatarFallback className="text-2xl"><UserIcon className="h-10 w-10 text-muted-foreground" /></AvatarFallback>
+                                    </Avatar>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 w-full text-sm">
+                                        <div><span className="text-muted-foreground font-semibold">Name:</span> {viewingUser.name}</div>
+                                        <div><span className="text-muted-foreground font-semibold">Username:</span> {viewingUser.username}</div>
+                                        <div className="md:col-span-2"><span className="text-muted-foreground font-semibold">Email:</span> {viewingUser.email}</div>
+                                        <div><span className="text-muted-foreground font-semibold">Phone:</span> {viewingUser.phone || "Not provided"}</div>
+                                        <div><span className="text-muted-foreground font-semibold">Role:</span> <Badge variant="outline" className="capitalize">{viewingUser.role}</Badge></div>
+                                        {viewingUser.address && <div className="md:col-span-2"><span className="text-muted-foreground font-semibold">Address:</span> {viewingUser.address}</div>}
                                     </div>
-                                ))}
+                                </div>
+                            ) : (
+                                <div className="text-sm text-red-500 bg-red-50 p-4 rounded border border-red-200">Failed to load user profile.</div>
+                            )}
+
+                            {/* Request Info Section */}
+                            <div className="grid grid-cols-2 gap-4 text-sm bg-muted/10 p-4 rounded border">
+                                <div><span className="font-semibold text-muted-foreground">Type:</span> <Badge variant="outline">{distributionRequest.type === 'monthly' ? 'Monthly' : 'One-Time'}</Badge></div>
+                                <div><span className="font-semibold text-muted-foreground">Amount:</span> <span className="font-bold text-green-600">৳{distributionRequest.amount}</span></div>
+                                <div><span className="font-semibold text-muted-foreground">Method:</span> <span className="uppercase">{distributionRequest.method}</span></div>
+                                <div><span className="font-semibold text-muted-foreground">TxID:</span> <code className="bg-muted px-1 py-0.5 rounded">{distributionRequest.transactionId || 'N/A'}</code></div>
+                                <div className="col-span-2"><span className="font-semibold text-muted-foreground">User Date:</span> {distributionRequest.userDate?.toDate ? format(distributionRequest.userDate.toDate(), "PPP") : distributionRequest.userDate}</div>
+                                <div className="col-span-2"><span className="font-semibold text-muted-foreground">Notes:</span> {distributionRequest.notes || 'No additional notes provided.'}</div>
                             </div>
-                            {Math.abs(Object.values(distributionAllocations).reduce((a, b) => a + (Number(b) || 0), 0) - Number(distributionRequest.amount)) > 0.1 && (
-                                <Alert variant="destructive">
-                                    <AlertDescription>
-                                        Total allocated (৳{Object.values(distributionAllocations).reduce((a, b) => a + (Number(b) || 0), 0)}) must strictly equal the donation amount (৳{distributionRequest.amount}).
-                                    </AlertDescription>
-                                </Alert>
+
+                            {/* Monthly Distribution Editor */}
+                            {distributionRequest.type === 'monthly' && distributionRequest.months?.length > 0 && (
+                                <div className="space-y-4 pt-4 border-t">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-medium text-sm">Verify Monthly Money Distribution</h4>
+                                        <Badge variant="secondary">Year: {distributionRequest.year}</Badge>
+                                    </div>
+
+                                    {/* Warnings for already paid months */}
+                                    {!loadingPayments && userPayments.length > 0 && (
+                                        (() => {
+                                            const paidMonths = distributionRequest.months.filter((m: number) =>
+                                                userPayments.some(p => p.month === m && p.year === Number(distributionRequest.year))
+                                            );
+
+                                            if (paidMonths.length > 0) {
+                                                return (
+                                                    <Alert variant="destructive" className="bg-yellow-50 text-yellow-900 border-yellow-200">
+                                                        <AlertDescription>
+                                                            <strong>Warning:</strong> The user has already made payments for: {paidMonths.map((m: number) => format(new Date(2000, m - 1, 1), 'MMM')).join(', ')}. Proceeding will add additional money to these months.
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                );
+                                            }
+                                            return null;
+                                        })()
+                                    )}
+
+                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {distributionRequest.months.map((m: number) => {
+                                            const isPaid = userPayments.some(p => p.month === m && p.year === Number(distributionRequest.year));
+                                            return (
+                                                <div key={m} className={`flex items-center gap-2 p-2 rounded border focus-within:ring-1 ${isPaid ? 'bg-yellow-100/50 border-yellow-300' : 'bg-background'}`}>
+                                                    <Label className={`w-12 text-xs font-semibold ${isPaid ? 'text-yellow-800' : ''}`}>
+                                                        {format(new Date(2000, m - 1, 1), 'MMM')}
+                                                    </Label>
+                                                    <Input
+                                                        type="number"
+                                                        className="h-8"
+                                                        value={distributionAllocations[m] || ""}
+                                                        onChange={(e) => setDistributionAllocations({
+                                                            ...distributionAllocations,
+                                                            [m]: e.target.value
+                                                        })}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {Math.abs(Object.values(distributionAllocations).reduce((a, b) => a + (Number(b) || 0), 0) - Number(distributionRequest.amount)) > 0.1 && (
+                                        <Alert variant="destructive">
+                                            <AlertDescription>
+                                                Total allocated (৳{Object.values(distributionAllocations).reduce((a, b) => a + (Number(b) || 0), 0)}) must strictly equal the donation amount (৳{distributionRequest.amount}).
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                </div>
                             )}
                         </div>
                     )}
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDistributionRequest(null)} disabled={isSubmittingDistribution}>Cancel</Button>
+                        <Button variant="outline" onClick={() => {
+                            setDistributionRequest(null);
+                            setViewingUser(null);
+                            setUserPayments([]);
+                        }} disabled={isSubmittingDistribution}>Cancel</Button>
                         <Button onClick={submitDistributionOverride} disabled={isSubmittingDistribution}>
                             {isSubmittingDistribution && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Verify & Approve
