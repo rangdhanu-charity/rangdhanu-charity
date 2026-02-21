@@ -919,24 +919,87 @@ function ProfileContent() {
                                         <CardTitle className="text-lg">Financial Summary</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        <div className="flex justify-between items-center pb-2 border-b">
-                                            <span className="text-sm text-muted-foreground">Total Contributed</span>
-                                            <span className="font-bold text-green-600">
-                                                ৳ {loadingPayments ? "..." : paymentHistory.reduce((sum, item) => sum + Number(item.amount), 0).toLocaleString()}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center pb-2 border-b">
-                                            <span className="text-sm text-muted-foreground">Last Donation</span>
-                                            <span className="font-medium">
-                                                {loadingPayments ? "..." : (paymentHistory[0]?.date || "N/A")}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center pb-2 border-b">
-                                            <span className="text-sm text-muted-foreground">Months Paid</span>
-                                            <span className="font-medium text-blue-600">
-                                                {loadingPayments ? "..." : new Set(paymentHistory.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`)).size}
-                                            </span>
-                                        </div>
+                                        {(() => {
+                                            // Financial logic
+                                            const totalContributed = paymentHistory.reduce((sum, item) => sum + Number(item.amount), 0);
+                                            const paidMonthsCount = new Set(paymentHistory.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`)).size;
+
+                                            // Passed months calculation
+                                            let totalPassedMonths = 0;
+                                            const currentMonth = new Date().getMonth() + 1;
+                                            const currentYear = new Date().getFullYear();
+
+                                            if (settings && settings.collectionYears) {
+                                                settings.collectionYears.forEach(year => {
+                                                    const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                    if (year < currentYear) {
+                                                        totalPassedMonths += activeMonths.length;
+                                                    } else if (year === currentYear) {
+                                                        totalPassedMonths += activeMonths.filter(m => m <= currentMonth).length;
+                                                    }
+                                                });
+                                            }
+
+                                            const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
+
+                                            // Period label calculation based on actual admin settings
+                                            let periodLabel = "Lifetime";
+                                            if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
+                                                const earliestYear = Math.min(...settings.collectionYears);
+                                                const monthsForYear = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                const earliestMonth = Math.min(...monthsForYear);
+
+                                                try {
+                                                    const dateObj = new Date(earliestYear, earliestMonth - 1, 1);
+                                                    const d1 = dateObj.toLocaleDateString('default', { month: 'short', year: 'numeric' });
+                                                    periodLabel = `From ${d1} - Present`;
+                                                } catch (e) {
+                                                    periodLabel = `From ${earliestYear} - Present`;
+                                                }
+                                            } else if (paymentHistory.length > 0) {
+                                                // Fallback if settings are somehow unavailable
+                                                const earliestDate = paymentHistory[paymentHistory.length - 1].date;
+                                                const latestDate = paymentHistory[0].date;
+
+                                                try {
+                                                    const d1 = new Date(earliestDate).toLocaleDateString('default', { month: 'short', year: 'numeric' });
+                                                    const d2 = new Date(latestDate).toLocaleDateString('default', { month: 'short', year: 'numeric' });
+                                                    periodLabel = `From ${d1} - ${d2}`;
+                                                } catch (e) { }
+                                            }
+
+                                            return (
+                                                <>
+                                                    <div className="flex justify-between items-center pb-2 border-b">
+                                                        <div>
+                                                            <span className="text-sm text-muted-foreground block">Total Contributed</span>
+                                                            <span className="text-[10px] text-muted-foreground">{periodLabel}</span>
+                                                        </div>
+                                                        <span className="font-bold text-green-600">
+                                                            ৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center pb-2 border-b">
+                                                        <span className="text-sm text-muted-foreground">Total Passed Months</span>
+                                                        <span className="font-medium">
+                                                            {loadingPayments ? "..." : totalPassedMonths}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center pb-2 border-b">
+                                                        <span className="text-sm text-muted-foreground">Months Paid</span>
+                                                        <span className="font-medium text-blue-600">
+                                                            {loadingPayments ? "..." : paidMonthsCount}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center pb-2 border-b">
+                                                        <span className="text-sm text-muted-foreground">Months Due</span>
+                                                        <span className="font-medium text-red-600">
+                                                            {loadingPayments ? "..." : monthsDue}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
                                         <div className="pt-2">
                                             <Dialog open={isDonateModalOpen} onOpenChange={setIsDonateModalOpen}>
                                                 <DialogTrigger asChild>

@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Trash2, Edit, Plus, Menu, Settings2, Calculator, Calendar, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Check, X, Trash2, Edit, Plus, Menu, Settings2, Calculator, Calendar, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -88,6 +89,19 @@ export default function CollectionsPage() {
     const [isOneTimeDialogOpen, setIsOneTimeDialogOpen] = useState(false);
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [isManageViewOpen, setIsManageViewOpen] = useState(false);
+    const [isRecordMonthlyOpen, setIsRecordMonthlyOpen] = useState(false);
+
+    // --- Admin Multi-Month Form State ---
+    const [multiMonthFormData, setMultiMonthFormData] = useState({
+        amount: "",
+        year: new Date().getFullYear().toString(),
+        months: [] as number[],
+        allocations: {} as Record<number, string>,
+        method: "bkash",
+        transactionId: "",
+        notes: "",
+        date: format(new Date(), "yyyy-MM-dd"),
+    });
 
     const [selectedMemberSummary, setSelectedMemberSummary] = useState<any>(null);
 
@@ -302,13 +316,187 @@ export default function CollectionsPage() {
             .filter(p => p.type === 'one-time')
             .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
+        // Monthly logic for Summary metrics
+        const paidMonthsCount = new Set(userPayments.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`)).size;
+        let totalPassedMonths = 0;
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+
+        if (settings && settings.collectionYears) {
+            settings.collectionYears.forEach(year => {
+                const activeMonthsInYear = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                if (year < currentYear) {
+                    totalPassedMonths += activeMonthsInYear.length;
+                } else if (year === currentYear) {
+                    totalPassedMonths += activeMonthsInYear.filter(m => m <= currentMonth).length;
+                }
+            });
+        }
+
+        const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
+
         setSelectedMemberSummary({
             ...user,
             totalPaidAllTime,
             oneTimeTotal,
+            totalPassedMonths,
+            paidMonthsCount,
+            monthsDue,
             currentYearPaid: userPayments.filter(p => p.type === 'monthly' && p.year === selectedYear).length
         });
+
+        // Reset multi-month form data for this user
+        setMultiMonthFormData({
+            amount: "",
+            year: (settings.collectionYears && settings.collectionYears.length > 0 ? Math.max(...settings.collectionYears) : new Date().getFullYear()).toString(),
+            months: [],
+            allocations: {},
+            method: "bkash",
+            transactionId: "",
+            notes: "",
+            date: format(new Date(), "yyyy-MM-dd"),
+        });
+        setIsRecordMonthlyOpen(false);
         setIsSummaryOpen(true);
+    };
+
+    // --- Admin Multi-Month Helpers ---
+    const multiMonthPaidMonths = useMemo(() => {
+        if (!selectedMemberSummary) return [];
+        return multiMonthFormData.months.filter(m =>
+            payments.some(p =>
+                p.userId === selectedMemberSummary.id &&
+                p.type === 'monthly' &&
+                p.month === m &&
+                p.year === Number(multiMonthFormData.year)
+            )
+        );
+    }, [multiMonthFormData.months, multiMonthFormData.year, payments, selectedMemberSummary]);
+
+    const toggleMultiMonth = (month: number) => {
+        setMultiMonthFormData(prev => {
+            if (prev.months.includes(month)) {
+                const newAllocations = { ...prev.allocations };
+                delete newAllocations[month];
+                return { ...prev, months: prev.months.filter(m => m !== month), allocations: newAllocations };
+            } else {
+                return { ...prev, months: [...prev.months, month].sort((a, b) => a - b) };
+            }
+        });
+    };
+
+    const handleMultiMonthAllocationChange = (month: number, value: string) => {
+        setMultiMonthFormData(prev => ({
+            ...prev,
+            allocations: { ...prev.allocations, [month]: value }
+        }));
+    };
+
+    const handleMultiMonthAllocationBlur = () => {
+        setMultiMonthFormData(prev => {
+            if (prev.months.length < 2) return prev;
+            const total = Number(prev.amount) || 0;
+            if (total <= 0) return prev;
+            const emptyMonths = prev.months.filter(m => !prev.allocations[m]);
+            if (emptyMonths.length === 1) {
+                const currentSum = prev.months.reduce((sum, m) => sum + (Number(prev.allocations[m]) || 0), 0);
+                if (currentSum < total) {
+                    return {
+                        ...prev,
+                        allocations: { ...prev.allocations, [emptyMonths[0]]: (total - currentSum).toString() }
+                    };
+                }
+            }
+            return prev;
+        });
+    };
+
+    const handleAdminRecordMonthlySubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedMemberSummary) return;
+
+        const totalAmount = Number(multiMonthFormData.amount) || 0;
+        const allocatedSum = multiMonthFormData.months.reduce((sum, m) => sum + (Number(multiMonthFormData.allocations[m]) || 0), 0);
+
+        if (multiMonthFormData.months.length === 0) {
+            toast({ title: "Error", description: "Please select at least one active month.", variant: "destructive" });
+            return;
+        }
+        if (multiMonthFormData.months.length > 1 && allocatedSum > totalAmount) {
+            toast({ title: "Error", description: "Distributed amounts cannot exceed total amount.", variant: "destructive" });
+            return;
+        }
+
+        try {
+            const { addDoc, collection } = await import("firebase/firestore");
+            let allocationsToSave = {} as Record<number, string>;
+
+            if (multiMonthFormData.months.length === 1) {
+                allocationsToSave = { [multiMonthFormData.months[0]]: multiMonthFormData.amount };
+            } else {
+                allocationsToSave = multiMonthFormData.allocations;
+            }
+
+            for (const month of multiMonthFormData.months) {
+                const monthAmount = Number(allocationsToSave[month]) || 0;
+                if (monthAmount <= 0) continue;
+
+                // Check for existing monthly payment for this user, year, and month
+                const existingPayment = payments.find(p =>
+                    p.userId === selectedMemberSummary.id &&
+                    p.type === 'monthly' &&
+                    p.month === month &&
+                    p.year === Number(multiMonthFormData.year)
+                );
+
+                if (existingPayment) {
+                    await updatePayment(existingPayment.id, {
+                        amount: Number(existingPayment.amount) + monthAmount,
+                        notes: existingPayment.notes
+                            ? `${existingPayment.notes} | ${multiMonthFormData.notes || 'Admin added more'}`
+                            : (multiMonthFormData.notes || `Admin added more`)
+                    });
+
+                    await addDoc(collection(db, "notifications"), {
+                        userId: selectedMemberSummary.id,
+                        title: "Payment Updated",
+                        message: `An admin has added ৳${monthAmount} to your existing payment for ${format(new Date(2000, month - 1, 1), 'MMM')} ${multiMonthFormData.year}.`,
+                        type: "info",
+                        read: false,
+                        createdAt: Timestamp.now()
+                    });
+                } else {
+                    await addPayment({
+                        userId: selectedMemberSummary.id,
+                        memberName: selectedMemberSummary.name || selectedMemberSummary.username || "Unknown",
+                        amount: monthAmount,
+                        date: new Date(multiMonthFormData.date),
+                        type: "monthly",
+                        month: month,
+                        year: Number(multiMonthFormData.year),
+                        notes: multiMonthFormData.notes || `Admin bulk entry - ${multiMonthFormData.method} ${multiMonthFormData.transactionId ? '(' + multiMonthFormData.transactionId + ')' : ''}`.trim()
+                    });
+
+                    await addDoc(collection(db, "notifications"), {
+                        userId: selectedMemberSummary.id,
+                        title: "Payment Added",
+                        message: `An admin has recorded a bulk payment of ৳${monthAmount} for ${format(new Date(2000, month - 1, 1), 'MMM')} ${multiMonthFormData.year}.`,
+                        type: "success",
+                        read: false,
+                        createdAt: Timestamp.now()
+                    });
+                }
+            }
+
+            toast({ title: "Payments Recorded", description: `Successfully recorded payments for ${multiMonthFormData.months.length} months.` });
+
+            setIsRecordMonthlyOpen(false);
+            setIsSummaryOpen(false); // Can close everything once done
+
+        } catch (error) {
+            console.error(error);
+            toast({ title: "Error", description: "Failed to record payments.", variant: "destructive" });
+        }
     };
 
     // --- One Time ---
@@ -684,29 +872,160 @@ export default function CollectionsPage() {
 
             {/* --- MEMBER SUMMARY DIALOG --- */}
             <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
-                <DialogContent className="sm:max-w-[400px]">
+                <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Member Summary</DialogTitle>
                         <DialogDescription>{selectedMemberSummary?.name || selectedMemberSummary?.username}</DialogDescription>
                     </DialogHeader>
                     {selectedMemberSummary && (
                         <div className="grid gap-4 py-4">
-                            <div className="text-center p-4 bg-muted/30 rounded-lg">
-                                <div className="text-sm text-muted-foreground underline">Lifetime Total</div>
-                                <div className="text-3xl font-bold text-primary">৳{selectedMemberSummary.totalPaidAllTime}</div>
-                            </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="p-3 border rounded-lg text-center">
-                                    <div className="text-xs text-muted-foreground">One-time</div>
-                                    <div className="text-lg font-semibold text-blue-600">৳{selectedMemberSummary.oneTimeTotal}</div>
+                                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                                    <div className="text-sm text-muted-foreground underline">Total Paid</div>
+                                    <div className="text-2xl font-bold text-primary">৳{selectedMemberSummary.totalPaidAllTime}</div>
                                 </div>
-                                <div className="p-3 border rounded-lg text-center">
-                                    <div className="text-xs text-muted-foreground">Monthly ({selectedYear})</div>
-                                    <div className="text-lg font-semibold text-green-600">
-                                        ৳{selectedMemberSummary.currentYearPaid * 100}{/* Estimate - ideally use real sum if available */}
-                                    </div>
+                                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                                    <div className="text-sm text-muted-foreground underline">One-time</div>
+                                    <div className="text-2xl font-bold text-blue-600">৳{selectedMemberSummary.oneTimeTotal}</div>
                                 </div>
                             </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="p-2 border rounded text-center bg-background">
+                                    <div className="text-xs text-muted-foreground">Passed</div>
+                                    <div className="text-lg font-bold">{selectedMemberSummary.totalPassedMonths}</div>
+                                </div>
+                                <div className="p-2 border rounded text-center bg-green-50/50 dark:bg-green-900/10">
+                                    <div className="text-xs text-green-700 dark:text-green-400">Paid</div>
+                                    <div className="text-lg font-bold text-green-700 dark:text-green-400">{selectedMemberSummary.paidMonthsCount}</div>
+                                </div>
+                                <div className="p-2 border rounded text-center bg-red-50/50 dark:bg-red-900/10">
+                                    <div className="text-xs text-red-700 dark:text-red-400">Due</div>
+                                    <div className="text-lg font-bold text-red-700 dark:text-red-400">{selectedMemberSummary.monthsDue}</div>
+                                </div>
+                            </div>
+
+                            {!isRecordMonthlyOpen ? (
+                                <Button className="w-full mt-2" onClick={() => setIsRecordMonthlyOpen(true)}>
+                                    <Plus className="h-4 w-4 mr-2" /> Record Monthly Donations
+                                </Button>
+                            ) : (
+                                <Card className="mt-4 border-2 border-primary/20">
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-lg flex justify-between items-center">
+                                            <span>Bulk Record Monthly</span>
+                                            <Button variant="ghost" size="sm" onClick={() => setIsRecordMonthlyOpen(false)}><X className="h-4 w-4" /></Button>
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <form className="space-y-4" onSubmit={handleAdminRecordMonthlySubmit}>
+                                            <div className="space-y-2">
+                                                <Label>Total Amount (৳)</Label>
+                                                <Input
+                                                    type="number"
+                                                    required
+                                                    min="10"
+                                                    value={multiMonthFormData.amount}
+                                                    onChange={e => setMultiMonthFormData(prev => ({ ...prev, amount: e.target.value }))}
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 gap-4 p-3 bg-muted/20 rounded-md border">
+                                                <div>
+                                                    <Label className="mb-2 block">Select Months</Label>
+                                                    <div className="grid grid-cols-4 gap-2">
+                                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
+                                                            const activeMonths = settings.collectionMonths?.[Number(multiMonthFormData.year)] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                            const isActive = activeMonths.includes(m);
+                                                            const isSelected = multiMonthFormData.months.includes(m);
+                                                            const isAlreadyPaid = multiMonthPaidMonths.includes(m);
+
+                                                            return (
+                                                                <div
+                                                                    key={m}
+                                                                    onClick={() => isActive && toggleMultiMonth(m)}
+                                                                    className={`text-center text-xs py-1.5 rounded border select-none transition-colors ${!isActive ? "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed" : isSelected ? isAlreadyPaid ? "bg-yellow-500 text-white border-yellow-600 font-medium cursor-pointer" : "bg-primary text-primary-foreground border-primary font-medium cursor-pointer" : isAlreadyPaid ? "bg-yellow-100/50 hover:bg-yellow-100 border-yellow-200 text-yellow-800 cursor-pointer" : "bg-background hover:bg-muted border-input text-muted-foreground hover:text-foreground cursor-pointer"}`}
+                                                                >
+                                                                    {format(new Date(2000, m - 1, 1), 'MMM')}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <Label>Year</Label>
+                                                    <select
+                                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                                                        value={multiMonthFormData.year}
+                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, year: e.target.value, months: [] }))}
+                                                    >
+                                                        {settings.collectionYears.map(y => <option key={y} value={y}>{y}</option>)}
+                                                    </select>
+                                                </div>
+
+                                                {multiMonthFormData.months.length > 1 && multiMonthFormData.amount && (
+                                                    <div className="space-y-2 pt-2 border-t border-muted">
+                                                        <Label className="text-xs text-muted-foreground">Distribute Amount</Label>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            {multiMonthFormData.months.map(m => (
+                                                                <div key={m} className="flex items-center gap-2">
+                                                                    <span className="text-xs w-8">{format(new Date(2000, m - 1, 1), 'MMM')}</span>
+                                                                    <Input
+                                                                        type="number"
+                                                                        className="h-7 text-xs"
+                                                                        value={multiMonthFormData.allocations[m] || ""}
+                                                                        onChange={e => handleMultiMonthAllocationChange(m, e.target.value)}
+                                                                        onBlur={handleMultiMonthAllocationBlur}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        {multiMonthFormData.months.length > 1 && Number(multiMonthFormData.amount) > 0 && (multiMonthFormData.months.reduce((sum, m) => sum + (Number(multiMonthFormData.allocations[m]) || 0), 0) > Number(multiMonthFormData.amount)) && (
+                                                            <div className="text-xs text-red-500 font-medium mt-1">Total allocated exceeds {multiMonthFormData.amount}.</div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {multiMonthPaidMonths.length > 0 && (
+                                                    <Alert variant="destructive" className="bg-yellow-50 text-yellow-900 border-yellow-200 py-2">
+                                                        <AlertTriangle className="h-4 w-4" />
+                                                        <AlertDescription className="text-xs ml-2">
+                                                            Already paid: {multiMonthPaidMonths.map(m => format(new Date(2000, m - 1, 1), 'MMM')).join(', ')}.
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <Label className="text-xs">Method</Label>
+                                                    <select
+                                                        className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                                        value={multiMonthFormData.method}
+                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, method: e.target.value }))}
+                                                    >
+                                                        <option value="bkash">Bkash</option>
+                                                        <option value="nagad">Nagad</option>
+                                                        <option value="bank">Bank</option>
+                                                        <option value="cash">Cash</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs">Date</Label>
+                                                    <Input type="date" className="h-8 text-xs" required value={multiMonthFormData.date} onChange={e => setMultiMonthFormData(prev => ({ ...prev, date: e.target.value }))} />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-xs">Transaction ID (Optional)</Label>
+                                                <Input className="h-8 text-xs" value={multiMonthFormData.transactionId} onChange={e => setMultiMonthFormData(prev => ({ ...prev, transactionId: e.target.value }))} />
+                                            </div>
+
+                                            <Button type="submit" className="w-full h-8 text-sm bg-green-600 hover:bg-green-700">Save Monthly Payments</Button>
+                                        </form>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
                     )}
                 </DialogContent>

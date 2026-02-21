@@ -7,7 +7,7 @@ import { useFinance } from "@/lib/finance-context";
 import { useSettings } from "@/lib/settings-context";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { FolderOpen, DollarSign, Users, TrendingUp, CreditCard, AlertCircle } from "lucide-react";
+import { FolderOpen, DollarSign, Users, TrendingUp, CreditCard, AlertCircle, Heart } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,42 @@ export default function AdminDashboard() {
             return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
         })
         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    const totalMemberCollection = payments
+        .filter(p => p.type === 'monthly')
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    const totalOneTimeCollection = payments
+        .filter(p => p.type === 'one-time')
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    // Date range calculation for lifetime based on actual admin settings
+    let earliestDate = "N/A";
+    let latestDate = "Present";
+
+    if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
+        // Find earliest year in settings
+        const earliestYear = Math.min(...settings.collectionYears);
+
+        // Find earliest month in the earliest year
+        const monthsForYear = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        const earliestMonth = Math.min(...monthsForYear);
+
+        // Convert to Date for formatting
+        try {
+            const dateObj = new Date(earliestYear, earliestMonth - 1, 1);
+            earliestDate = dateObj.toLocaleDateString('default', { month: 'short', year: 'numeric' });
+        } catch (e) {
+            // fallback
+            earliestDate = `${earliestYear}`;
+        }
+    } else if (payments.length > 0) {
+        // Fallback to payments if no settings available
+        const earliestP = payments[payments.length - 1];
+        try {
+            earliestDate = earliestP.date.toLocaleDateString('default', { month: 'short', year: 'numeric' });
+        } catch (e) { }
+    }
 
     // Paid/Due Members Logic
     const paidMembersCount = users.filter(user => {
@@ -139,17 +175,39 @@ export default function AdminDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-green-600">৳{totalCollection.toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">Lifetime</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                            Lifetime ({earliestDate} - {latestDate})
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Member Collection</CardTitle>
+                        <Users className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-blue-600">৳{totalMemberCollection.toLocaleString()}</div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Monthly subscriptions overall</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">One-time Donations</CardTitle>
+                        <Heart className="h-4 w-4 text-pink-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-pink-600">৳{totalOneTimeCollection.toLocaleString()}</div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Direct single contributions</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">This Month</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-blue-500" />
+                        <TrendingUp className="h-4 w-4 text-indigo-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">৳{currentMonthCollection.toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">Current month collection</p>
+                        <div className="text-2xl font-bold text-indigo-600">৳{currentMonthCollection.toLocaleString()}</div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Current month collection</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -159,7 +217,7 @@ export default function AdminDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{loadingUsers ? "..." : paidMembersCount}</div>
-                        <p className="text-xs text-muted-foreground">For current month</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">For current month</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -169,7 +227,7 @@ export default function AdminDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-red-600">{loadingUsers ? "..." : dueMembersCount}</div>
-                        <p className="text-xs text-muted-foreground">Pending payments</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">Pending payments</p>
                     </CardContent>
                 </Card>
             </div>

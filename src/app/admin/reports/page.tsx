@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { collection, query, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFinance } from "@/lib/finance-context";
+import { useSettings } from "@/lib/settings-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Search } from "lucide-react";
 
 export default function ReportsPage() {
     const { payments } = useFinance();
+    const { settings } = useSettings();
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -34,30 +36,55 @@ export default function ReportsPage() {
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
 
+    // Calculate total passed months based on settings
+    const calculatePassedMonths = () => {
+        if (!settings || !settings.collectionYears) return 0;
+
+        let totalPassed = 0;
+
+        settings.collectionYears.forEach(year => {
+            const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+            if (year < currentYear) {
+                totalPassed += activeMonths.length;
+            } else if (year === currentYear) {
+                // Count active months up to and including the current month
+                totalPassed += activeMonths.filter(m => m <= currentMonth).length;
+            }
+        });
+
+        return totalPassed;
+    };
+
+    const totalPassedMonths = calculatePassedMonths();
+
     // Process Data
     const userReports = users.map(user => {
         const userPayments = payments.filter(p => p.userId === user.id);
 
         const totalPaid = userPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-        const monthlyPayments = userPayments.filter(p => p.type === 'monthly' && p.year === currentYear);
+        const monthlyPaymentsAllTime = userPayments.filter(p => p.type === 'monthly');
+        const monthlyPaymentsCurrentYear = monthlyPaymentsAllTime.filter(p => p.year === currentYear);
         const oneTimePayments = userPayments.filter(p => p.type === 'one-time');
 
-        const monthsPaidCount = monthlyPayments.length;
+        // Total months paid across all time
+        const totalMonthsPaidCount = monthlyPaymentsAllTime.length;
 
         // Simple logic for checking current month status
         // We assume they pay for months sequentially or at least checking if CURRENT month is paid
-        const isPaidCurrentMonth = monthlyPayments.some(p => p.month === currentMonth);
+        const isPaidCurrentMonth = monthlyPaymentsCurrentYear.some(p => p.month === currentMonth);
 
-        // Due Check: If it's past the 10th and not paid, or just not paid yet?
-        // Requirement: "Paid members, Due members will be calculated"
+        // Due Check: Passed months - paid months
+        const monthsDueCount = Math.max(0, totalPassedMonths - totalMonthsPaidCount);
 
         return {
             ...user,
             totalPaid,
             oneTimeTotal: oneTimePayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
-            monthsPaidCount,
-            monthsDueCount: currentMonth - monthsPaidCount, // Rough estimate of due months YTD
+            totalPassedMonths,
+            totalMonthsPaidCount,
+            monthsDueCount,
             isPaidCurrentMonth
         };
     });
@@ -139,18 +166,20 @@ export default function ReportsPage() {
                                     <TableHead>Name</TableHead>
                                     <TableHead className="text-right">Total Paid (৳)</TableHead>
                                     <TableHead className="text-right">One-time (৳)</TableHead>
-                                    <TableHead className="text-center">Months Paid</TableHead>
+                                    <TableHead className="text-center">Passed Months</TableHead>
+                                    <TableHead className="text-center">Paid Months</TableHead>
+                                    <TableHead className="text-center">Due Months</TableHead>
                                     <TableHead className="text-center">Status (Current Month)</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8">Loading...</TableCell>
+                                        <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
                                     </TableRow>
                                 ) : displayedUsers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No members found.</TableCell>
+                                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No members found.</TableCell>
                                     </TableRow>
                                 ) : (
                                     displayedUsers.map(user => (
@@ -161,7 +190,9 @@ export default function ReportsPage() {
                                             </TableCell>
                                             <TableCell className="text-right">৳{user.totalPaid}</TableCell>
                                             <TableCell className="text-right">৳{user.oneTimeTotal}</TableCell>
-                                            <TableCell className="text-center">{user.monthsPaidCount}</TableCell>
+                                            <TableCell className="text-center font-bold">{user.totalPassedMonths}</TableCell>
+                                            <TableCell className="text-center text-blue-600 font-medium">{user.totalMonthsPaidCount}</TableCell>
+                                            <TableCell className="text-center text-red-600 font-medium">{user.monthsDueCount}</TableCell>
                                             <TableCell className="text-center">
                                                 {user.isPaidCurrentMonth ? (
                                                     <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
