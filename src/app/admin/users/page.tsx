@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Plus, Search, Eye, EyeOff } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { RecycleService } from "@/lib/recycle-service";
@@ -52,6 +53,23 @@ export default function UsersPage() {
 
     // Password Visibility State
     const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+
+    // Sort State
+    type UserSortKey = "name" | "username" | "role" | "createdAt";
+    const [sortKey, setSortKey] = useState<UserSortKey>("createdAt");
+    const [sortAsc, setSortAsc] = useState(false);
+
+    const handleSort = (key: UserSortKey) => {
+        if (key === sortKey) setSortAsc(prev => !prev);
+        else { setSortKey(key); setSortAsc(false); }
+    };
+
+    const SortIcon = ({ col }: { col: UserSortKey }) => {
+        if (col !== sortKey) return <ArrowUpDown className="ml-1 h-3 w-3 text-muted-foreground inline" />;
+        return sortAsc
+            ? <ArrowUp className="ml-1 h-3 w-3 text-primary inline" />
+            : <ArrowDown className="ml-1 h-3 w-3 text-primary inline" />;
+    };
 
     // Edit Dialog State
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -136,7 +154,7 @@ export default function UsersPage() {
                 message: "An administrator has updated your profile information.",
                 type: "info",
                 read: false,
-                createdAt: new Date().toISOString()
+                createdAt: Timestamp.now()
             });
 
             toast({ title: "User Updated", description: "User information saved successfully." });
@@ -226,7 +244,23 @@ export default function UsersPage() {
         user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (user.phone && user.phone.includes(searchTerm))
-    );
+    ).sort((a, b) => {
+        let valA: any;
+        let valB: any;
+        if (sortKey === "createdAt") {
+            valA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+            valB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+        } else if (sortKey === "role") {
+            valA = (a.roles?.[0] || "").toLowerCase();
+            valB = (b.roles?.[0] || "").toLowerCase();
+        } else {
+            valA = (a[sortKey] || "").toLowerCase();
+            valB = (b[sortKey] || "").toLowerCase();
+        }
+        if (valA < valB) return sortAsc ? -1 : 1;
+        if (valA > valB) return sortAsc ? 1 : -1;
+        return 0;
+    });
 
     const handleRoleToggle = (role: string) => {
         if (!editForm.roles) editForm.roles = [];
@@ -275,17 +309,18 @@ export default function UsersPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Username / Email</TableHead>
+                                        <TableHead className="cursor-pointer select-none hover:text-primary" onClick={() => handleSort("name")}>Name <SortIcon col="name" /></TableHead>
+                                        <TableHead className="cursor-pointer select-none hover:text-primary" onClick={() => handleSort("username")}>Username / Email <SortIcon col="username" /></TableHead>
                                         <TableHead>Password</TableHead>
-                                        <TableHead>Role</TableHead>
+                                        <TableHead className="cursor-pointer select-none hover:text-primary" onClick={() => handleSort("role")}>Role <SortIcon col="role" /></TableHead>
+                                        <TableHead className="cursor-pointer select-none hover:text-primary" onClick={() => handleSort("createdAt")}>Joined <SortIcon col="createdAt" /></TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredUsers.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
                                                 No users found.
                                             </TableCell>
                                         </TableRow>
@@ -317,6 +352,11 @@ export default function UsersPage() {
                                                             </Badge>
                                                         ))}
                                                     </div>
+                                                </TableCell>
+                                                <TableCell className="text-sm text-muted-foreground">
+                                                    {user.createdAt
+                                                        ? (() => { try { return new Date(user.createdAt?.toDate ? user.createdAt.toDate() : user.createdAt).toLocaleDateString(); } catch { return "—"; } })()
+                                                        : "—"}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-2">

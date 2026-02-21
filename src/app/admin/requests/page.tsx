@@ -215,31 +215,47 @@ export default function RequestsPage() {
                 const paymentMonth = Number(m);
                 const paymentYearValue = Number(paymentYear);
 
-                const q = query(
-                    collection(db, "payments"),
-                    where("userId", "==", request.userId),
-                    where("type", "==", request.type || "one-time"),
-                    where("month", "==", paymentMonth),
-                    where("year", "==", paymentYearValue)
-                );
+                if (isMonthly) {
+                    // For monthly: check for existing record and update or create
+                    const q = query(
+                        collection(db, "payments"),
+                        where("userId", "==", request.userId),
+                        where("type", "==", "monthly"),
+                        where("month", "==", paymentMonth),
+                        where("year", "==", paymentYearValue)
+                    );
 
-                const snap = await getDocs(q);
+                    const snap = await getDocs(q);
 
-                if (!snap.empty) {
-                    const existingDoc = snap.docs[0];
-                    const existingAmount = Number(existingDoc.data().amount) || 0;
-                    await updateDoc(doc(db, "payments", existingDoc.id), {
-                        amount: existingAmount + amountToAdd,
-                        updatedAt: Timestamp.now()
-                    });
+                    if (!snap.empty) {
+                        const existingDoc = snap.docs[0];
+                        const existingAmount = Number(existingDoc.data().amount) || 0;
+                        await updateDoc(doc(db, "payments", existingDoc.id), {
+                            amount: existingAmount + amountToAdd,
+                            updatedAt: Timestamp.now()
+                        });
+                    } else {
+                        await addDoc(collection(db, "payments"), {
+                            amount: amountToAdd,
+                            date: paymentDate,
+                            month: paymentMonth,
+                            year: paymentYearValue,
+                            memberName: request.userName,
+                            type: "monthly",
+                            userId: request.userId,
+                            method: request.method,
+                            notes: request.notes,
+                            transactionId: request.transactionId || "",
+                            createdAt: Timestamp.now()
+                        });
+                    }
                 } else {
+                    // For one-time: always create a new payment record
                     await addDoc(collection(db, "payments"), {
                         amount: amountToAdd,
                         date: paymentDate,
-                        month: paymentMonth,
-                        year: paymentYearValue,
                         memberName: request.userName,
-                        type: request.type || "one-time",
+                        type: "one-time",
                         userId: request.userId,
                         method: request.method,
                         notes: request.notes,

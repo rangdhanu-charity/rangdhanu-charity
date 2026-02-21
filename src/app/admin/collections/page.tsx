@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { collection, query, getDocs, doc, deleteDoc, writeBatch } from "firebase/firestore";
+import { collection, query, getDocs, doc, deleteDoc, writeBatch, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFinance, Payment } from "@/lib/finance-context";
 import { useSettings } from "@/lib/settings-context";
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Trash2, Edit, Plus, Menu, Settings2, Calculator, Calendar, ChevronDown } from "lucide-react";
+import { Check, X, Trash2, Edit, Plus, Menu, Settings2, Calculator, Calendar, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -103,6 +103,44 @@ export default function CollectionsPage() {
     });
     const [userSearchTerm, setUserSearchTerm] = useState("");
     const [showUserSuggestions, setShowUserSuggestions] = useState(false);
+
+    // --- One-Time Sort State ---
+    type OneTimeSortKey = "createdAt" | "memberName" | "amount";
+    const [oneTimeSortKey, setOneTimeSortKey] = useState<OneTimeSortKey>("createdAt");
+    const [oneTimeSortAsc, setOneTimeSortAsc] = useState(false);
+
+    const handleOneTimeSort = (key: OneTimeSortKey) => {
+        if (key === oneTimeSortKey) {
+            setOneTimeSortAsc(prev => !prev);
+        } else {
+            setOneTimeSortKey(key);
+            setOneTimeSortAsc(false); // default to desc for new column
+        }
+    };
+
+    const SortIcon = ({ col }: { col: OneTimeSortKey }) => {
+        if (col !== oneTimeSortKey) return <ArrowUpDown className="ml-1 h-3 w-3 text-muted-foreground inline" />;
+        return oneTimeSortAsc
+            ? <ArrowUp className="ml-1 h-3 w-3 text-primary inline" />
+            : <ArrowDown className="ml-1 h-3 w-3 text-primary inline" />;
+    };
+
+    // --- Member Sort State (for Matrix table) ---
+    const [memberSortAsc, setMemberSortAsc] = useState(false); // default: newest first
+
+    const sortedUsers = useMemo(() => {
+        return [...users].sort((a: any, b: any) => {
+            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+            return memberSortAsc
+                ? dateA.getTime() - dateB.getTime()
+                : dateB.getTime() - dateA.getTime();
+        });
+    }, [users, memberSortAsc]);
+
+    const MatrixMemberSortIcon = () => memberSortAsc
+        ? <ArrowUp className="ml-1 h-3 w-3 text-primary inline" />
+        : <ArrowDown className="ml-1 h-3 w-3 text-primary inline" />;
 
     // --- Fetch Users ---
     useEffect(() => {
@@ -206,7 +244,7 @@ export default function CollectionsPage() {
                     message: `An admin has removed your payment record for ${col.label} ${col.year}.`,
                     type: "warning",
                     read: false,
-                    createdAt: new Date().toISOString()
+                    createdAt: Timestamp.now()
                 });
                 toast({ title: "Moved to Recycle Bin", description: "Payment removed. Undo in Recycle Bin." });
             }
@@ -221,7 +259,7 @@ export default function CollectionsPage() {
                         message: `An admin has updated your ${col.label} ${col.year} payment to ৳${amount}.`,
                         type: "info",
                         read: false,
-                        createdAt: new Date().toISOString()
+                        createdAt: Timestamp.now()
                     });
                 }
             } else {
@@ -242,7 +280,7 @@ export default function CollectionsPage() {
                     message: `An admin has recorded a new payment of ৳${amount} for ${col.label} ${col.year}.`,
                     type: "success",
                     read: false,
-                    createdAt: new Date().toISOString()
+                    createdAt: Timestamp.now()
                 });
             }
         }
@@ -293,7 +331,7 @@ export default function CollectionsPage() {
                         message: `An admin has updated your one-time donation to ৳${dataToSave.amount}.`,
                         type: "info",
                         read: false,
-                        createdAt: new Date().toISOString()
+                        createdAt: Timestamp.now()
                     });
                 }
             } else {
@@ -305,7 +343,7 @@ export default function CollectionsPage() {
                         message: `An admin has recorded a new one-time donation of ৳${dataToSave.amount}.`,
                         type: "success",
                         read: false,
-                        createdAt: new Date().toISOString()
+                        createdAt: Timestamp.now()
                     });
                 }
             }
@@ -377,8 +415,11 @@ export default function CollectionsPage() {
                             <Table className="border-collapse">
                                 <TableHeader>
                                     <TableRow className="bg-muted/50">
-                                        <TableHead className="w-[200px] sticky left-0 bg-background z-20 border-r text-base font-bold">
-                                            Member
+                                        <TableHead
+                                            className="w-[200px] sticky left-0 bg-background z-20 border-r text-base font-bold cursor-pointer select-none hover:text-primary"
+                                            onClick={() => setMemberSortAsc(prev => !prev)}
+                                        >
+                                            Member <MatrixMemberSortIcon />
                                         </TableHead>
                                         {visibleColumns.map(col => (
                                             <TableHead key={col.id} className="text-center min-w-[80px] border-r">
@@ -394,7 +435,7 @@ export default function CollectionsPage() {
                                     {loadingUsers ? (
                                         <TableRow><TableCell colSpan={visibleColumns.length + 2} className="text-center h-24">Loading...</TableCell></TableRow>
                                     ) : (
-                                        users.map(user => {
+                                        sortedUsers.map(user => {
                                             const rowTotal = getUserRowTotal(user.id);
                                             return (
                                                 <TableRow key={user.id} className="hover:bg-muted/50 group">
@@ -487,9 +528,24 @@ export default function CollectionsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Donor</TableHead>
-                                    <TableHead>Amount</TableHead>
+                                    <TableHead
+                                        className="cursor-pointer select-none hover:text-primary"
+                                        onClick={() => handleOneTimeSort("createdAt")}
+                                    >
+                                        Date <SortIcon col="createdAt" />
+                                    </TableHead>
+                                    <TableHead
+                                        className="cursor-pointer select-none hover:text-primary"
+                                        onClick={() => handleOneTimeSort("memberName")}
+                                    >
+                                        Donor <SortIcon col="memberName" />
+                                    </TableHead>
+                                    <TableHead
+                                        className="cursor-pointer select-none hover:text-primary"
+                                        onClick={() => handleOneTimeSort("amount")}
+                                    >
+                                        Amount <SortIcon col="amount" />
+                                    </TableHead>
                                     <TableHead>Notes</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -499,10 +555,30 @@ export default function CollectionsPage() {
                                     <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No records found.</TableCell></TableRow>
                                 ) : (
                                     payments.filter(p => p.type === 'one-time')
-                                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                        .sort((a, b) => {
+                                            let valA: any;
+                                            let valB: any;
+                                            if (oneTimeSortKey === "createdAt") {
+                                                valA = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt || 0).getTime();
+                                                valB = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt || 0).getTime();
+                                            } else if (oneTimeSortKey === "memberName") {
+                                                valA = (a.memberName || "").toLowerCase();
+                                                valB = (b.memberName || "").toLowerCase();
+                                            } else {
+                                                valA = Number(a.amount);
+                                                valB = Number(b.amount);
+                                            }
+                                            if (valA < valB) return oneTimeSortAsc ? -1 : 1;
+                                            if (valA > valB) return oneTimeSortAsc ? 1 : -1;
+                                            return 0;
+                                        })
                                         .map(payment => (
                                             <TableRow key={payment.id}>
-                                                <TableCell>{format(new Date(payment.date), "MMM d, yyyy")}</TableCell>
+                                                <TableCell>
+                                                    {payment.createdAt
+                                                        ? format(new Date(payment.createdAt), "MMM d, yyyy h:mm a")
+                                                        : format(new Date(payment.date), "MMM d, yyyy")}
+                                                </TableCell>
                                                 <TableCell>
                                                     {payment.memberName}
                                                     {payment.userId && <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Member</span>}

@@ -46,15 +46,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             const items = snapshot.docs
                 .map(doc => {
                     const data = doc.data();
+                    let createdAt: Date;
+                    if (data.createdAt?.toDate) {
+                        createdAt = data.createdAt.toDate(); // Firestore Timestamp
+                    } else if (typeof data.createdAt === 'string') {
+                        createdAt = new Date(data.createdAt); // ISO string
+                    } else if (data.createdAt instanceof Date) {
+                        createdAt = data.createdAt;
+                    } else {
+                        createdAt = new Date(0); // Fallback: push to bottom
+                    }
                     return {
                         id: doc.id,
                         ...data,
-                        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-                        rawCreatedAt: data.createdAt // Keep raw for precise sorting if needed, but Date object is fine
+                        createdAt,
                     };
                 })
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-                .map(({ rawCreatedAt, ...item }) => item as Notification);
+                .map(item => item as Notification);
 
             setNotifications(items);
         });

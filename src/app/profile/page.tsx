@@ -588,11 +588,12 @@ function ProfileContent() {
                     .map(doc => ({
                         id: doc.id,
                         ...doc.data(),
-                        rawDate: doc.data().date // Keep raw for sorting
+                        rawDate: doc.data().date, // Keep raw for display
+                        rawCreatedAt: doc.data().createdAt // For sorting
                     }))
                     .sort((a, b) => {
-                        const dateA = a.rawDate?.toDate ? a.rawDate.toDate() : new Date(a.rawDate);
-                        const dateB = b.rawDate?.toDate ? b.rawDate.toDate() : new Date(b.rawDate);
+                        const dateA = a.rawCreatedAt?.toDate ? a.rawCreatedAt.toDate() : (a.rawDate?.toDate ? a.rawDate.toDate() : new Date(a.rawDate || 0));
+                        const dateB = b.rawCreatedAt?.toDate ? b.rawCreatedAt.toDate() : (b.rawDate?.toDate ? b.rawDate.toDate() : new Date(b.rawDate || 0));
                         return dateB.getTime() - dateA.getTime();
                     })
                     .map(item => ({
@@ -1129,22 +1130,38 @@ function ProfileContent() {
                                             ) : paymentHistory.filter(d => !d.hiddenFromProfile).length === 0 ? (
                                                 <div className="text-center py-4 text-muted-foreground">No donations to show.</div>
                                             ) : (
-                                                paymentHistory.filter(d => !d.hiddenFromProfile).map((donation) => (
-                                                    <div key={donation.id} className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0">
-                                                        <div>
-                                                            <p className="font-medium">{donation.method === 'bkash' ? 'Bkash Payment' : donation.type === 'monthly' ? 'Monthly Subscription' : 'One-time Donation'}</p>
-                                                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                                                <Calendar className="h-3 w-3" /> {donation.date}
-                                                            </p>
+                                                paymentHistory.filter(d => !d.hiddenFromProfile).map((donation) => {
+                                                    return (
+                                                        <div key={donation.id} className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0">
+                                                            <div>
+                                                                <p className="font-medium">{donation.method === 'bkash' ? 'Bkash Payment' : donation.type === 'monthly' ? 'Monthly Subscription' : 'One-time Donation'}</p>
+                                                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                                                    <Calendar className="h-3 w-3" />
+                                                                    {(() => {
+                                                                        try {
+                                                                            if (donation.createdAt) {
+                                                                                const dateObj = donation.createdAt?.toDate ? donation.createdAt.toDate() : new Date(donation.createdAt);
+                                                                                return isNaN(dateObj.getTime()) ? donation.date : format(dateObj, "MMM d, yyyy h:mm a");
+                                                                            } else {
+                                                                                const dateObj = donation.rawDate?.toDate ? donation.rawDate.toDate() : new Date(donation.date);
+                                                                                return isNaN(dateObj.getTime()) ? donation.date : format(dateObj, "MMM d, yyyy h:mm a");
+                                                                            }
+                                                                        } catch (e) {
+                                                                            return donation.date || "Invalid Date";
+                                                                        }
+                                                                    })()}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex items-center gap-4">
+                                                                <span className="font-bold text-primary">৳ {donation.amount}</span>
+                                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHidePayment(donation.id, e)}>
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-4">
-                                                            <span className="font-bold text-primary">৳ {donation.amount}</span>
-                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHidePayment(donation.id, e)}>
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                )))}
+                                                    );
+                                                })
+                                            )}
                                         </div>
                                     </CardContent>}
                                 </Card>
@@ -1185,7 +1202,16 @@ function ProfileContent() {
                                                     {myRequests.filter((r: any) => !r.hiddenFromProfile).map((req: any) => (
                                                         <TableRow key={req.id}>
                                                             <TableCell className="text-xs">
-                                                                {req.createdAt?.toDate ? format(req.createdAt.toDate(), "MMM d, yyyy") : "-"}
+                                                                {(() => {
+                                                                    try {
+                                                                        if (req.createdAt?.toDate) return format(req.createdAt.toDate(), "MMM d, yyyy h:mm a");
+                                                                        if (req.rawDate?.toDate) return format(req.rawDate.toDate(), "MMM d, yyyy h:mm a");
+                                                                        const dateObj = new Date(req.createdAt || req.rawDate || req.date);
+                                                                        return isNaN(dateObj.getTime()) ? "-" : format(dateObj, "MMM d, yyyy h:mm a");
+                                                                    } catch (e) {
+                                                                        return "-";
+                                                                    }
+                                                                })()}
                                                             </TableCell>
                                                             <TableCell className="capitalize text-xs">{req.type}</TableCell>
                                                             <TableCell className="font-medium">৳{req.amount}</TableCell>

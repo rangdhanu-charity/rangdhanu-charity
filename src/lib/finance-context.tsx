@@ -126,18 +126,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                 createdAt: Timestamp.now()
             });
 
-            // Notify User
-            if (data.userId) {
-                await addDoc(collection(db, "notifications"), {
-                    userId: data.userId,
-                    type: "info",
-                    message: `A new payment of ৳${data.amount} has been added to your record.`,
-                    read: false,
-                    createdAt: Timestamp.now(),
-                    link: "/profile"
-                });
-            }
-
             toast({ title: "Success", description: "Payment recorded successfully." });
             return { success: true };
         } catch (error: any) {
@@ -153,21 +141,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             const updateData: any = { ...data };
             if (data.date) updateData.date = Timestamp.fromDate(data.date);
             await updateDoc(docRef, updateData);
-
-            // Notify User
-            const payment = payments.find(p => p.id === id);
-            const targetUserId = data.userId || payment?.userId;
-
-            if (targetUserId) {
-                await addDoc(collection(db, "notifications"), {
-                    userId: targetUserId,
-                    type: "info",
-                    message: `Your payment record for ৳${data.amount || payment?.amount} has been updated.`,
-                    read: false,
-                    createdAt: Timestamp.now(),
-                    link: "/profile"
-                });
-            }
 
             toast({ title: "Success", description: "Payment updated." });
             return { success: true };

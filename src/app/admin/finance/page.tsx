@@ -286,7 +286,11 @@ export default function FinancePage() {
                                     ) : (
                                         filteredExpenses.slice(0, 10).map(expense => (
                                             <TableRow key={expense.id}>
-                                                <TableCell className="font-medium">{format(new Date(expense.date), "MMM d")}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    {expense.createdAt
+                                                        ? format(new Date(expense.createdAt), "MMM d, yyyy h:mm a")
+                                                        : format(new Date(expense.date), "MMM d, yyyy h:mm a")}
+                                                </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
                                                         <span>{expense.title}</span>
