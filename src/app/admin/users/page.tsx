@@ -268,7 +268,14 @@ function UsersContent() {
 
         try {
             const storageRef = ref(storage, `profiles/${viewingUser.id}_${Date.now()}.webp`);
-            await uploadBytes(storageRef, croppedBlob, { contentType: 'image/webp' });
+
+            // Wrap upload in a 15-second timeout
+            const uploadPromise = uploadBytes(storageRef, croppedBlob, { contentType: 'image/webp' });
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Upload timed out. Is Firebase Storage initialized in your console?")), 15000)
+            );
+
+            await Promise.race([uploadPromise, timeoutPromise]);
             const downloadURL = await getDownloadURL(storageRef);
 
             const res = await adminUpdateUser(viewingUser.id, { photoURL: downloadURL });
