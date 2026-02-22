@@ -1076,24 +1076,35 @@ function ProfileContent() {
         setIsUploadingImage(true);
 
         try {
-            const storageRef = ref(storage, `profiles/${user.id}_${Date.now()}.webp`);
+            const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+            if (!apiKey) {
+                toast({ title: "Configuration Error", description: "ImgBB API Key is missing. Please add it to your .env.local file.", variant: "destructive" });
+                setIsUploadingImage(false);
+                return;
+            }
 
-            // Wrap upload in a 15-second timeout just in case Firebase Storage isn't initialized yet
-            const uploadPromise = uploadBytes(storageRef, croppedBlob, { contentType: 'image/webp' });
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Upload timed out. Is Firebase Storage initialized in your console?")), 15000)
-            );
+            const formData = new FormData();
+            formData.append("image", croppedBlob, "profile.webp");
 
-            await Promise.race([uploadPromise, timeoutPromise]);
-            const downloadURL = await getDownloadURL(storageRef);
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+                method: "POST",
+                body: formData
+            });
 
-            const res = await updateProfile({ photoURL: downloadURL });
+            const data = await response.json();
 
-            if (res.success) {
-                toast({ title: "Profile Picture Updated", description: "Your new picture has been saved successfully in low-resolution." });
-                setEditForm(prev => ({ ...prev, photoURL: downloadURL }));
+            if (data.success) {
+                const downloadURL = data.data.url;
+                const res = await updateProfile({ photoURL: downloadURL });
+
+                if (res.success) {
+                    toast({ title: "Profile Picture Updated", description: "Your new picture has been saved successfully in low-resolution." });
+                    setEditForm(prev => ({ ...prev, photoURL: downloadURL }));
+                } else {
+                    toast({ title: "Error", description: res.error || "Failed to save picture URL.", variant: "destructive" });
+                }
             } else {
-                toast({ title: "Error", description: res.error || "Failed to save picture URL.", variant: "destructive" });
+                toast({ title: "Image Host Error", description: data.error?.message || "Failed to upload to image server.", variant: "destructive" });
             }
         } catch (error) {
             console.error("Error uploading profile picture:", error);
