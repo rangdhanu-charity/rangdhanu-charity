@@ -575,7 +575,7 @@ function UsersContent() {
                                     <CardContent className="pt-6 flex flex-col items-center text-center">
                                         <div className="relative group mb-4">
                                             <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-xl">
-                                                <AvatarImage src={viewingUser.photoURL || ""} alt={viewingUser.name} />
+                                                <AvatarImage src={viewingUser.photoURL || undefined} alt={viewingUser.name} />
                                                 <AvatarFallback className="text-4xl bg-primary/10 text-primary">
                                                     {viewingUser.name?.charAt(0) || "U"}
                                                 </AvatarFallback>

@@ -363,7 +363,7 @@ function MemberFinanceTab() {
                             {members.map(m => (
                                 <div key={m.id} className="flex flex-col items-center gap-2 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors">
                                     <Avatar className="h-12 w-12">
-                                        <AvatarImage src={m.photoURL || ''} alt={m.name} />
+                                        <AvatarImage src={m.photoURL || undefined} alt={m.name} />
                                         <AvatarFallback>{m.name?.charAt(0)?.toUpperCase() || '?'}</AvatarFallback>
                                     </Avatar>
                                     <span className="text-sm font-medium text-center leading-tight">{m.name}</span>
