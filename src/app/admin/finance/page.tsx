@@ -22,7 +22,7 @@ export default function FinancePage() {
         totalCollection,
         totalExpenses,
         currentBalance,
-        payments // Need payments for income graph
+        payments // Need payments for collection graph
     } = useFinance();
     const { settings } = useSettings();
 
@@ -48,9 +48,9 @@ export default function FinancePage() {
 
     if (selectedYear === "all") {
         // Group by Year
-        const yearMap = new Map<number, { income: number; expense: number }>();
+        const yearMap = new Map<number, { collection: number; expense: number }>();
 
-        // Process Payments (Income)
+        // Process Payments (Collection)
         payments.forEach(p => {
             let y;
             if (p.type === 'monthly' && p.year) {
@@ -58,14 +58,14 @@ export default function FinancePage() {
             } else {
                 y = new Date(p.date).getFullYear();
             }
-            if (!yearMap.has(y)) yearMap.set(y, { income: 0, expense: 0 });
-            yearMap.get(y)!.income += Number(p.amount) || 0;
+            if (!yearMap.has(y)) yearMap.set(y, { collection: 0, expense: 0 });
+            yearMap.get(y)!.collection += Number(p.amount) || 0;
         });
 
         // Process Expenses
         expenses.forEach(e => {
             const y = new Date(e.date).getFullYear();
-            if (!yearMap.has(y)) yearMap.set(y, { income: 0, expense: 0 });
+            if (!yearMap.has(y)) yearMap.set(y, { collection: 0, expense: 0 });
             yearMap.get(y)!.expense += Number(e.amount) || 0;
         });
 
@@ -74,7 +74,7 @@ export default function FinancePage() {
             .filter(([year]) => !isNaN(year))
             .map(([year, data]) => ({
                 name: year.toString(),
-                income: data.income,
+                collection: data.collection,
                 expense: data.expense
             }));
 
@@ -83,7 +83,7 @@ export default function FinancePage() {
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         chartData = months.map((month, index) => {
             const monthNum = index + 1;
-            const income = payments
+            const collection = payments
                 .filter(p => {
                     // Priority: Collection Period
                     if (p.type === 'monthly' && p.year && p.month) {
@@ -93,7 +93,7 @@ export default function FinancePage() {
                     const d = new Date(p.date);
                     return d.getFullYear() === selectedYear && (d.getMonth() + 1) === monthNum;
                 })
-                .reduce((sum, p) => sum + Number(p.amount), 0);
+                .reduce((sum, p) => sum + Number(p.amount), 0);  // collection per month
 
             const expense = expenses
                 .filter(e => {
@@ -102,7 +102,7 @@ export default function FinancePage() {
                 })
                 .reduce((sum, e) => sum + Number(e.amount), 0);
 
-            return { name: month, income, expense };
+            return { name: month, collection, expense };
         });
     }
 
@@ -200,7 +200,7 @@ export default function FinancePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-green-600">৳{totalCollection.toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">All time income</p>
+                        <p className="text-xs text-muted-foreground">All time collected</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -230,7 +230,7 @@ export default function FinancePage() {
                 <Card className="col-span-4">
                     <CardHeader>
                         <CardTitle>Financial Overview ({selectedYear === "all" ? "All Time" : selectedYear})</CardTitle>
-                        <CardDescription>{selectedYear === "all" ? "Yearly Income vs Expenses" : "Monthly Income vs Expenses"}</CardDescription>
+                        <CardDescription>{selectedYear === "all" ? "Yearly Collection vs Expenses" : "Monthly Collection vs Expenses"}</CardDescription>
                     </CardHeader>
                     <CardContent className="pl-2">
                         <div className="h-[300px] w-full">
@@ -253,7 +253,7 @@ export default function FinancePage() {
                                     />
                                     <Tooltip formatter={(value: any) => `৳${value}`} />
                                     <Legend />
-                                    <Bar dataKey="income" name="Income" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="collection" name="Collection" fill="#22c55e" radius={[4, 4, 0, 0]} />
                                     <Bar dataKey="expense" name="Expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>

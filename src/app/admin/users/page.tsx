@@ -547,25 +547,34 @@ function UsersContent() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <Label htmlFor="edit-role" className="text-xs text-muted-foreground">Primary Role</Label>
-                                                    <Select
-                                                        value={profileEditForm.roles?.[0] || "member"}
-                                                        onValueChange={(value) => setProfileEditForm({ ...profileEditForm, roles: [value] })}
-                                                    >
-                                                        <SelectTrigger className="h-8">
-                                                            <SelectValue placeholder="Select role" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="member">Member</SelectItem>
-                                                            <SelectItem value="moderator">Moderator</SelectItem>
-                                                            <SelectItem value="admin">Admin</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <Label className="text-xs text-muted-foreground">Roles</Label>
+                                                    <div className="flex flex-col gap-2 pt-1">
+                                                        {["admin", "moderator", "member"].map((role) => (
+                                                            <div key={role} className="flex items-center space-x-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    id={`profile-role-${role}`}
+                                                                    checked={profileEditForm.roles?.includes(role)}
+                                                                    onChange={() => {
+                                                                        const currentRoles = profileEditForm.roles || [];
+                                                                        const newRoles = currentRoles.includes(role)
+                                                                            ? currentRoles.filter(r => r !== role)
+                                                                            : [...currentRoles, role];
+                                                                        setProfileEditForm({ ...profileEditForm, roles: newRoles });
+                                                                    }}
+                                                                    className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                                                                />
+                                                                <label htmlFor={`profile-role-${role}`} className="text-xs font-medium leading-none capitalize">
+                                                                    {role}
+                                                                </label>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
 
                                                 <div className="flex gap-2 pt-2">
-                                                    <Button className="w-full flex-1" size="sm" onClick={handleSaveUser} disabled={isSaving}>
-                                                        {isSaving ? "Saving..." : "Save Changes"}
+                                                    <Button className="w-full flex-1" size="sm" onClick={handleProfileEditSave} disabled={isLoading}>
+                                                        {isLoading ? "Saving..." : "Save Changes"}
                                                     </Button>
                                                     <Button className="w-full flex-1" variant="outline" size="sm" onClick={() => setIsProfileEditMode(false)}>
                                                         Cancel
@@ -592,8 +601,7 @@ function UsersContent() {
                                                 </div>
 
                                                 <Button className="w-full mt-6" variant="outline" onClick={() => {
-                                                    setEditingUser(viewingUser);
-                                                    setEditForm({
+                                                    setProfileEditForm({
                                                         ...viewingUser,
                                                         roles: viewingUser.roles || ["member"]
                                                     });

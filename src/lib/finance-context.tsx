@@ -37,7 +37,7 @@ export interface Expense {
 
 interface MonthlyStat {
     month: string; // "Jan 2024"
-    income: number;
+    collection: number;
     expense: number;
 }
 
@@ -68,8 +68,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Only fetch if user is admin/moderator
-        if (!user || (!user.roles.includes('admin') && !user.roles.includes('moderator'))) {
+        // Fetch for any logged-in user (members need this for the transparency Finance tab)
+        if (!user) {
             setLoading(false);
             return;
         }
@@ -216,26 +216,26 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     // Monthly Stats for Chart
     // Aggregate by Month-Year
     const monthlyStats: MonthlyStat[] = [];
-    const map = new Map<string, { income: number; expense: number }>();
+    const map = new Map<string, { collection: number; expense: number }>();
 
     // Process Payments
     payments.forEach(p => {
         const key = `${p.date.toLocaleString('default', { month: 'short' })} ${p.date.getFullYear()}`;
-        if (!map.has(key)) map.set(key, { income: 0, expense: 0 });
-        map.get(key)!.income += Number(p.amount) || 0;
+        if (!map.has(key)) map.set(key, { collection: 0, expense: 0 });
+        map.get(key)!.collection += Number(p.amount) || 0;
     });
 
     // Process Expenses
     expenses.forEach(e => {
         const key = `${e.date.toLocaleString('default', { month: 'short' })} ${e.date.getFullYear()}`;
-        if (!map.has(key)) map.set(key, { income: 0, expense: 0 });
+        if (!map.has(key)) map.set(key, { collection: 0, expense: 0 });
         map.get(key)!.expense += Number(e.amount) || 0;
     });
 
     // Convert map to array and sort (naive sort by creation or just simple iteration if last 12 months needed)
     // For now, let's just return all keys
     map.forEach((val, key) => {
-        monthlyStats.push({ month: key, ...val });
+        monthlyStats.push({ month: key, collection: val.collection, expense: val.expense });
     });
 
     // Sort logic can be improved later to be chronological

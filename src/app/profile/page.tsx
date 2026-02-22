@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Save, User as UserIcon, Mail, Calendar, Heart, Shield, Eye, EyeOff, LayoutDashboard, Bell, Check, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
-import { doc, updateDoc, collection, query, where, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
+import { Camera, User as UserIcon, Mail, Calendar, Heart, Shield, Eye, EyeOff, Bell, ChevronDown, ChevronUp, MessageSquare, TrendingUp, TrendingDown, DollarSign, Users } from "lucide-react";
+import { doc, updateDoc, collection, query, where, orderBy, onSnapshot, Timestamp, getDocs } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { format } from "date-fns";
@@ -39,10 +39,349 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Trash2 } from "lucide-react";
 import { useSettings, SettingsProvider } from "@/lib/settings-context";
+import { useFinance, FinanceProvider } from "@/lib/finance-context";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
+// ─── Member Finance Transparency Tab ─────────────────────────────────────────
+function MemberFinanceTab() {
+    const { payments, expenses, totalCollection, totalExpenses, currentBalance, loading } = useFinance();
+    const { settings } = useSettings();
+    const [members, setMembers] = useState<any[]>([]);
+    const [loadingMembers, setLoadingMembers] = useState(true);
+    const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+
+    // Fetch members (name, photo, roles only)
+    useEffect(() => {
+        getDocs(collection(db, "users")).then(snap => {
+            setMembers(snap.docs.map(d => {
+                const data = d.data();
+                return {
+                    id: d.id,
+                    name: data.name || data.username || "Member",
+                    photoURL: data.photoURL || null,
+                    roles: data.roles || ["member"]
+                };
+            }));
+            setLoadingMembers(false);
+        }).catch(() => setLoadingMembers(false));
+    }, []);
+
+    const totalMemberCollection = useMemo(() =>
+        payments.filter(p => p.type === 'monthly').reduce((sum, p) => sum + Number(p.amount || 0), 0)
+        , [payments]);
+
+    const totalOneTimeCollection = useMemo(() =>
+        payments.filter(p => p.type === 'one-time').reduce((sum, p) => sum + Number(p.amount || 0), 0)
+        , [payments]);
+
+    // Chart data
+    const chartData = useMemo(() => {
+        if (selectedYear === 'all') {
+            const yearMap = new Map<number, { collection: number; expense: number }>();
+            payments.forEach(p => {
+                const y = (p.type === 'monthly' && p.year) ? p.year : new Date(p.date).getFullYear();
+                if (!yearMap.has(y)) yearMap.set(y, { collection: 0, expense: 0 });
+                yearMap.get(y)!.collection += Number(p.amount) || 0;
+            });
+            expenses.forEach(e => {
+                const y = new Date(e.date).getFullYear();
+                if (!yearMap.has(y)) yearMap.set(y, { collection: 0, expense: 0 });
+                yearMap.get(y)!.expense += Number(e.amount) || 0;
+            });
+            return Array.from(yearMap.entries()).sort((a, b) => a[0] - b[0]).filter(([y]) => !isNaN(y))
+                .map(([year, d]) => ({ name: year.toString(), collection: d.collection, expense: d.expense }));
+        } else {
+            const yr = parseInt(selectedYear);
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            return months.map((month, idx) => {
+                const mn = idx + 1;
+                const collection = payments.filter(p => {
+                    if (p.type === 'monthly' && p.year && p.month) return p.year === yr && p.month === mn;
+                    const d = new Date(p.date);
+                    return d.getFullYear() === yr && (d.getMonth() + 1) === mn;
+                }).reduce((sum, p) => sum + Number(p.amount), 0);
+                const expense = expenses.filter(e => {
+                    const d = new Date(e.date);
+                    return d.getFullYear() === yr && (d.getMonth() + 1) === mn;
+                }).reduce((sum, e) => sum + Number(e.amount), 0);
+                return { name: month, collection, expense };
+            });
+        }
+    }, [selectedYear, payments, expenses]);
+
+    // Trend data (collection only, same as admin dashboard)
+    const trendData = useMemo(() => {
+        const yr = parseInt(selectedYear);
+        if (selectedYear === 'all') {
+            const yearMap = new Map<number, number>();
+            payments.forEach(p => {
+                const y = (p.type === 'monthly' && p.year) ? p.year : new Date(p.date).getFullYear();
+                yearMap.set(y, (yearMap.get(y) || 0) + Number(p.amount));
+            });
+            return Array.from(yearMap.entries()).sort((a, b) => a[0] - b[0]).filter(([y]) => !isNaN(y))
+                .map(([year, collection]) => ({ name: year.toString(), collection }));
+        }
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        return months.map((month, idx) => {
+            const mn = idx + 1;
+            const collection = payments.filter(p => {
+                if (p.type === 'monthly' && p.year && p.month) return p.year === yr && p.month === mn;
+                const d = new Date(p.date);
+                return d.getFullYear() === yr && (d.getMonth() + 1) === mn;
+            }).reduce((sum, p) => sum + Number(p.amount), 0);
+            return { name: month, collection };
+        });
+    }, [selectedYear, payments]);
+
+    // Sync period indicator with Admin settings
+    const timePeriodLabel = useMemo(() => {
+        let earliestDate = "N/A";
+        if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
+            const earliestYear = Math.min(...settings.collectionYears);
+            const monthsForYear = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+            const earliestMonth = Math.min(...monthsForYear);
+            try {
+                const dateObj = new Date(earliestYear, earliestMonth - 1, 1);
+                earliestDate = format(dateObj, 'MMM yyyy');
+            } catch (e) {
+                earliestDate = `${earliestYear}`;
+            }
+        } else if (payments.length > 0) {
+            const earliest = payments.reduce((min, p) => {
+                const d = new Date(p.date);
+                return d < min ? d : min;
+            }, new Date(payments[0].date));
+            earliestDate = format(earliest, 'MMM yyyy');
+        }
+        return `${earliestDate} - Present`;
+    }, [settings, payments]);
+
+    const getRoleColor = (role: string) => {
+        switch (role) {
+            case 'admin': return 'destructive';
+            case 'moderator': return 'secondary';
+            default: return 'outline';
+        }
+    };
+
+    if (loading) return <div className="py-12 text-center text-muted-foreground">Loading financial data...</div>;
+
+    return (
+        <div className="space-y-6">
+            {/* Info banner */}
+            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+                <Shield className="h-4 w-4 text-blue-600" />
+                <AlertTitle className="text-blue-800 dark:text-blue-300">Transparency Report</AlertTitle>
+                <AlertDescription className="text-blue-700 dark:text-blue-400">
+                    This is a read-only view of the organisation's collective finances. Personal information of other members is not shown.
+                </AlertDescription>
+            </Alert>
+
+            {/* Financial Overview Header */}
+            <div className="flex flex-col mb-2">
+                <h3 className="text-lg font-semibold">Financial Overview</h3>
+                <p className="text-xs text-muted-foreground">{timePeriodLabel}</p>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Collection</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-green-600">৳{totalCollection.toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">All time collected</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Member Contributions</CardTitle>
+                        <Users className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-blue-600">৳{totalMemberCollection.toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">Monthly subscriptions</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">One-time Donations</CardTitle>
+                        <Heart className="h-4 w-4 text-pink-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-pink-600">৳{totalOneTimeCollection.toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">Direct contributions</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                        <TrendingDown className="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-red-600">৳{totalExpenses.toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">All recorded spending</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Current Balance</CardTitle>
+                        <DollarSign className="h-4 w-4 text-indigo-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className={`text-2xl font-bold ${currentBalance >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>৳{currentBalance.toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">Available funds</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+                        <Users className="h-4 w-4 text-violet-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-violet-600">{loadingMembers ? '...' : members.length}</div>
+                        <p className="text-xs text-muted-foreground">Registered members</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Charts with Year Filter */}
+            <div className="pt-4 flex justify-between items-end mb-2">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Activity Charts</h3>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                        <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Time</SelectItem>
+                        {(settings?.collectionYears || []).sort((a: number, b: number) => b - a).map((y: number) => (
+                            <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+                {/* Collection Trend */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Collection Trend</CardTitle>
+                        <CardDescription>{selectedYear === 'all' ? 'Yearly collection over time' : `Monthly collection for ${selectedYear}`}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[220px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={trendData} key={JSON.stringify(trendData)}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `৳${v}`} />
+                                    <Tooltip formatter={(v: any) => [`৳${v}`, 'Collection']} />
+                                    <Line type="monotone" dataKey="collection" stroke="#2563eb" strokeWidth={2} activeDot={{ r: 6 }} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Financial Overview */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Collection vs Expenses</CardTitle>
+                        <CardDescription>{selectedYear === 'all' ? 'Yearly overview' : `Monthly overview for ${selectedYear}`}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[220px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartData} key={JSON.stringify(chartData)}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `৳${v}`} />
+                                    <Tooltip formatter={(v: any) => `৳${v}`} />
+                                    <Legend />
+                                    <Bar dataKey="collection" name="Collection" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="expense" name="Expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Expenses List (Read-only) */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Expenses Record</CardTitle>
+                    <CardDescription>All recorded expenditures — read only</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {expenses.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-6">No expenses recorded yet.</p>
+                    ) : (
+                        <div className="max-h-[300px] overflow-y-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Title</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {[...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
+                                        <TableRow key={exp.id}>
+                                            <TableCell className="text-xs whitespace-nowrap">{format(new Date(exp.date), 'MMM d, yyyy')}</TableCell>
+                                            <TableCell className="font-medium text-sm">{exp.title}</TableCell>
+                                            <TableCell><Badge variant="outline" className="text-xs">{exp.category}</Badge></TableCell>
+                                            <TableCell className="text-right text-red-600 font-semibold">-৳{Number(exp.amount).toLocaleString()}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Members List (Name, Photo, Role only) */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Members</CardTitle>
+                    <CardDescription>Organisation members — personal details are not shown</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {loadingMembers ? (
+                        <p className="text-center text-muted-foreground py-4">Loading members...</p>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {members.map(m => (
+                                <div key={m.id} className="flex flex-col items-center gap-2 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors">
+                                    <Avatar className="h-12 w-12">
+                                        <AvatarImage src={m.photoURL || ''} alt={m.name} />
+                                        <AvatarFallback>{m.name?.charAt(0)?.toUpperCase() || '?'}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm font-medium text-center leading-tight">{m.name}</span>
+                                    <div className="flex flex-wrap gap-1 justify-center">
+                                        {m.roles.map((r: string) => (
+                                            <Badge key={r} variant={getRoleColor(r) as any} className="text-[10px] px-1.5 py-0 h-4 capitalize">{r}</Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+// ─── Donation Request Form ─────────────────────────────────────────────────────
 function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, paymentHistory: any[], onSuccess: () => void }) {
     const { toast } = useToast();
     const { settings } = useSettings();
@@ -671,6 +1010,7 @@ function ProfileContent() {
         name: "",
         username: "",
         email: "",
+        phone: "",
         photoURL: ""
     });
     const { toast } = useToast();
@@ -682,6 +1022,7 @@ function ProfileContent() {
                 name: user.name || "",
                 username: user.username || "",
                 email: user.email || "",
+                phone: user.phone || "",
                 photoURL: user.photoURL || ""
             });
         }
@@ -902,6 +1243,11 @@ function ProfileContent() {
                         <p className="text-muted-foreground flex items-center justify-center md:justify-start gap-1">
                             <Mail className="h-4 w-4" /> {user.email}
                         </p>
+                        {user.phone && (
+                            <p className="text-muted-foreground flex items-center justify-center md:justify-start gap-1">
+                                <span className="h-4 w-4 flex items-center justify-center">📞</span> {user.phone}
+                            </p>
+                        )}
                         {user.username && (
                             <p className="text-muted-foreground flex items-center justify-center md:justify-start gap-1">
                                 <UserIcon className="h-4 w-4" /> @{user.username}
@@ -925,160 +1271,434 @@ function ProfileContent() {
                 {/* Right Content Area */}
                 <div className="flex-1 w-full space-y-6">
                     <Section>
-                        {/* Edit Profile Form */}
-                        {isEditing ? (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Edit Profile</CardTitle>
-                                    <CardDescription>Update your personal information</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <form onSubmit={handleProfileUpdate} className="grid gap-4 md:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="edit-name">Name</Label>
-                                            <Input
-                                                id="edit-name"
-                                                value={editForm.name}
-                                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="edit-username">Username</Label>
-                                            <Input
-                                                id="edit-username"
-                                                value={editForm.username}
-                                                onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="edit-email">Email</Label>
-                                            <Input
-                                                id="edit-email"
-                                                value={editForm.email}
-                                                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="md:col-span-2 flex justify-end">
-                                            <Button type="submit">Save Changes</Button>
-                                        </div>
-                                    </form>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="grid gap-6 md:grid-cols-2">
-                                {/* Financial Summary */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg">Financial Summary</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        {(() => {
-                                            // Financial logic
-                                            const totalContributed = paymentHistory.reduce((sum, item) => sum + Number(item.amount), 0);
-                                            const paidMonthsCount = new Set(paymentHistory.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`)).size;
+                        <Tabs defaultValue="overview" className="w-full">
+                            <TabsList className="mb-4">
+                                <TabsTrigger value="overview">Personal Overview</TabsTrigger>
+                                <TabsTrigger value="finance">Organisation Finance</TabsTrigger>
+                                <TabsTrigger value="security">Security</TabsTrigger>
+                            </TabsList>
 
-                                            // Passed months calculation
-                                            let totalPassedMonths = 0;
-                                            const currentMonth = new Date().getMonth() + 1;
-                                            const currentYear = new Date().getFullYear();
+                            {/* ── OVERVIEW TAB ── */}
+                            <TabsContent value="overview">
+                                {/* Edit Profile Form */}
+                                {isEditing ? (
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Edit Profile</CardTitle>
+                                            <CardDescription>Update your personal information</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <form onSubmit={handleProfileUpdate} className="grid gap-4 md:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="edit-name">Name</Label>
+                                                    <Input
+                                                        id="edit-name"
+                                                        value={editForm.name}
+                                                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="edit-username">Username</Label>
+                                                    <Input
+                                                        id="edit-username"
+                                                        value={editForm.username}
+                                                        onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="edit-email">Email</Label>
+                                                    <Input
+                                                        id="edit-email"
+                                                        value={editForm.email}
+                                                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="edit-phone">Phone Number</Label>
+                                                    <Input
+                                                        id="edit-phone"
+                                                        value={editForm.phone}
+                                                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-2 flex justify-end">
+                                                    <Button type="submit">Save Changes</Button>
+                                                </div>
+                                            </form>
+                                        </CardContent>
+                                    </Card>
+                                ) : (
+                                    <div className="grid gap-6 md:grid-cols-2">
+                                        {/* Financial Summary */}
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="text-lg">Financial Summary</CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                {(() => {
+                                                    // Financial logic
+                                                    const totalContributed = paymentHistory.reduce((sum, item) => sum + Number(item.amount), 0);
+                                                    const paidMonthsCount = new Set(paymentHistory.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`)).size;
 
-                                            if (settings && settings.collectionYears) {
-                                                settings.collectionYears.forEach(year => {
-                                                    const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                                                    if (year < currentYear) {
-                                                        totalPassedMonths += activeMonths.length;
-                                                    } else if (year === currentYear) {
-                                                        totalPassedMonths += activeMonths.filter(m => m <= currentMonth).length;
+                                                    // Passed months calculation
+                                                    let totalPassedMonths = 0;
+                                                    const currentMonth = new Date().getMonth() + 1;
+                                                    const currentYear = new Date().getFullYear();
+
+                                                    if (settings && settings.collectionYears) {
+                                                        settings.collectionYears.forEach(year => {
+                                                            const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                            if (year < currentYear) {
+                                                                totalPassedMonths += activeMonths.length;
+                                                            } else if (year === currentYear) {
+                                                                totalPassedMonths += activeMonths.filter(m => m <= currentMonth).length;
+                                                            }
+                                                        });
                                                     }
-                                                });
-                                            }
 
-                                            const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
+                                                    const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
 
-                                            // Period label calculation based on actual admin settings
-                                            let periodLabel = "Lifetime";
-                                            if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
-                                                const earliestYear = Math.min(...settings.collectionYears);
-                                                const monthsForYear = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                                                const earliestMonth = Math.min(...monthsForYear);
+                                                    // Period label calculation based on actual admin settings
+                                                    let periodLabel = "Lifetime";
+                                                    if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
+                                                        const earliestYear = Math.min(...settings.collectionYears);
+                                                        const monthsForYear = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                        const earliestMonth = Math.min(...monthsForYear);
 
-                                                try {
-                                                    const dateObj = new Date(earliestYear, earliestMonth - 1, 1);
-                                                    const d1 = dateObj.toLocaleDateString('default', { month: 'short', year: 'numeric' });
-                                                    periodLabel = `From ${d1} - Present`;
-                                                } catch (e) {
-                                                    periodLabel = `From ${earliestYear} - Present`;
-                                                }
-                                            } else if (paymentHistory.length > 0) {
-                                                // Fallback if settings are somehow unavailable
-                                                const earliestDate = paymentHistory[paymentHistory.length - 1].date;
-                                                const latestDate = paymentHistory[0].date;
+                                                        try {
+                                                            const dateObj = new Date(earliestYear, earliestMonth - 1, 1);
+                                                            const d1 = dateObj.toLocaleDateString('default', { month: 'short', year: 'numeric' });
+                                                            periodLabel = `From ${d1} - Present`;
+                                                        } catch (e) {
+                                                            periodLabel = `From ${earliestYear} - Present`;
+                                                        }
+                                                    } else if (paymentHistory.length > 0) {
+                                                        // Fallback if settings are somehow unavailable
+                                                        const earliestDate = paymentHistory[paymentHistory.length - 1].date;
+                                                        const latestDate = paymentHistory[0].date;
 
-                                                try {
-                                                    const d1 = new Date(earliestDate).toLocaleDateString('default', { month: 'short', year: 'numeric' });
-                                                    const d2 = new Date(latestDate).toLocaleDateString('default', { month: 'short', year: 'numeric' });
-                                                    periodLabel = `From ${d1} - ${d2}`;
-                                                } catch (e) { }
-                                            }
+                                                        try {
+                                                            const d1 = new Date(earliestDate).toLocaleDateString('default', { month: 'short', year: 'numeric' });
+                                                            const d2 = new Date(latestDate).toLocaleDateString('default', { month: 'short', year: 'numeric' });
+                                                            periodLabel = `From ${d1} - ${d2}`;
+                                                        } catch (e) { }
+                                                    }
 
-                                            return (
-                                                <>
-                                                    <div className="flex justify-between items-center pb-2 border-b">
-                                                        <div>
-                                                            <span className="text-sm text-muted-foreground block">Total Contributed</span>
-                                                            <span className="text-[10px] text-muted-foreground">{periodLabel}</span>
+                                                    return (
+                                                        <>
+                                                            <div className="flex justify-between items-center pb-2 border-b">
+                                                                <div>
+                                                                    <span className="text-sm text-muted-foreground block">Total Contributed</span>
+                                                                    <span className="text-[10px] text-muted-foreground">{periodLabel}</span>
+                                                                </div>
+                                                                <span className="font-bold text-green-600">
+                                                                    ৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center pb-2 border-b">
+                                                                <span className="text-sm text-muted-foreground">Total Passed Months</span>
+                                                                <span className="font-medium">
+                                                                    {loadingPayments ? "..." : totalPassedMonths}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center pb-2 border-b">
+                                                                <span className="text-sm text-muted-foreground">Months Paid</span>
+                                                                <span className="font-medium text-blue-600">
+                                                                    {loadingPayments ? "..." : paidMonthsCount}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center pb-2 border-b">
+                                                                <span className="text-sm text-muted-foreground">Months Due</span>
+                                                                <span className="font-medium text-red-600">
+                                                                    {loadingPayments ? "..." : monthsDue}
+                                                                </span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
+                                                <div className="pt-2">
+                                                    <Dialog open={isDonateModalOpen} onOpenChange={setIsDonateModalOpen}>
+                                                        <DialogTrigger asChild>
+                                                            <Button className="w-full bg-gradient-to-r from-blue-600 to-pink-500 hover:opacity-90">
+                                                                <Heart className="mr-2 h-4 w-4" /> Donate Now
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                                                            <DialogHeader>
+                                                                <DialogTitle className="flex items-center text-blue-700">
+                                                                    <Heart className="mr-2 h-5 w-5 fill-pink-500 text-pink-500" />
+                                                                    Make a Donation Request
+                                                                </DialogTitle>
+                                                                <DialogDescription>
+                                                                    Submit a request to donate. Admin will verify and approve.
+                                                                </DialogDescription>
+                                                            </DialogHeader>
+                                                            <DonationRequestForm user={user} paymentHistory={paymentHistory} onSuccess={() => setIsDonateModalOpen(false)} />
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* Security moved to its own tab */}
+                                        {/* Annual Collection Calendar */}
+                                        <Card className="md:col-span-2 border-t-4 border-t-primary/20">
+                                            <CardHeader>
+                                                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                                                    <div>
+                                                        <CardTitle className="flex items-center gap-2">
+                                                            <Calendar className="h-5 w-5 text-primary" /> Annual Collection Calendar
+                                                        </CardTitle>
+                                                        <CardDescription>Visual summary of your monthly subscriptions.</CardDescription>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium">Year:</span>
+                                                        <Select
+                                                            value={selectedCalendarYear.toString()}
+                                                            onValueChange={(v) => setSelectedCalendarYear(Number(v))}
+                                                        >
+                                                            <SelectTrigger className="w-[100px] h-9 font-bold bg-background">
+                                                                <SelectValue placeholder="Year" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {availableYears.map(y => (
+                                                                    <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+                                                    {(!settings?.collectionYears?.includes(selectedCalendarYear) || activeMonths.length === 0) ? (
+                                                        <div className="text-center py-8 text-muted-foreground col-span-full">
+                                                            No collections active for this year.
                                                         </div>
-                                                        <span className="font-bold text-green-600">
-                                                            ৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center pb-2 border-b">
-                                                        <span className="text-sm text-muted-foreground">Total Passed Months</span>
-                                                        <span className="font-medium">
-                                                            {loadingPayments ? "..." : totalPassedMonths}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center pb-2 border-b">
-                                                        <span className="text-sm text-muted-foreground">Months Paid</span>
-                                                        <span className="font-medium text-blue-600">
-                                                            {loadingPayments ? "..." : paidMonthsCount}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center pb-2 border-b">
-                                                        <span className="text-sm text-muted-foreground">Months Due</span>
-                                                        <span className="font-medium text-red-600">
-                                                            {loadingPayments ? "..." : monthsDue}
-                                                        </span>
-                                                    </div>
-                                                </>
-                                            );
-                                        })()}
-                                        <div className="pt-2">
-                                            <Dialog open={isDonateModalOpen} onOpenChange={setIsDonateModalOpen}>
-                                                <DialogTrigger asChild>
-                                                    <Button className="w-full bg-gradient-to-r from-blue-600 to-pink-500 hover:opacity-90">
-                                                        <Heart className="mr-2 h-4 w-4" /> Donate Now
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                                                    <DialogHeader>
-                                                        <DialogTitle className="flex items-center text-blue-700">
-                                                            <Heart className="mr-2 h-5 w-5 fill-pink-500 text-pink-500" />
-                                                            Make a Donation Request
-                                                        </DialogTitle>
-                                                        <DialogDescription>
-                                                            Submit a request to donate. Admin will verify and approve.
-                                                        </DialogDescription>
-                                                    </DialogHeader>
-                                                    <DonationRequestForm user={user} paymentHistory={paymentHistory} onSuccess={() => setIsDonateModalOpen(false)} />
-                                                </DialogContent>
-                                            </Dialog>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                                    ) : (
+                                                        activeMonths.map((month) => {
+                                                            const statusData = getMonthlyStatus(month.value, selectedCalendarYear);
 
-                                {/* Security / Change Password */}
-                                <Card className="md:col-span-2">
+                                                            let bgClass = "bg-background border-dashed border-2 opacity-50";
+                                                            let textClass = "text-muted-foreground";
+                                                            let valueDisplay = null;
+
+                                                            if (statusData.status === 'paid') {
+                                                                bgClass = "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800 border-2";
+                                                                textClass = "text-green-700 dark:text-green-400 font-bold";
+                                                                valueDisplay = `৳${statusData.payment?.amount || 0}`;
+                                                            } else if (statusData.status === 'due-yellow') {
+                                                                bgClass = "bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800 border-2";
+                                                                textClass = "text-yellow-700 dark:text-yellow-400 font-medium";
+                                                                valueDisplay = "Due";
+                                                            } else if (statusData.status === 'due-red') {
+                                                                bgClass = "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 border-2";
+                                                                textClass = "text-red-700 dark:text-red-400 font-medium";
+                                                                valueDisplay = "Overdue";
+                                                            }
+
+                                                            return (
+                                                                <div key={month.value} className={`flex flex-col justify-center items-center p-3 rounded-lg transition-all ${bgClass}`}>
+                                                                    <span className={`text-sm tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
+                                                                    <span className={`text-sm mt-1 ${textClass}`}>
+                                                                        {valueDisplay || "-"}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+
+                                                {/* Setup Legend */}
+                                                <div className="flex flex-wrap items-center justify-center gap-4 pt-4 border-t text-sm">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                                        <span className="text-muted-foreground">Paid</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                                                        <span className="text-muted-foreground">Due (before 10th)</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                                        <span className="text-muted-foreground">Overdue</span>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* Donation History */}
+                                        <Card className="md:col-span-2">
+                                            <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsDonationHistoryOpen(!isDonationHistoryOpen)}>
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <CardTitle className="flex items-center gap-2">
+                                                            <Heart className="h-5 w-5 text-primary" /> Donation History
+                                                        </CardTitle>
+                                                        <CardDescription>Your past contributions.</CardDescription>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {paymentHistory.filter(d => !d.hiddenFromProfile).length > 0 && (
+                                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleClearAllHistory}>
+                                                                Clear All
+                                                            </Button>
+                                                        )}
+                                                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                                                            {isDonationHistoryOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            {isDonationHistoryOpen && <CardContent>
+                                                <div className="space-y-4">
+                                                    {loadingPayments ? (
+                                                        <div className="text-center py-4 text-muted-foreground">Loading history...</div>
+                                                    ) : paymentHistory.filter(d => !d.hiddenFromProfile).length === 0 ? (
+                                                        <div className="text-center py-4 text-muted-foreground">No donations to show.</div>
+                                                    ) : (
+                                                        paymentHistory.filter(d => !d.hiddenFromProfile).map((donation) => {
+                                                            return (
+                                                                <div key={donation.id} className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0">
+                                                                    <div>
+                                                                        <div className="font-medium text-sm">
+                                                                            {donation.type === 'monthly' ? (
+                                                                                <span className="flex items-center gap-1.5">
+                                                                                    Monthly Subscription: <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-primary/10 text-primary hover:bg-primary/20">{format(new Date(2000, (donation.month || 1) - 1, 1), 'MMM')} {donation.year}</Badge>
+                                                                                </span>
+                                                                            ) : donation.method === 'bkash' ? 'Bkash Payment' : 'One-time Donation'}
+                                                                        </div>
+                                                                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 border-t border-muted/30 pt-1">
+                                                                            <Calendar className="h-3 w-3" />
+                                                                            {(() => {
+                                                                                try {
+                                                                                    if (donation.createdAt) {
+                                                                                        const dateObj = donation.createdAt?.toDate ? donation.createdAt.toDate() : new Date(donation.createdAt);
+                                                                                        return isNaN(dateObj.getTime()) ? donation.date : format(dateObj, "MMM d, yyyy h:mm a");
+                                                                                    } else {
+                                                                                        const dateObj = donation.rawDate?.toDate ? donation.rawDate.toDate() : new Date(donation.date);
+                                                                                        return isNaN(dateObj.getTime()) ? donation.date : format(dateObj, "MMM d, yyyy h:mm a");
+                                                                                    }
+                                                                                } catch (e) {
+                                                                                    return donation.date || "Invalid Date";
+                                                                                }
+                                                                            })()}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-4">
+                                                                        <span className="font-bold text-primary">৳ {donation.amount}</span>
+                                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHidePayment(donation.id, e)}>
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </CardContent>}
+                                        </Card>
+
+                                        {/* My Requests History */}
+                                        <Card className="md:col-span-2">
+                                            <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsMyRequestsOpen(!isMyRequestsOpen)}>
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <CardTitle className="flex items-center gap-2">
+                                                            <Shield className="h-5 w-5 text-blue-600" /> My Requests
+                                                        </CardTitle>
+                                                        <CardDescription>Status of your submitted requests.</CardDescription>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {myRequests.filter(r => !r.hiddenFromProfile).length > 0 && (
+                                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleClearAllRequests}>
+                                                                Clear All
+                                                            </Button>
+                                                        )}
+                                                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                                                            {isMyRequestsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            {isMyRequestsOpen && <CardContent>
+                                                {loadingRequests ? (
+                                                    <div className="text-center py-4 text-muted-foreground">Loading requests...</div>
+                                                ) : myRequests.filter(r => !r.hiddenFromProfile).length === 0 ? (
+                                                    <div className="text-center py-4 text-muted-foreground">No active requests.</div>
+                                                ) : (
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Date</TableHead>
+                                                                <TableHead>Type</TableHead>
+                                                                <TableHead>Amount</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                                <TableHead>Notes</TableHead>
+                                                                <TableHead className="text-right"></TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {myRequests.filter((r: any) => !r.hiddenFromProfile).map((req: any) => (
+                                                                <TableRow key={req.id}>
+                                                                    <TableCell className="text-xs">
+                                                                        {(() => {
+                                                                            try {
+                                                                                if (req.createdAt?.toDate) return format(req.createdAt.toDate(), "MMM d, yyyy h:mm a");
+                                                                                if (req.rawDate?.toDate) return format(req.rawDate.toDate(), "MMM d, yyyy h:mm a");
+                                                                                const dateObj = new Date(req.createdAt || req.rawDate || req.date);
+                                                                                return isNaN(dateObj.getTime()) ? "-" : format(dateObj, "MMM d, yyyy h:mm a");
+                                                                            } catch (e) {
+                                                                                return "-";
+                                                                            }
+                                                                        })()}
+                                                                    </TableCell>
+                                                                    <TableCell className="capitalize text-xs max-w-[120px]">
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <span>{req.type}</span>
+                                                                            {req.type === 'monthly' && req.months && (
+                                                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                                                    {req.months.map((m: number) => (
+                                                                                        <Badge key={m} variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/20">
+                                                                                            {format(new Date(2000, m - 1, 1), 'MMM')} {req.year}
+                                                                                        </Badge>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell className="font-medium">৳{req.amount}</TableCell>
+                                                                    <TableCell>
+                                                                        <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">
+                                                                            {req.status}
+                                                                        </Badge>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={req.notes}>
+                                                                        {req.notes || "-"}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right">
+                                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHideRequest(req.id, e)}>
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                )}
+                                            </CardContent>}
+                                        </Card>
+                                    </div>
+                                )}
+                            </TabsContent>
+
+                            {/* ── FINANCE TAB ── */}
+                            <TabsContent value="finance">
+                                <MemberFinanceTab />
+                            </TabsContent>
+
+                            {/* ── SECURITY TAB ── */}
+                            <TabsContent value="security">
+                                <Card>
                                     <CardHeader>
                                         <CardTitle>Security</CardTitle>
                                         <CardDescription>Update your password.</CardDescription>
@@ -1097,13 +1717,7 @@ function ProfileContent() {
                                                             placeholder="Enter current password"
                                                             required
                                                         />
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                                            onClick={() => setShowOldPassword(!showOldPassword)}
-                                                        >
+                                                        <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowOldPassword(!showOldPassword)}>
                                                             {showOldPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                         </Button>
                                                     </div>
@@ -1119,13 +1733,7 @@ function ProfileContent() {
                                                             placeholder="Enter new password"
                                                             required
                                                         />
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                                            onClick={() => setShowNewPassword(!showNewPassword)}
-                                                        >
+                                                        <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowNewPassword(!showNewPassword)}>
                                                             {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                         </Button>
                                                     </div>
@@ -1137,255 +1745,8 @@ function ProfileContent() {
                                         </form>
                                     </CardContent>
                                 </Card>
-
-                                {/* Annual Collection Calendar */}
-                                <Card className="md:col-span-2 border-t-4 border-t-primary/20">
-                                    <CardHeader>
-                                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                                            <div>
-                                                <CardTitle className="flex items-center gap-2">
-                                                    <Calendar className="h-5 w-5 text-primary" /> Annual Collection Calendar
-                                                </CardTitle>
-                                                <CardDescription>Visual summary of your monthly subscriptions.</CardDescription>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-medium">Year:</span>
-                                                <Select
-                                                    value={selectedCalendarYear.toString()}
-                                                    onValueChange={(v) => setSelectedCalendarYear(Number(v))}
-                                                >
-                                                    <SelectTrigger className="w-[100px] h-9 font-bold bg-background">
-                                                        <SelectValue placeholder="Year" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {availableYears.map(y => (
-                                                            <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-                                            {(!settings?.collectionYears?.includes(selectedCalendarYear) || activeMonths.length === 0) ? (
-                                                <div className="text-center py-8 text-muted-foreground col-span-full">
-                                                    No collections active for this year.
-                                                </div>
-                                            ) : (
-                                                activeMonths.map((month) => {
-                                                    const statusData = getMonthlyStatus(month.value, selectedCalendarYear);
-
-                                                    let bgClass = "bg-background border-dashed border-2 opacity-50";
-                                                    let textClass = "text-muted-foreground";
-                                                    let valueDisplay = null;
-
-                                                    if (statusData.status === 'paid') {
-                                                        bgClass = "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800 border-2";
-                                                        textClass = "text-green-700 dark:text-green-400 font-bold";
-                                                        valueDisplay = `৳${statusData.payment?.amount || 0}`;
-                                                    } else if (statusData.status === 'due-yellow') {
-                                                        bgClass = "bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800 border-2";
-                                                        textClass = "text-yellow-700 dark:text-yellow-400 font-medium";
-                                                        valueDisplay = "Due";
-                                                    } else if (statusData.status === 'due-red') {
-                                                        bgClass = "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 border-2";
-                                                        textClass = "text-red-700 dark:text-red-400 font-medium";
-                                                        valueDisplay = "Overdue";
-                                                    }
-
-                                                    return (
-                                                        <div key={month.value} className={`flex flex-col justify-center items-center p-3 rounded-lg transition-all ${bgClass}`}>
-                                                            <span className={`text-sm tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
-                                                            <span className={`text-sm mt-1 ${textClass}`}>
-                                                                {valueDisplay || "-"}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-
-                                        {/* Setup Legend */}
-                                        <div className="flex flex-wrap items-center justify-center gap-4 pt-4 border-t text-sm">
-                                            <div className="flex items-center gap-1.5">
-                                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                                <span className="text-muted-foreground">Paid</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                                                <span className="text-muted-foreground">Due (before 10th)</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                                <span className="text-muted-foreground">Overdue</span>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Donation History */}
-                                <Card className="md:col-span-2">
-                                    <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsDonationHistoryOpen(!isDonationHistoryOpen)}>
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <CardTitle className="flex items-center gap-2">
-                                                    <Heart className="h-5 w-5 text-primary" /> Donation History
-                                                </CardTitle>
-                                                <CardDescription>Your past contributions.</CardDescription>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {paymentHistory.filter(d => !d.hiddenFromProfile).length > 0 && (
-                                                    <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleClearAllHistory}>
-                                                        Clear All
-                                                    </Button>
-                                                )}
-                                                <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
-                                                    {isDonationHistoryOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    {isDonationHistoryOpen && <CardContent>
-                                        <div className="space-y-4">
-                                            {loadingPayments ? (
-                                                <div className="text-center py-4 text-muted-foreground">Loading history...</div>
-                                            ) : paymentHistory.filter(d => !d.hiddenFromProfile).length === 0 ? (
-                                                <div className="text-center py-4 text-muted-foreground">No donations to show.</div>
-                                            ) : (
-                                                paymentHistory.filter(d => !d.hiddenFromProfile).map((donation) => {
-                                                    return (
-                                                        <div key={donation.id} className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0">
-                                                            <div>
-                                                                <div className="font-medium text-sm">
-                                                                    {donation.type === 'monthly' ? (
-                                                                        <span className="flex items-center gap-1.5">
-                                                                            Monthly Subscription: <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-primary/10 text-primary hover:bg-primary/20">{format(new Date(2000, (donation.month || 1) - 1, 1), 'MMM')} {donation.year}</Badge>
-                                                                        </span>
-                                                                    ) : donation.method === 'bkash' ? 'Bkash Payment' : 'One-time Donation'}
-                                                                </div>
-                                                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 border-t border-muted/30 pt-1">
-                                                                    <Calendar className="h-3 w-3" />
-                                                                    {(() => {
-                                                                        try {
-                                                                            if (donation.createdAt) {
-                                                                                const dateObj = donation.createdAt?.toDate ? donation.createdAt.toDate() : new Date(donation.createdAt);
-                                                                                return isNaN(dateObj.getTime()) ? donation.date : format(dateObj, "MMM d, yyyy h:mm a");
-                                                                            } else {
-                                                                                const dateObj = donation.rawDate?.toDate ? donation.rawDate.toDate() : new Date(donation.date);
-                                                                                return isNaN(dateObj.getTime()) ? donation.date : format(dateObj, "MMM d, yyyy h:mm a");
-                                                                            }
-                                                                        } catch (e) {
-                                                                            return donation.date || "Invalid Date";
-                                                                        }
-                                                                    })()}
-                                                                </p>
-                                                            </div>
-                                                            <div className="flex items-center gap-4">
-                                                                <span className="font-bold text-primary">৳ {donation.amount}</span>
-                                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHidePayment(donation.id, e)}>
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-                                    </CardContent>}
-                                </Card>
-
-                                {/* My Requests History */}
-                                <Card className="md:col-span-2">
-                                    <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsMyRequestsOpen(!isMyRequestsOpen)}>
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <CardTitle className="flex items-center gap-2">
-                                                    <Shield className="h-5 w-5 text-blue-600" /> My Requests
-                                                </CardTitle>
-                                                <CardDescription>Status of your submitted requests.</CardDescription>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {myRequests.filter(r => !r.hiddenFromProfile).length > 0 && (
-                                                    <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleClearAllRequests}>
-                                                        Clear All
-                                                    </Button>
-                                                )}
-                                                <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
-                                                    {isMyRequestsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    {isMyRequestsOpen && <CardContent>
-                                        {loadingRequests ? (
-                                            <div className="text-center py-4 text-muted-foreground">Loading requests...</div>
-                                        ) : myRequests.filter(r => !r.hiddenFromProfile).length === 0 ? (
-                                            <div className="text-center py-4 text-muted-foreground">No active requests.</div>
-                                        ) : (
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Date</TableHead>
-                                                        <TableHead>Type</TableHead>
-                                                        <TableHead>Amount</TableHead>
-                                                        <TableHead>Status</TableHead>
-                                                        <TableHead>Notes</TableHead>
-                                                        <TableHead className="text-right"></TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {myRequests.filter((r: any) => !r.hiddenFromProfile).map((req: any) => (
-                                                        <TableRow key={req.id}>
-                                                            <TableCell className="text-xs">
-                                                                {(() => {
-                                                                    try {
-                                                                        if (req.createdAt?.toDate) return format(req.createdAt.toDate(), "MMM d, yyyy h:mm a");
-                                                                        if (req.rawDate?.toDate) return format(req.rawDate.toDate(), "MMM d, yyyy h:mm a");
-                                                                        const dateObj = new Date(req.createdAt || req.rawDate || req.date);
-                                                                        return isNaN(dateObj.getTime()) ? "-" : format(dateObj, "MMM d, yyyy h:mm a");
-                                                                    } catch (e) {
-                                                                        return "-";
-                                                                    }
-                                                                })()}
-                                                            </TableCell>
-                                                            <TableCell className="capitalize text-xs max-w-[120px]">
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span>{req.type}</span>
-                                                                    {req.type === 'monthly' && req.months && (
-                                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                                            {req.months.map((m: number) => (
-                                                                                <Badge key={m} variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/20">
-                                                                                    {format(new Date(2000, m - 1, 1), 'MMM')} {req.year}
-                                                                                </Badge>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell className="font-medium">৳{req.amount}</TableCell>
-                                                            <TableCell>
-                                                                <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">
-                                                                    {req.status}
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={req.notes}>
-                                                                {req.notes || "-"}
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHideRequest(req.id, e)}>
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        )}
-                                    </CardContent>}
-                                </Card>
-                            </div>
-                        )}
+                            </TabsContent>
+                        </Tabs>
                     </Section>
                 </div>
             </div>
@@ -1405,14 +1766,16 @@ function ProfileContent() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }
 
 export default function ProfilePage() {
     return (
         <SettingsProvider>
-            <ProfileContent />
+            <FinanceProvider>
+                <ProfileContent />
+            </FinanceProvider>
         </SettingsProvider>
     );
 }

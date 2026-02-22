@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, getDocs, updateDoc, doc, addDoc, getDoc, setDoc, deleteDoc, Timestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, updateDoc, doc, addDoc, getDoc, setDoc, deleteDoc, Timestamp, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ActivityLogService } from "@/lib/activity-log-service";
 
@@ -61,6 +61,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         setIsLoading(false);
     }, []);
+
+    // Real-time synchronization for the currently logged-in user
+    useEffect(() => {
+        const currentUserId = user?.id;
+        if (!currentUserId) return;
+
+        const userDocRef = doc(db, "users", currentUserId);
+        const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const userData = docSnap.data();
+
+                setUser(prev => {
+                    if (!prev) return prev;
+
+                    const updatedUser: User = {
+                        ...prev,
+                        ...userData,
+                        id: docSnap.id,
+                        roles: Array.isArray(userData.roles) ? userData.roles :
+                            (userData.role ? [userData.role] : (prev.roles || ["member"]))
+                    };
+
+                    if (JSON.stringify(prev) !== JSON.stringify(updatedUser)) {
+                        sessionStorage.setItem("auth_user", JSON.stringify(updatedUser));
+                        return updatedUser;
+                    }
+                    return prev;
+                });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [user?.id]);
 
     const login = async (identifier: string, password: string, isAdminLogin: boolean = false): Promise<{ success: boolean; error?: string }> => {
         setIsLoading(true);

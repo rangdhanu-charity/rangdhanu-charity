@@ -29,7 +29,7 @@ export const ExportService = {
         doc.setFillColor(240, 240, 240);
         doc.rect(14, 35, 180, 25, 'F');
         doc.setFontSize(10);
-        doc.text(`Total Income: ${summary.income}`, 20, 45);
+        doc.text(`Total Collection: ${summary.collection}`, 20, 45);
         doc.text(`Total Expenses: ${summary.expenses}`, 20, 52);
         doc.text(`Net Balance: ${summary.balance}`, 100, 45);
 

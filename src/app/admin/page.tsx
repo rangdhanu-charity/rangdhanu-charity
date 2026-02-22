@@ -136,14 +136,14 @@ export default function AdminDashboard() {
                 .sort((a, b) => a[0] - b[0])
                 // Filter out NaN years if data is corrupted
                 .filter(([year]) => !isNaN(year))
-                .map(([year, income]) => ({ name: year.toString(), income }));
+                .map(([year, collection]) => ({ name: year.toString(), collection }));
         } else {
             // Specific Year (Monthly)
             const selectedYear = parseInt(trendView);
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             return months.map((month, index) => {
                 const monthNum = index + 1;
-                const income = payments
+                const collection = payments
                     .filter(p => {
                         // Priority: Collection Period (Year/Month) for monthly payments
                         if (p.type === 'monthly' && p.year && p.month) {
@@ -154,7 +154,7 @@ export default function AdminDashboard() {
                         return d.getFullYear() === selectedYear && (d.getMonth() + 1) === monthNum;
                     })
                     .reduce((sum, p) => sum + Number(p.amount), 0);
-                return { name: month, income };
+                return { name: month, collection };
             });
         }
     }, [trendView, payments]);
@@ -176,7 +176,7 @@ export default function AdminDashboard() {
                     <CardContent>
                         <div className="text-2xl font-bold text-green-600">৳{totalCollection.toLocaleString()}</div>
                         <p className="text-[10px] text-muted-foreground mt-1">
-                            Lifetime ({earliestDate} - {latestDate})
+                            {earliestDate} - Present
                         </p>
                     </CardContent>
                 </Card>
@@ -277,7 +277,7 @@ export default function AdminDashboard() {
                                         tickFormatter={(value) => `৳${value}`}
                                     />
                                     <Tooltip formatter={(value: any) => [`৳${value}`, "Collection"]} />
-                                    <Line type="monotone" dataKey="income" stroke="#2563eb" strokeWidth={2} activeDot={{ r: 8 }} />
+                                    <Line type="monotone" dataKey="collection" stroke="#2563eb" strokeWidth={2} activeDot={{ r: 8 }} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>

@@ -282,14 +282,14 @@ export default function SettingsPage() {
                                     const expensesSnap = await getDocs(collection(db, "expenses"));
                                     const expenses = expensesSnap.docs.map(d => d.data());
 
-                                    const totalIncome = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                                    const totalCollection = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
                                     const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
                                     const combinedData = [
                                         ...payments.map((p: any) => ({
                                             date: format(p.date?.toDate ? p.date.toDate() : new Date(p.date), "yyyy-MM-dd"),
-                                            description: `Income: ${p.memberName} (${p.type})`,
-                                            type: 'Income',
+                                            description: `Collection: ${p.memberName} (${p.type})`,
+                                            type: 'Collection',
                                             amount: p.amount,
                                             status: 'Completed'
                                         })),
@@ -303,9 +303,9 @@ export default function SettingsPage() {
                                     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
                                     ExportService.exportFinancialSummaryPDF("Financial Summary", combinedData, {
-                                        income: totalIncome,
+                                        collection: totalCollection,
                                         expenses: totalExpenses,
-                                        balance: totalIncome - totalExpenses
+                                        balance: totalCollection - totalExpenses
                                     });
                                     toast({ title: "Exported", description: "Financial Summary PDF generated." });
                                 }}>
