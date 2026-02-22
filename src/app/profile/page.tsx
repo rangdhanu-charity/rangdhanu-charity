@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, User as UserIcon, Mail, Calendar, Heart, Shield, Eye, EyeOff, Bell, ChevronDown, ChevronUp, MessageSquare, TrendingUp, TrendingDown, DollarSign, Users } from "lucide-react";
+import { Camera, User as UserIcon, Mail, Calendar, Heart, Shield, Eye, EyeOff, Bell, ChevronDown, ChevronUp, MessageSquare, TrendingUp, TrendingDown, DollarSign, Users, Search, Medal, Star } from "lucide-react";
 import { doc, updateDoc, collection, query, where, orderBy, onSnapshot, Timestamp, getDocs } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -46,14 +46,18 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { ImageCropper } from "@/components/image-cropper";
+import { TopContributorBadge, TopContributorNameBadge } from "@/components/ui/top-contributor-badge";
 
 // ─── Member Finance Transparency Tab ─────────────────────────────────────────
 function MemberFinanceTab() {
-    const { payments, expenses, totalCollection, totalExpenses, currentBalance, loading } = useFinance();
+    const { payments, expenses, totalCollection, totalExpenses, currentBalance, loading, topContributors } = useFinance();
     const { settings } = useSettings();
+    // Members List States
     const [members, setMembers] = useState<any[]>([]);
     const [loadingMembers, setLoadingMembers] = useState(true);
     const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+    const [memberSearchQuery, setMemberSearchQuery] = useState("");
+    const [isMembersCollapsed, setIsMembersCollapsed] = useState(false);
 
     // Fetch members (name, photo, roles only)
     useEffect(() => {
@@ -351,32 +355,70 @@ function MemberFinanceTab() {
 
             {/* Members List (Name, Photo, Role only) */}
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-base">Members</CardTitle>
-                    <CardDescription>Organisation members — personal details are not shown</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loadingMembers ? (
-                        <p className="text-center text-muted-foreground py-4">Loading members...</p>
-                    ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                            {members.map(m => (
-                                <div key={m.id} className="flex flex-col items-center gap-2 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors">
-                                    <Avatar className="h-12 w-12">
-                                        <AvatarImage src={m.photoURL || undefined} alt={m.name} />
-                                        <AvatarFallback>{m.name?.charAt(0)?.toUpperCase() || '?'}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-sm font-medium text-center leading-tight">{m.name}</span>
-                                    <div className="flex flex-wrap gap-1 justify-center">
-                                        {m.roles.map((r: string) => (
-                                            <Badge key={r} variant={getRoleColor(r) as any} className="text-[10px] px-1.5 py-0 h-4 capitalize">{r}</Badge>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
+                <CardHeader className="pb-3">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                        <div>
+                            <CardTitle className="text-base flex items-center gap-2">
+                                Members
+                            </CardTitle>
+                            <CardDescription>Organisation members — personal details not shown</CardDescription>
                         </div>
-                    )}
-                </CardContent>
+                        <div className="flex items-center gap-2">
+                            <div className="relative">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search members..."
+                                    className="w-full sm:w-[200px] pl-8 h-9 text-sm"
+                                    value={memberSearchQuery}
+                                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsMembersCollapsed(!isMembersCollapsed)}>
+                                {isMembersCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                            </Button>
+                        </div>
+                    </div>
+                </CardHeader>
+                {!isMembersCollapsed && (
+                    <CardContent>
+                        {loadingMembers ? (
+                            <p className="text-center text-muted-foreground py-4">Loading members...</p>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto pr-2">
+                                {members.filter(m => m.name.toLowerCase().includes(memberSearchQuery.toLowerCase())).map(m => {
+                                    const isTopContributor = topContributors.includes(m.id);
+                                    const rank = isTopContributor ? topContributors.indexOf(m.id) + 1 : -1;
+                                    return (
+                                        <div key={m.id} className="flex flex-col items-center gap-2 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors relative">
+                                            <div className="relative">
+                                                <Avatar className={`h-12 w-12 ${isTopContributor ? 'ring-2 ring-yellow-400 ring-offset-2 dark:ring-offset-background' : ''}`}>
+                                                    <AvatarImage src={m.photoURL || undefined} alt={m.name} />
+                                                    <AvatarFallback>{m.name?.charAt(0)?.toUpperCase() || '?'}</AvatarFallback>
+                                                </Avatar>
+                                                {isTopContributor && (
+                                                    <TopContributorBadge rank={rank} className="absolute -bottom-0.5 -right-0.5 translate-x-1/4 translate-y-1/4 h-5 w-5" />
+                                                )}
+                                            </div>
+                                            <span className="text-sm font-medium text-center leading-tight flex items-center justify-center gap-1">
+                                                {m.name}
+                                            </span>
+                                            <div className="flex flex-wrap gap-1 justify-center">
+                                                {m.roles.map((r: string) => (
+                                                    <Badge key={r} variant={getRoleColor(r) as any} className="text-[10px] px-1.5 py-0 h-4 capitalize">{r}</Badge>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {members.filter(m => m.name.toLowerCase().includes(memberSearchQuery.toLowerCase())).length === 0 && (
+                                    <div className="col-span-full text-center py-8 text-muted-foreground">
+                                        No members found matching "{memberSearchQuery}"
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                )}
             </Card>
         </div>
     );
@@ -768,9 +810,14 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
 
 function ProfileContent() {
     const { user, isLoading: loading, changePassword, updateProfile } = useAuth();
+    const { topContributors } = useFinance();
     const router = useRouter();
     const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, clearAllNotifications } = useNotifications();
     const { messages, unreadMessageCount, markMessageAsRead, deleteMessage, clearAllMessages } = useMessages();
+
+    // Top Contributor Status for Main Profile Header
+    const isTopContributor = user ? topContributors.includes(user.id) : false;
+    const rank = user && isTopContributor ? topContributors.indexOf(user.id) + 1 : undefined;
 
     const [myRequests, setMyRequests] = useState<any[]>([]);
     const [loadingRequests, setLoadingRequests] = useState(true);
@@ -785,6 +832,7 @@ function ProfileContent() {
     const [isMyRequestsOpen, setIsMyRequestsOpen] = useState(true);
     const [selectedMessage, setSelectedMessage] = useState<any | null>(null);
     const { settings } = useSettings();
+    const [activeTab, setActiveTab] = useState("overview");
 
     // Calendar Matrix Logic
     const availableYears = useMemo(() => {
@@ -1272,45 +1320,19 @@ function ProfileContent() {
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
                 {/* Left Sidebar: Avatar & Basic Info */}
                 <div className="flex flex-col items-center md:items-start gap-4 w-full md:w-auto">
-                    <div className="relative group">
-                        <Avatar className="w-32 h-32 border-4 border-primary shadow-lg">
+                    <div className="relative">
+                        <Avatar className={`w-32 h-32 border-4 ${isTopContributor ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'border-primary shadow-lg'}`}>
                             <AvatarImage src={user.photoURL || "/default-avatar.png"} alt={user.name || "User"} />
                             <AvatarFallback className="text-5xl font-bold">{user.name ? user.name.charAt(0) : <UserIcon className="h-16 w-16" />}</AvatarFallback>
                         </Avatar>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept="image/jpeg,image/png,image/webp"
-                            onChange={handleFileChange}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploadingImage}
-                            title="Update Profile Picture"
-                        >
-                            {isUploadingImage ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="h-5 w-5" />}
-                        </Button>
-                        {user.photoURL && (
-                            <Button
-                                variant="destructive"
-                                size="icon"
-                                className="absolute top-0 right-0 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={handleRemovePicture}
-                                disabled={isUploadingImage}
-                                title="Remove Profile Picture"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        )}
+                        {isTopContributor && <TopContributorBadge rank={rank} className="absolute bottom-1 right-1 translate-x-1/4 translate-y-1/4 h-[34px] w-[34px]" />}
                     </div>
 
-                    <div className="text-center md:text-left">
+                    <div className="text-center md:text-left w-full">
                         <div className="flex flex-col items-center md:items-start gap-1">
-                            <h2 className="text-2xl font-semibold">{user.name}</h2>
+                            <h2 className="text-2xl font-semibold flex items-center justify-center md:justify-start flex-wrap gap-1">
+                                {user.name}
+                            </h2>
                             <div className="flex flex-wrap gap-1 justify-center md:justify-start">
                                 {user.roles?.map((role: string) => (
                                     <Badge key={role} variant={getRoleBadgeColor(role) as any} className="capitalize">
@@ -1338,19 +1360,23 @@ function ProfileContent() {
                             </p>
                         )}
 
-                        <div className="flex flex-col gap-2 mt-4">
-
-                            <Button variant="outline" onClick={() => setIsEditing(!isEditing)} className="w-full">
-                                {isEditing ? "Cancel Edit" : "Edit Profile"}
-                            </Button>
-                        </div>
+                        {!isEditing && (
+                            <div className="flex flex-col gap-2 mt-4">
+                                <Button variant="outline" onClick={() => {
+                                    setIsEditing(true);
+                                    setActiveTab("overview");
+                                }} className="w-full">
+                                    Edit Profile
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Right Content Area */}
                 <div className="flex-1 w-full space-y-6">
                     <Section>
-                        <Tabs defaultValue="overview" className="w-full">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <TabsList className="mb-4">
                                 <TabsTrigger value="overview">Personal Overview</TabsTrigger>
                                 <TabsTrigger value="finance">Organisation Finance</TabsTrigger>
@@ -1367,6 +1393,46 @@ function ProfileContent() {
                                             <CardDescription>Update your personal information</CardDescription>
                                         </CardHeader>
                                         <CardContent>
+                                            <div className="flex flex-col items-center mb-6">
+                                                <div className="relative mb-2">
+                                                    <Avatar className="w-24 h-24 border-4 border-primary shadow-sm">
+                                                        <AvatarImage src={editForm.photoURL || "/default-avatar.png"} alt={editForm.name || "User"} />
+                                                        <AvatarFallback className="text-3xl font-bold">{editForm.name ? editForm.name.charAt(0) : <UserIcon className="h-10 w-10" />}</AvatarFallback>
+                                                    </Avatar>
+                                                    <input
+                                                        type="file"
+                                                        ref={fileInputRef}
+                                                        className="hidden"
+                                                        accept="image/jpeg,image/png,image/webp"
+                                                        onChange={handleFileChange}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 shadow-md hover:bg-primary/90"
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        disabled={isUploadingImage}
+                                                        title="Update Profile Picture"
+                                                    >
+                                                        {isUploadingImage ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="h-4 w-4" />}
+                                                    </Button>
+                                                    {editForm.photoURL && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            className="absolute top-0 right-0 rounded-full p-1 shadow-md h-7 w-7 hover:bg-destructive/90"
+                                                            onClick={handleRemovePicture}
+                                                            disabled={isUploadingImage}
+                                                            title="Remove Profile Picture"
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                <span className="text-xs text-muted-foreground">Click the camera icon to update photo</span>
+                                            </div>
                                             <form onSubmit={handleProfileUpdate} className="grid gap-4 md:grid-cols-2">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="edit-name">Name</Label>
@@ -1400,7 +1466,8 @@ function ProfileContent() {
                                                         onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                                                     />
                                                 </div>
-                                                <div className="md:col-span-2 flex justify-end">
+                                                <div className="md:col-span-2 flex justify-end gap-2 mt-4">
+                                                    <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
                                                     <Button type="submit">Save Changes</Button>
                                                 </div>
                                             </form>

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 
 export default function ReportsPage() {
-    const { payments } = useFinance();
+    const { payments, topContributors } = useFinance();
     const { settings } = useSettings();
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -145,12 +145,12 @@ export default function ReportsPage() {
 
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <CardTitle>Member Contributions</CardTitle>
-                        <div className="relative w-64">
+                        <div className="relative w-full sm:w-64">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search..."
+                                placeholder="Search members..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-8"
@@ -182,30 +182,34 @@ export default function ReportsPage() {
                                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No members found.</TableCell>
                                     </TableRow>
                                 ) : (
-                                    displayedUsers.map(user => (
-                                        <TableRow key={user.id}>
-                                            <TableCell className="font-medium">
-                                                <div>{user.name || user.username}</div>
-                                                <div className="text-xs text-muted-foreground">{user.email}</div>
-                                            </TableCell>
-                                            <TableCell className="text-right">৳{user.totalPaid}</TableCell>
-                                            <TableCell className="text-right">৳{user.oneTimeTotal}</TableCell>
-                                            <TableCell className="text-center font-bold">{user.totalPassedMonths}</TableCell>
-                                            <TableCell className="text-center text-blue-600 font-medium">{user.totalMonthsPaidCount}</TableCell>
-                                            <TableCell className="text-center text-red-600 font-medium">{user.monthsDueCount}</TableCell>
-                                            <TableCell className="text-center">
-                                                {user.isPaidCurrentMonth ? (
-                                                    <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                                                        Paid
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                                                        Due
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
+                                    displayedUsers.map(user => {
+                                        const isTopContributor = topContributors.includes(user.id);
+                                        const rank = isTopContributor ? topContributors.indexOf(user.id) + 1 : undefined;
+                                        return (
+                                            <TableRow key={user.id}>
+                                                <TableCell className="font-medium">
+                                                    <div>{user.name || user.username}</div>
+                                                    <div className="text-xs text-muted-foreground">{user.email}</div>
+                                                </TableCell>
+                                                <TableCell className="text-right">৳{user.totalPaid}</TableCell>
+                                                <TableCell className="text-right">৳{user.oneTimeTotal}</TableCell>
+                                                <TableCell className="text-center font-bold">{user.totalPassedMonths}</TableCell>
+                                                <TableCell className="text-center text-blue-600 font-medium">{user.totalMonthsPaidCount}</TableCell>
+                                                <TableCell className="text-center text-red-600 font-medium">{user.monthsDueCount}</TableCell>
+                                                <TableCell className="text-center">
+                                                    {user.isPaidCurrentMonth ? (
+                                                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                                            Paid
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                                                            Due
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    })
                                 )}
                             </TableBody>
                         </Table>

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Check, X, Trash2, Edit, Plus, Menu, Settings2, Calculator, Calendar, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
+import { Check, X, Trash2, Edit, Plus, Menu, Settings2, Calculator, Calendar, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, Search } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -29,7 +29,7 @@ type ColumnConfig = {
 };
 
 export default function CollectionsPage() {
-    const { payments, addPayment, updatePayment, deletePayment, loading: financeLoading } = useFinance();
+    const { payments, addPayment, updatePayment, deletePayment, loading: financeLoading, topContributors } = useFinance();
     const [activeTab, setActiveTab] = useState<"monthly" | "one-time">("monthly");
     const [users, setUsers] = useState<any[]>([]);
     const [loadingUsers, setLoadingUsers] = useState(true);
@@ -627,13 +627,20 @@ export default function CollectionsPage() {
                                 </span>
                             </CardDescription>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <div className="flex items-center space-x-2">
-                                <Button variant="outline" size="sm" onClick={() => setIsManageViewOpen(true)}>
-                                    <Settings2 className="h-4 w-4 mr-2" />
-                                    Manage Periods
-                                </Button>
+                        <div className="flex items-center space-x-2 w-full md:w-auto mt-2 md:mt-0">
+                            <div className="relative w-full md:w-[250px]">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search members..."
+                                    className="w-full pl-8 h-9 text-sm"
+                                    value={userSearchTerm}
+                                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                                />
                             </div>
+                            <Button variant="outline" size="sm" onClick={() => setIsManageViewOpen(true)} className="whitespace-nowrap">
+                                <Settings2 className="h-4 w-4 mr-2 hidden sm:inline" />
+                                Manage
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -660,59 +667,71 @@ export default function CollectionsPage() {
                                 <TableBody>
                                     {loadingUsers ? (
                                         <TableRow><TableCell colSpan={visibleColumns.length + 2} className="text-center h-24">Loading...</TableCell></TableRow>
+                                    ) : filteredUsers.length === 0 ? (
+                                        <TableRow><TableCell colSpan={visibleColumns.length + 2} className="text-center h-24 text-muted-foreground">No members found matching "{userSearchTerm}"</TableCell></TableRow>
                                     ) : (
-                                        sortedUsers.map(user => {
-                                            const rowTotal = getUserRowTotal(user.id);
-                                            return (
-                                                <TableRow key={user.id} className="hover:bg-muted/50 group">
-                                                    <TableCell
-                                                        className="font-medium sticky left-0 bg-background z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer hover:text-primary hover:underline"
-                                                        onClick={() => handleMemberClick(user)}
-                                                    >
-                                                        {user.name || user.username}
-                                                    </TableCell>
-                                                    {visibleColumns.map(col => {
-                                                        const status = getCellStatus(user.id, col);
-                                                        const isEditing = editingCell?.userId === user.id && editingCell?.colId === col.id;
+                                        [...filteredUsers]
+                                            .sort((a: any, b: any) => {
+                                                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                                                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                                                return memberSortAsc
+                                                    ? dateA.getTime() - dateB.getTime()
+                                                    : dateB.getTime() - dateA.getTime();
+                                            })
+                                            .map(user => {
+                                                const rowTotal = getUserRowTotal(user.id);
+                                                const isTopContributor = topContributors.includes(user.id);
+                                                const rank = isTopContributor ? topContributors.indexOf(user.id) + 1 : undefined;
+                                                return (
+                                                    <TableRow key={user.id} className="hover:bg-muted/50 group">
+                                                        <TableCell
+                                                            className="font-medium sticky left-0 bg-background z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer hover:text-primary hover:underline"
+                                                            onClick={() => handleMemberClick(user)}
+                                                        >
+                                                            {user.name || user.username}
+                                                        </TableCell>
+                                                        {visibleColumns.map(col => {
+                                                            const status = getCellStatus(user.id, col);
+                                                            const isEditing = editingCell?.userId === user.id && editingCell?.colId === col.id;
 
-                                                        let bgClass = "";
-                                                        if (!isEditing) {
-                                                            if (status.status === 'paid') bgClass = "bg-green-50/50 dark:bg-green-900/10 text-green-700 font-bold";
-                                                            else if (status.status === 'due-yellow') bgClass = "bg-yellow-50/50 dark:bg-yellow-900/10";
-                                                            else if (status.status === 'due-red' || status.status === 'due') bgClass = "bg-red-50/50 dark:bg-red-900/10";
-                                                        }
+                                                            let bgClass = "";
+                                                            if (!isEditing) {
+                                                                if (status.status === 'paid') bgClass = "bg-green-50/50 dark:bg-green-900/10 text-green-700 font-bold";
+                                                                else if (status.status === 'due-yellow') bgClass = "bg-yellow-50/50 dark:bg-yellow-900/10";
+                                                                else if (status.status === 'due-red' || status.status === 'due') bgClass = "bg-red-50/50 dark:bg-red-900/10";
+                                                            }
 
-                                                        return (
-                                                            <TableCell
-                                                                key={col.id}
-                                                                className={`p-0 h-[45px] text-center border-r border-b relative ${bgClass}`}
-                                                                onClick={() => !isEditing && (setEditingCell({ userId: user.id, colId: col.id }), setEditValue(status.payment ? status.payment.amount.toString() : ""))}
-                                                            >
-                                                                {isEditing ? (
-                                                                    <Input
-                                                                        ref={inputRef}
-                                                                        value={editValue}
-                                                                        onChange={e => setEditValue(e.target.value)}
-                                                                        onBlur={handleInlineSave}
-                                                                        onKeyDown={handleKeyDown}
-                                                                        className="h-full w-full border-none text-center bg-transparent focus-visible:ring-2 focus-visible:ring-primary px-0 rounded-none"
-                                                                        placeholder="-"
-                                                                        autoFocus
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-xs sm:text-sm">
-                                                                        {status.status === 'paid' ? `৳${status.payment?.amount}` : ''}
-                                                                    </div>
-                                                                )}
-                                                            </TableCell>
-                                                        );
-                                                    })}
-                                                    <TableCell className="text-center font-bold text-muted-foreground border-l bg-muted/10">
-                                                        {rowTotal > 0 ? `৳${rowTotal}` : '-'}
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
+                                                            return (
+                                                                <TableCell
+                                                                    key={col.id}
+                                                                    className={`p-0 h-[45px] text-center border-r border-b relative ${bgClass}`}
+                                                                    onClick={() => !isEditing && (setEditingCell({ userId: user.id, colId: col.id }), setEditValue(status.payment ? status.payment.amount.toString() : ""))}
+                                                                >
+                                                                    {isEditing ? (
+                                                                        <Input
+                                                                            ref={inputRef}
+                                                                            value={editValue}
+                                                                            onChange={e => setEditValue(e.target.value)}
+                                                                            onBlur={handleInlineSave}
+                                                                            onKeyDown={handleKeyDown}
+                                                                            className="h-full w-full border-none text-center bg-transparent focus-visible:ring-2 focus-visible:ring-primary px-0 rounded-none"
+                                                                            placeholder="-"
+                                                                            autoFocus
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-xs sm:text-sm">
+                                                                            {status.status === 'paid' ? `৳${status.payment?.amount}` : ''}
+                                                                        </div>
+                                                                    )}
+                                                                </TableCell>
+                                                            );
+                                                        })}
+                                                        <TableCell className="text-center font-bold text-muted-foreground border-l bg-muted/10">
+                                                            {rowTotal > 0 ? `৳${rowTotal}` : '-'}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })
                                     )}
                                 </TableBody>
                                 <TableFooter className="bg-muted/80 font-bold text-foreground">

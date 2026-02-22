@@ -57,6 +57,7 @@ interface FinanceContextType {
     currentBalance: number;
     monthlyStats: MonthlyStat[];
     getMemberPayments: (userId: string) => Payment[];
+    topContributors: string[];
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -213,6 +214,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         return payments.filter(p => p.userId === userId);
     };
 
+    const topContributors = React.useMemo(() => {
+        const contributorMap = new Map<string, number>();
+        payments.forEach(p => {
+            if (!p.userId) return;
+            contributorMap.set(p.userId, (contributorMap.get(p.userId) || 0) + Number(p.amount));
+        });
+        return Array.from(contributorMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([userId]) => userId);
+    }, [payments]);
+
     // Monthly Stats for Chart
     // Aggregate by Month-Year
     const monthlyStats: MonthlyStat[] = [];
@@ -255,7 +268,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             totalExpenses,
             currentBalance,
             monthlyStats,
-            getMemberPayments
+            getMemberPayments,
+            topContributors
         }}>
             {children}
         </FinanceContext.Provider>

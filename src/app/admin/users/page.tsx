@@ -23,6 +23,8 @@ import { useAuth } from "@/lib/auth-context";
 import { RecycleService } from "@/lib/recycle-service";
 import { ActivityLogService } from "@/lib/activity-log-service";
 import { useSettings, SettingsProvider } from "@/lib/settings-context";
+import { useFinance, FinanceProvider } from "@/lib/finance-context";
+import { TopContributorBadge } from "@/components/ui/top-contributor-badge";
 import {
     Dialog,
     DialogContent,
@@ -52,7 +54,9 @@ interface User {
 export default function UsersPage() {
     return (
         <SettingsProvider>
-            <UsersContent />
+            <FinanceProvider>
+                <UsersContent />
+            </FinanceProvider>
         </SettingsProvider>
     );
 }
@@ -63,6 +67,7 @@ function UsersContent() {
     const [isLoading, setIsLoading] = useState(true);
     const { user: currentUser, adminUpdateUser } = useAuth();
     const { settings } = useSettings();
+    const { topContributors } = useFinance();
     const { toast } = useToast();
 
     // Password Visibility State
@@ -498,60 +503,66 @@ function UsersContent() {
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredUsers.map((user) => (
-                                            <TableRow key={user.id}>
-                                                <TableCell className="font-medium cursor-pointer text-blue-600 hover:underline" onClick={() => handleViewProfile(user)}>{user.name}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col">
-                                                        <span>{user.username}</span>
-                                                        <span className="text-xs text-muted-foreground">{user.email}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-xs">
-                                                            {visiblePasswords[user.id] ? user.password : "••••••••"}
-                                                        </span>
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => togglePassword(user.id)}>
-                                                            {visiblePasswords[user.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {user.roles && user.roles.map(role => (
-                                                            <Badge key={role} variant={role === "admin" ? "default" : role === "moderator" ? "secondary" : "outline"}>
-                                                                {role}
-                                                            </Badge>
-                                                        ))}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    {user.createdAt
-                                                        ? (() => { try { return new Date(user.createdAt?.toDate ? user.createdAt.toDate() : user.createdAt).toLocaleDateString(); } catch { return "—"; } })()
-                                                        : "—"}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button variant="ghost" size="icon" onClick={() => {
-                                                            setViewingUser(user);
-                                                            handleEditClick(user);
-                                                        }}>
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="text-destructive hover:text-destructive/90"
-                                                            onClick={() => handleDelete(user.id, user.name)}
-                                                            disabled={currentUser?.id === user.id} // Prevent self-delete
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
+                                        filteredUsers.map((user) => {
+                                            const isTopContributor = topContributors.includes(user.id);
+                                            const rank = isTopContributor ? topContributors.indexOf(user.id) + 1 : undefined;
+                                            return (
+                                                <TableRow key={user.id}>
+                                                    <TableCell className="font-medium cursor-pointer text-blue-600 hover:underline" onClick={() => handleViewProfile(user)}>
+                                                        {user.name}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-col">
+                                                            <span>{user.username}</span>
+                                                            <span className="text-xs text-muted-foreground">{user.email}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-mono text-xs">
+                                                                {visiblePasswords[user.id] ? user.password : "••••••••"}
+                                                            </span>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => togglePassword(user.id)}>
+                                                                {visiblePasswords[user.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {user.roles && user.roles.map(role => (
+                                                                <Badge key={role} variant={role === "admin" ? "default" : role === "moderator" ? "secondary" : "outline"}>
+                                                                    {role}
+                                                                </Badge>
+                                                            ))}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm text-muted-foreground">
+                                                        {user.createdAt
+                                                            ? (() => { try { return new Date(user.createdAt?.toDate ? user.createdAt.toDate() : user.createdAt).toLocaleDateString(); } catch { return "—"; } })()
+                                                            : "—"}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button variant="ghost" size="icon" onClick={() => {
+                                                                setViewingUser(user);
+                                                                handleEditClick(user);
+                                                            }}>
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="text-destructive hover:text-destructive/90"
+                                                                onClick={() => handleDelete(user.id, user.name)}
+                                                                disabled={currentUser?.id === user.id} // Prevent self-delete
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })
                                     )}
                                 </TableBody>
                             </Table>
@@ -561,7 +572,12 @@ function UsersContent() {
             </Card>
 
             {/* View User Profile Dialog */}
-            <Dialog open={!!viewingUser} onOpenChange={(open) => !open && setViewingUser(null)}>
+            <Dialog open={!!viewingUser} onOpenChange={(open) => {
+                if (!open) {
+                    setViewingUser(null);
+                    setIsProfileEditMode(false);
+                }
+            }}>
                 <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50 p-0 sm:p-6 gap-0 sm:gap-4">
                     <DialogHeader className="p-6 sm:p-0 pb-0">
                         <DialogTitle className="text-2xl">Member Profile</DialogTitle>
@@ -574,12 +590,18 @@ function UsersContent() {
                                 <Card className="flex-shrink-0 w-full md:w-1/3">
                                     <CardContent className="pt-6 flex flex-col items-center text-center">
                                         <div className="relative group mb-4">
-                                            <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-xl">
+                                            <Avatar className={`h-32 w-32 border-4 shadow-xl ${topContributors.includes(viewingUser.id) ? 'border-yellow-400' : 'border-primary/20'}`}>
                                                 <AvatarImage src={viewingUser.photoURL || undefined} alt={viewingUser.name} />
                                                 <AvatarFallback className="text-4xl bg-primary/10 text-primary">
                                                     {viewingUser.name?.charAt(0) || "U"}
                                                 </AvatarFallback>
                                             </Avatar>
+                                            {topContributors.includes(viewingUser.id) && (
+                                                <TopContributorBadge
+                                                    rank={topContributors.indexOf(viewingUser.id) + 1}
+                                                    className="absolute bottom-1 right-1 translate-x-1/4 translate-y-1/4 h-[34px] w-[34px]"
+                                                />
+                                            )}
                                             <input
                                                 type="file"
                                                 ref={fileInputRef}
