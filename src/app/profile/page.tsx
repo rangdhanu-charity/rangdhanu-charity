@@ -1117,6 +1117,23 @@ function ProfileContent() {
         }
     };
 
+    const handleRemovePicture = async () => {
+        if (!user) return;
+        if (!confirm("Are you sure you want to remove your profile picture?")) return;
+        setIsUploadingImage(true);
+        try {
+            const res = await updateProfile({ photoURL: "" });
+            if (res.success) {
+                toast({ title: "Success", description: "Profile picture removed successfully." });
+                setEditForm(prev => ({ ...prev, photoURL: "" }));
+            } else {
+                toast({ title: "Error", description: res.error || "Failed to remove picture.", variant: "destructive" });
+            }
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+
     const handleSwitchToAdmin = () => {
         router.push("/admin");
     };
@@ -1273,9 +1290,22 @@ function ProfileContent() {
                             className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isUploadingImage}
+                            title="Update Profile Picture"
                         >
                             {isUploadingImage ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="h-5 w-5" />}
                         </Button>
+                        {user.photoURL && (
+                            <Button
+                                variant="destructive"
+                                size="icon"
+                                className="absolute top-0 right-0 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={handleRemovePicture}
+                                disabled={isUploadingImage}
+                                title="Remove Profile Picture"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        )}
                     </div>
 
                     <div className="text-center md:text-left">

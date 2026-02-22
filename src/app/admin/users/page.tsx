@@ -308,6 +308,23 @@ function UsersContent() {
         }
     };
 
+    const handleRemovePicture = async () => {
+        if (!viewingUser) return;
+        if (!confirm(`Are you sure you want to remove ${viewingUser.name}'s profile picture?`)) return;
+        setIsUploadingImage(true);
+        try {
+            const res = await adminUpdateUser(viewingUser.id, { photoURL: "" });
+            if (res.success) {
+                toast({ title: "Success", description: "Profile picture removed successfully." });
+                setViewingUser({ ...viewingUser, photoURL: "" });
+            } else {
+                toast({ title: "Error", description: res.error || "Failed to remove picture.", variant: "destructive" });
+            }
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+
     const handleViewProfile = async (user: User) => {
         setViewingUser(user);
         setLoadingPayments(true);
@@ -577,8 +594,21 @@ function UsersContent() {
                                                     className="absolute bottom-0 right-0 bg-primary h-10 w-10 text-primary-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                                                     onClick={() => fileInputRef.current?.click()}
                                                     disabled={isUploadingImage}
+                                                    title="Update Profile Picture"
                                                 >
                                                     {isUploadingImage ? <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="h-5 w-5" />}
+                                                </Button>
+                                            )}
+                                            {isProfileEditMode && viewingUser.photoURL && (
+                                                <Button
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute top-0 right-0 h-8 w-8 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                                    onClick={handleRemovePicture}
+                                                    disabled={isUploadingImage}
+                                                    title="Remove Profile Picture"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             )}
                                         </div>
