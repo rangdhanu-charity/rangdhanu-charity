@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where, getDocs, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where, getDocs, addDoc, Timestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,8 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Plus, Search, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Calendar as CalendarIcon } from "lucide-react";
-import { Timestamp } from "firebase/firestore";
+import { Pencil, Trash2, Plus, Search, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Calendar as CalendarIcon, Camera } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { RecycleService } from "@/lib/recycle-service";
@@ -34,6 +34,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { ImageCropper } from "@/components/image-cropper";
+import { useRef } from "react";
 
 interface User {
     id: string;
@@ -106,6 +108,12 @@ function UsersContent() {
     const [profileEditForm, setProfileEditForm] = useState<Partial<User>>({});
     const [userPayments, setUserPayments] = useState<any[]>([]);
     const [loadingPayments, setLoadingPayments] = useState(false);
+
+    // Image Upload & Crop State
+    const [isCropperOpen, setIsCropperOpen] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string>("");
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Calendar Matrix States
     const currentYear = new Date().getFullYear();
@@ -239,6 +247,46 @@ function UsersContent() {
             toast({ title: "Error", description: "Failed to create user.", variant: "destructive" });
         } finally {
             setIsAddingUser(false);
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                setSelectedImage(reader.result as string);
+                setIsCropperOpen(true);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCropComplete = async (croppedBlob: Blob) => {
+        if (!viewingUser) return;
+        setIsUploadingImage(true);
+
+        try {
+            const storageRef = ref(storage, `profiles/${viewingUser.id}_${Date.now()}.webp`);
+            await uploadBytes(storageRef, croppedBlob, { contentType: 'image/webp' });
+            const downloadURL = await getDownloadURL(storageRef);
+
+            const res = await adminUpdateUser(viewingUser.id, { photoURL: downloadURL });
+
+            if (res.success) {
+                toast({ title: "Profile Picture Updated", description: "User's picture has been saved successfully in low-resolution." });
+                setViewingUser({ ...viewingUser, photoURL: downloadURL });
+            } else {
+                toast({ title: "Error", description: res.error || "Failed to save picture URL.", variant: "destructive" });
+            }
+        } catch (error) {
+            console.error("Error uploading profile picture:", error);
+            toast({ title: "Upload Failed", description: "Could not upload the image to the server.", variant: "destructive" });
+        } finally {
+            setIsUploadingImage(false);
+            setIsCropperOpen(false);
+            setSelectedImage("");
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -490,12 +538,32 @@ function UsersContent() {
                             <div className="flex flex-col md:flex-row gap-6 items-start">
                                 <Card className="flex-shrink-0 w-full md:w-1/3">
                                     <CardContent className="pt-6 flex flex-col items-center text-center">
-                                        <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-xl mb-4">
-                                            <AvatarImage src={viewingUser.photoURL || ""} alt={viewingUser.name} />
-                                            <AvatarFallback className="text-4xl bg-primary/10 text-primary">
-                                                {viewingUser.name?.charAt(0) || "U"}
-                                            </AvatarFallback>
-                                        </Avatar>
+                                        <div className="relative group mb-4">
+                                            <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-xl">
+                                                <AvatarImage src={viewingUser.photoURL || ""} alt={viewingUser.name} />
+                                                <AvatarFallback className="text-4xl bg-primary/10 text-primary">
+                                                    {viewingUser.name?.charAt(0) || "U"}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                accept="image/jpeg,image/png,image/webp"
+                                                onChange={handleFileChange}
+                                            />
+                                            {isProfileEditMode && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute bottom-0 right-0 bg-primary h-10 w-10 text-primary-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    disabled={isUploadingImage}
+                                                >
+                                                    {isUploadingImage ? <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="h-5 w-5" />}
+                                                </Button>
+                                            )}
+                                        </div>
                                         <h2 className="text-xl font-bold">{viewingUser.name}</h2>
                                         <p className="text-sm text-muted-foreground mb-4">@{viewingUser.username}</p>
 
@@ -881,6 +949,18 @@ function UsersContent() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ImageCropper
+                open={isCropperOpen}
+                imageSrc={selectedImage}
+                onClose={() => {
+                    setIsCropperOpen(false);
+                    setSelectedImage("");
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                onCropComplete={handleCropComplete}
+                isUploading={isUploadingImage}
+            />
         </div>
     );
 }

@@ -45,6 +45,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { ImageCropper } from "@/components/image-cropper";
 
 // ─── Member Finance Transparency Tab ─────────────────────────────────────────
 function MemberFinanceTab() {
@@ -775,6 +776,11 @@ function ProfileContent() {
     const [loadingRequests, setLoadingRequests] = useState(true);
     const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
 
+    // Image Upload & Crop State
+    const [isCropperOpen, setIsCropperOpen] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string>("");
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+
     const [isDonationHistoryOpen, setIsDonationHistoryOpen] = useState(true);
     const [isMyRequestsOpen, setIsMyRequestsOpen] = useState(true);
     const [selectedMessage, setSelectedMessage] = useState<any | null>(null);
@@ -1056,16 +1062,40 @@ function ProfileContent() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 200 * 1024) { // 200KB limit
-                toast({ title: "Error", description: "Image size too large. Please use an image under 200KB.", variant: "destructive" });
-                return;
-            }
-
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setEditForm(prev => ({ ...prev, photoURL: reader.result as string }));
+            reader.onload = () => {
+                setSelectedImage(reader.result as string);
+                setIsCropperOpen(true);
             };
             reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCropComplete = async (croppedBlob: Blob) => {
+        if (!user) return;
+        setIsUploadingImage(true);
+
+        try {
+            const storageRef = ref(storage, `profiles/${user.id}_${Date.now()}.webp`);
+            await uploadBytes(storageRef, croppedBlob, { contentType: 'image/webp' });
+            const downloadURL = await getDownloadURL(storageRef);
+
+            const res = await updateProfile({ photoURL: downloadURL });
+
+            if (res.success) {
+                toast({ title: "Profile Picture Updated", description: "Your new picture has been saved successfully in low-resolution." });
+                setEditForm(prev => ({ ...prev, photoURL: downloadURL }));
+            } else {
+                toast({ title: "Error", description: res.error || "Failed to save picture URL.", variant: "destructive" });
+            }
+        } catch (error) {
+            console.error("Error uploading profile picture:", error);
+            toast({ title: "Upload Failed", description: "Could not upload the image to the server.", variant: "destructive" });
+        } finally {
+            setIsUploadingImage(false);
+            setIsCropperOpen(false);
+            setSelectedImage("");
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -1216,7 +1246,7 @@ function ProfileContent() {
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/webp"
                             onChange={handleFileChange}
                         />
                         <Button
@@ -1224,8 +1254,9 @@ function ProfileContent() {
                             size="icon"
                             className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploadingImage}
                         >
-                            <Camera className="h-5 w-5" />
+                            {isUploadingImage ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="h-5 w-5" />}
                         </Button>
                     </div>
 
@@ -1766,6 +1797,19 @@ function ProfileContent() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Profile Picture Cropper Modal */}
+            <ImageCropper
+                open={isCropperOpen}
+                imageSrc={selectedImage}
+                onClose={() => {
+                    setIsCropperOpen(false);
+                    setSelectedImage("");
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                onCropComplete={handleCropComplete}
+                isUploading={isUploadingImage}
+            />
         </div >
     );
 }
