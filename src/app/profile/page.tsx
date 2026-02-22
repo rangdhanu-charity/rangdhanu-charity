@@ -1321,9 +1321,9 @@ function ProfileContent() {
                 {/* Left Sidebar: Avatar & Basic Info */}
                 <div className="flex flex-col items-center md:items-start gap-4 w-full md:w-auto">
                     <div className="relative">
-                        <Avatar className={`w-32 h-32 border-4 ${isTopContributor ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'border-primary shadow-lg'}`}>
+                        <Avatar className={`w-24 h-24 md:w-32 md:h-32 border-4 ${isTopContributor ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'border-primary shadow-lg'}`}>
                             <AvatarImage src={user.photoURL || "/default-avatar.png"} alt={user.name || "User"} />
-                            <AvatarFallback className="text-5xl font-bold">{user.name ? user.name.charAt(0) : <UserIcon className="h-16 w-16" />}</AvatarFallback>
+                            <AvatarFallback className="text-4xl md:text-5xl font-bold">{user.name ? user.name.charAt(0) : <UserIcon className="h-10 w-10 md:h-16 md:w-16" />}</AvatarFallback>
                         </Avatar>
                         {isTopContributor && <TopContributorBadge rank={rank} className="absolute bottom-1 right-1 translate-x-1/4 translate-y-1/4 h-[34px] w-[34px]" />}
                     </div>

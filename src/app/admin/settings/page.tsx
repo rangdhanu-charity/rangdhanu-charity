@@ -195,7 +195,7 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
 
             <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+                <TabsList className="flex w-full justify-start overflow-x-auto sm:grid sm:grid-cols-3 lg:w-[600px] mb-4">
                     <TabsTrigger value="general">General</TabsTrigger>
                     <TabsTrigger value="recycle">Recycle Bin</TabsTrigger>
                     <TabsTrigger value="activity">Activity Logs</TabsTrigger>

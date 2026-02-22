@@ -590,9 +590,9 @@ function UsersContent() {
                                 <Card className="flex-shrink-0 w-full md:w-1/3">
                                     <CardContent className="pt-6 flex flex-col items-center text-center">
                                         <div className="relative group mb-4">
-                                            <Avatar className={`h-32 w-32 border-4 shadow-xl ${topContributors.includes(viewingUser.id) ? 'border-yellow-400' : 'border-primary/20'}`}>
+                                            <Avatar className={`h-24 w-24 md:h-32 md:w-32 border-4 shadow-xl ${topContributors.includes(viewingUser.id) ? 'border-yellow-400' : 'border-primary/20'}`}>
                                                 <AvatarImage src={viewingUser.photoURL || undefined} alt={viewingUser.name} />
-                                                <AvatarFallback className="text-4xl bg-primary/10 text-primary">
+                                                <AvatarFallback className="text-3xl md:text-4xl bg-primary/10 text-primary">
                                                     {viewingUser.name?.charAt(0) || "U"}
                                                 </AvatarFallback>
                                             </Avatar>
