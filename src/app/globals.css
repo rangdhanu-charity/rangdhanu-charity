@@ -43,27 +43,45 @@
     from {
       height: 0;
     }
+
     to {
       height: var(--radix-accordion-content-height);
     }
   }
+
   @keyframes accordion-up {
     from {
       height: var(--radix-accordion-content-height);
     }
+
     to {
       height: 0;
     }
   }
 }
 
+@utility no-scrollbar {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+
+  /* IE 10+ */
+  &::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
+  }
+}
+
 @utility container {
+
   margin-inline: auto;
   padding-inline: 2rem;
-  @media (width >= --theme(--breakpoint-sm)) {
+
+  @media (width >=--theme(--breakpoint-sm)) {
     max-width: none;
   }
-  @media (width >= 1400px) {
+
+  @media (width >=1400px) {
     max-width: 1400px;
   }
 }
@@ -77,6 +95,7 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+
   *,
   ::after,
   ::before,
@@ -89,15 +108,19 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%; /* #0A2540 is approx 210, 73%, 15% but let's stick to slate-900 like */
+    --foreground: 222 47% 11%;
+    /* #0A2540 is approx 210, 73%, 15% but let's stick to slate-900 like */
     /* Custom brand colors */
-    --primary: 216 73% 15%; /* #0A2540 Deep Blue */
+    --primary: 216 73% 15%;
+    /* #0A2540 Deep Blue */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 199 89% 48%; /* Rainbow-ish blue start */
+    --secondary: 199 89% 48%;
+    /* Rainbow-ish blue start */
     --secondary-foreground: 222 47% 11%;
 
-    --accent: 43 100% 50%; /* #FFB800 Warm Yellow */
+    --accent: 43 100% 50%;
+    /* #FFB800 Warm Yellow */
     --accent-foreground: 222 47% 11%;
 
     --muted: 210 40% 96.1%;
@@ -117,7 +140,8 @@
   }
 
   .dark {
-    --background: 222 47% 11%; /* Darker Deep Blue */
+    --background: 222 47% 11%;
+    /* Darker Deep Blue */
     --foreground: 210 40% 98%;
 
     --primary: 210 40% 98%;
@@ -148,6 +172,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }

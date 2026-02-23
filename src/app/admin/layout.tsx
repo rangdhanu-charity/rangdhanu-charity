@@ -79,7 +79,7 @@ export default function AdminLayout({
 
     return (
         <div className="flex min-h-screen flex-col md:flex-row">
-            <aside className="w-full border-r bg-muted/40 md:w-64 md:min-h-screen">
+            <aside className="hidden border-r bg-muted/40 md:flex flex-col md:w-64 md:min-h-screen">
                 <div className="flex h-16 items-center border-b px-6">
                     <Link href="/" className="flex items-center gap-2 font-bold text-lg text-primary">
                         <Heart className="h-5 w-5 fill-current" />

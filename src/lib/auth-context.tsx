@@ -291,7 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                         setUser(authenticatedUser);
                         sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
-                        router.push("/");
+                        router.push("/profile");
                         setIsLoading(false);
                         return { success: true };
                     } else {

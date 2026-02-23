@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/notification-context";
 import { useMessages } from "@/lib/message-context";
-import { useRouter, redirect } from "next/navigation";
+import { useRouter, redirect, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -784,16 +784,18 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
                     />
                 </div>
             </div>
-            <div>
-                <Label htmlFor="transactionId">Transaction ID / Last 4 digits</Label>
-                <Input
-                    id="transactionId"
-                    placeholder="e.g. 8JSH... or 1234"
-                    required
-                    value={formData.transactionId}
-                    onChange={e => setFormData({ ...formData, transactionId: e.target.value })}
-                />
-            </div>
+            {formData.method !== "cash" && (
+                <div>
+                    <Label htmlFor="transactionId">Transaction ID / Last 4 digits</Label>
+                    <Input
+                        id="transactionId"
+                        placeholder="e.g. 8JSH... or 1234"
+                        required
+                        value={formData.transactionId}
+                        onChange={e => setFormData({ ...formData, transactionId: e.target.value })}
+                    />
+                </div>
+            )}
             <div>
                 <Label htmlFor="notes">Notes (Optional)</Label>
                 <Input
@@ -833,6 +835,39 @@ function ProfileContent() {
     const [selectedMessage, setSelectedMessage] = useState<any | null>(null);
     const { settings } = useSettings();
     const [activeTab, setActiveTab] = useState("overview");
+    const searchParams = useSearchParams();
+    const tabsRef = useRef<HTMLDivElement>(null);
+
+    const scrollToTabs = () => {
+        setTimeout(() => {
+            tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 50);
+    };
+
+    // Deep link: handle ?tab=X, ?action=donate, and #hash from mobile menu
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        const action = searchParams.get("action");
+        const hash = typeof window !== "undefined" ? window.location.hash : "";
+
+        if (action === "donate") {
+            setActiveTab("overview");
+            setIsDonateModalOpen(true);
+            scrollToTabs();
+        } else if (tab === "finance" || tab === "security" || tab === "overview") {
+            setActiveTab(tab);
+            scrollToTabs();
+        } else if (hash === "#history" || hash === "#requests") {
+            // Ensure overview tab is active so the sections are rendered
+            setActiveTab("overview");
+            // Scroll to the element after a short delay to allow tab to render
+            setTimeout(() => {
+                const id = hash.replace("#", "");
+                const el = document.getElementById(id);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 200);
+        }
+    }, [searchParams]);
 
     // Calendar Matrix Logic
     const availableYears = useMemo(() => {
@@ -1376,7 +1411,7 @@ function ProfileContent() {
                 {/* Right Content Area */}
                 <div className="flex-1 w-full space-y-6">
                     <Section>
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        <Tabs ref={tabsRef} value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <TabsList className="mb-4">
                                 <TabsTrigger value="overview">Personal Overview</TabsTrigger>
                                 <TabsTrigger value="finance">Organisation Finance</TabsTrigger>
@@ -1674,7 +1709,7 @@ function ProfileContent() {
                                         </Card>
 
                                         {/* Donation History */}
-                                        <Card className="md:col-span-2">
+                                        <Card id="history" className="md:col-span-2">
                                             <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsDonationHistoryOpen(!isDonationHistoryOpen)}>
                                                 <div className="flex justify-between items-center">
                                                     <div>
@@ -1745,7 +1780,7 @@ function ProfileContent() {
                                         </Card>
 
                                         {/* My Requests History */}
-                                        <Card className="md:col-span-2">
+                                        <Card id="requests" className="md:col-span-2">
                                             <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsMyRequestsOpen(!isMyRequestsOpen)}>
                                                 <div className="flex justify-between items-center">
                                                     <div>
