@@ -1512,9 +1512,9 @@ function ProfileContent() {
                                         </CardContent>
                                     </Card>
                                 ) : (
-                                    <div className="grid gap-6 md:grid-cols-2">
+                                    <div className="grid gap-6 md:grid-cols-2 w-full min-w-0">
                                         {/* Financial Summary */}
-                                        <Card>
+                                        <Card className="min-w-0 max-w-full overflow-hidden">
                                             <CardHeader>
                                                 <CardTitle className="text-lg">Financial Summary</CardTitle>
                                             </CardHeader>
@@ -1570,10 +1570,10 @@ function ProfileContent() {
 
                                                     return (
                                                         <>
-                                                            <div className="flex justify-between items-center pb-2 border-b">
-                                                                <div>
-                                                                    <span className="text-sm text-muted-foreground block">Total Contributed</span>
-                                                                    <span className="text-[10px] text-muted-foreground">{periodLabel}</span>
+                                                            <div className="flex justify-between items-center pb-2 border-b w-full min-w-0 gap-2">
+                                                                <div className="min-w-0 flex-1">
+                                                                    <span className="text-sm text-muted-foreground block truncate">Total Contributed</span>
+                                                                    <span className="text-[10px] text-muted-foreground block truncate">{periodLabel}</span>
                                                                 </div>
                                                                 <span className="font-bold text-green-600">
                                                                     ৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}
@@ -1626,7 +1626,7 @@ function ProfileContent() {
 
                                         {/* Security moved to its own tab */}
                                         {/* Annual Collection Calendar */}
-                                        <Card className="md:col-span-2 border-t-4 border-t-primary/20">
+                                        <Card className="md:col-span-2 border-t-4 border-t-primary/20 min-w-0 max-w-full overflow-hidden">
                                             <CardHeader>
                                                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                                                     <div>
@@ -1717,22 +1717,22 @@ function ProfileContent() {
                                         </Card>
 
                                         {/* Donation History */}
-                                        <Card id="history" className="md:col-span-2">
+                                        <Card id="history" className="md:col-span-2 min-w-0 max-w-full overflow-hidden">
                                             <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsDonationHistoryOpen(!isDonationHistoryOpen)}>
-                                                <div className="flex justify-between items-center">
-                                                    <div>
+                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                                    <div className="min-w-0">
                                                         <CardTitle className="flex items-center gap-2">
                                                             <Heart className="h-5 w-5 text-primary" /> Donation History
                                                         </CardTitle>
                                                         <CardDescription>Your past contributions.</CardDescription>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                                                         {paymentHistory.filter(d => !d.hiddenFromProfile).length > 0 && (
-                                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleClearAllHistory}>
+                                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0" onClick={handleClearAllHistory}>
                                                                 Clear All
                                                             </Button>
                                                         )}
-                                                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                                                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0 shrink-0">
                                                             {isDonationHistoryOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                                         </Button>
                                                     </div>
@@ -1747,9 +1747,9 @@ function ProfileContent() {
                                                     ) : (
                                                         paymentHistory.filter(d => !d.hiddenFromProfile).map((donation) => {
                                                             return (
-                                                                <div key={donation.id} className="flex justify-between items-center border-b pb-4 last:border-0 last:pb-0">
-                                                                    <div>
-                                                                        <div className="font-medium text-sm">
+                                                                <div key={donation.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-4 last:border-0 last:pb-0 gap-3 min-w-0">
+                                                                    <div className="min-w-0">
+                                                                        <div className="font-medium text-sm truncate">
                                                                             {donation.type === 'monthly' ? (
                                                                                 <span className="flex items-center gap-1.5">
                                                                                     Monthly Subscription: <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-primary/10 text-primary hover:bg-primary/20">{format(new Date(2000, (donation.month || 1) - 1, 1), 'MMM')} {donation.year}</Badge>
@@ -1773,9 +1773,9 @@ function ProfileContent() {
                                                                             })()}
                                                                         </p>
                                                                     </div>
-                                                                    <div className="flex items-center gap-4">
-                                                                        <span className="font-bold text-primary">৳ {donation.amount}</span>
-                                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHidePayment(donation.id, e)}>
+                                                                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 sm:w-auto w-full">
+                                                                        <span className="font-bold text-primary truncate">৳ {donation.amount}</span>
+                                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHidePayment(donation.id, e)}>
                                                                             <Trash2 className="h-4 w-4" />
                                                                         </Button>
                                                                     </div>
@@ -1788,22 +1788,22 @@ function ProfileContent() {
                                         </Card>
 
                                         {/* My Requests History */}
-                                        <Card id="requests" className="md:col-span-2">
+                                        <Card id="requests" className="md:col-span-2 min-w-0 max-w-full overflow-hidden">
                                             <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setIsMyRequestsOpen(!isMyRequestsOpen)}>
-                                                <div className="flex justify-between items-center">
-                                                    <div>
+                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                                    <div className="min-w-0">
                                                         <CardTitle className="flex items-center gap-2">
                                                             <Shield className="h-5 w-5 text-blue-600" /> My Requests
                                                         </CardTitle>
                                                         <CardDescription>Status of your submitted requests.</CardDescription>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                                                         {myRequests.filter(r => !r.hiddenFromProfile).length > 0 && (
-                                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleClearAllRequests}>
+                                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0" onClick={handleClearAllRequests}>
                                                                 Clear All
                                                             </Button>
                                                         )}
-                                                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                                                        <Button variant="ghost" size="sm" className="w-8 h-8 p-0 shrink-0">
                                                             {isMyRequestsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                                         </Button>
                                                     </div>
