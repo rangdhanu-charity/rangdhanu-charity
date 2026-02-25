@@ -1650,8 +1650,8 @@ function ProfileContent() {
                                                     </div>
                                                 </div>
                                             </CardHeader>
-                                            <CardContent className="overflow-x-auto">
-                                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2 mb-6 min-w-max md:min-w-0">
+                                            <CardContent className="overflow-x-auto md:overflow-visible">
+                                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3 mb-6 min-w-max md:min-w-0">
                                                     {(!settings?.collectionYears?.includes(selectedCalendarYear) || activeMonths.length === 0) ? (
                                                         <div className="text-center py-8 text-muted-foreground col-span-full">
                                                             No collections active for this year.
@@ -1685,10 +1685,10 @@ function ProfileContent() {
                                                             return (
                                                                 <div key={month.value} className={`flex flex-col justify-center items-center p-2 md:p-3 rounded-md md:rounded-lg transition-all ${bgClass}`}>
                                                                     <span className={`text-xs md:text-sm tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
-                                                                    <span className={`text-[10px] md:text-sm mt-0.5 md:mt-1 ${textClass} flex flex-col items-center justify-center`}>
-                                                                        {valueDisplayMobile && <span className="md:hidden">{valueDisplayMobile}</span>}
-                                                                        {valueDisplayDesktop && <span className="hidden md:inline">{valueDisplayDesktop}</span>}
-                                                                    </span>
+                                                                    <div className={`text-[10px] md:text-sm mt-0.5 md:mt-1 ${textClass} w-full text-center`}>
+                                                                        <span className="md:hidden">{valueDisplayMobile}</span>
+                                                                        <span className="hidden md:inline">{valueDisplayDesktop || "-"}</span>
+                                                                    </div>
                                                                 </div>
                                                             );
                                                         })

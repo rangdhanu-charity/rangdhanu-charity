@@ -831,7 +831,7 @@ function UsersContent() {
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1 mb-4">
+                                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-4 lg:grid-cols-6 gap-1 md:gap-2 mb-4">
                                                 {(!settings?.collectionYears?.includes(selectedCalendarYear) || activeMonths.length === 0) ? (
                                                     <div className="text-center py-6 text-muted-foreground col-span-full border-2 border-dashed rounded-lg">
                                                         No collections active for this year.
@@ -865,10 +865,10 @@ function UsersContent() {
                                                         return (
                                                             <div key={month.value} className={`flex flex-col justify-center items-center p-1.5 md:p-2 rounded-md transition-all border ${bgClass}`}>
                                                                 <span className={`text-[11px] md:text-xs tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
-                                                                <span className={`text-[9px] md:text-xs mt-0.5 ${textClass} flex flex-col items-center justify-center`}>
-                                                                    {valueDisplayMobile && <span className="md:hidden">{valueDisplayMobile}</span>}
-                                                                    {valueDisplayDesktop && <span className="hidden md:inline">{valueDisplayDesktop}</span>}
-                                                                </span>
+                                                                <div className={`text-[9px] md:text-xs mt-0.5 ${textClass} w-full text-center`}>
+                                                                    <span className="md:hidden">{valueDisplayMobile}</span>
+                                                                    <span className="hidden md:inline">{valueDisplayDesktop || "-"}</span>
+                                                                </div>
                                                             </div>
                                                         );
                                                     })
