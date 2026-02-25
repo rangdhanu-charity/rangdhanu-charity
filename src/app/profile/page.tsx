@@ -1354,7 +1354,7 @@ function ProfileContent() {
 
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
                 {/* Left Sidebar: Avatar & Basic Info */}
-                <div className="flex flex-col items-center md:items-start gap-4 w-full md:w-auto">
+                <div className={`${activeTab !== "overview" ? "hidden md:flex" : "flex"} flex-col items-center md:items-start gap-4 w-full md:w-auto`}>
                     <div className="relative">
                         <Avatar className={`w-24 h-24 md:w-32 md:h-32 border-4 ${isTopContributor ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'border-primary shadow-lg'}`}>
                             <AvatarImage src={user.photoURL || "/default-avatar.png"} alt={user.name || "User"} />
@@ -1412,7 +1412,7 @@ function ProfileContent() {
                 <div className="flex-1 w-full space-y-6">
                     <Section>
                         <Tabs ref={tabsRef} value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="mb-4">
+                            <TabsList className="mb-4 hidden md:inline-flex">
                                 <TabsTrigger value="overview">Personal Overview</TabsTrigger>
                                 <TabsTrigger value="finance">Organisation Finance</TabsTrigger>
                                 <TabsTrigger value="security">Security</TabsTrigger>
@@ -1650,8 +1650,8 @@ function ProfileContent() {
                                                     </div>
                                                 </div>
                                             </CardHeader>
-                                            <CardContent>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+                                            <CardContent className="overflow-x-auto">
+                                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2 mb-6 min-w-max md:min-w-0">
                                                     {(!settings?.collectionYears?.includes(selectedCalendarYear) || activeMonths.length === 0) ? (
                                                         <div className="text-center py-8 text-muted-foreground col-span-full">
                                                             No collections active for this year.
@@ -1662,27 +1662,32 @@ function ProfileContent() {
 
                                                             let bgClass = "bg-background border-dashed border-2 opacity-50";
                                                             let textClass = "text-muted-foreground";
-                                                            let valueDisplay = null;
+                                                            let valueDisplayMobile: string | null = null;
+                                                            let valueDisplayDesktop: string | null = null;
 
                                                             if (statusData.status === 'paid') {
                                                                 bgClass = "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800 border-2";
                                                                 textClass = "text-green-700 dark:text-green-400 font-bold";
-                                                                valueDisplay = `৳${statusData.payment?.amount || 0}`;
+                                                                valueDisplayMobile = `৳${statusData.payment?.amount || 0}`;
+                                                                valueDisplayDesktop = `৳${statusData.payment?.amount || 0}`;
                                                             } else if (statusData.status === 'due-yellow') {
                                                                 bgClass = "bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800 border-2";
                                                                 textClass = "text-yellow-700 dark:text-yellow-400 font-medium";
-                                                                valueDisplay = "Due";
+                                                                valueDisplayMobile = null;
+                                                                valueDisplayDesktop = "Due";
                                                             } else if (statusData.status === 'due-red') {
                                                                 bgClass = "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 border-2";
                                                                 textClass = "text-red-700 dark:text-red-400 font-medium";
-                                                                valueDisplay = "Overdue";
+                                                                valueDisplayMobile = null;
+                                                                valueDisplayDesktop = "Overdue";
                                                             }
 
                                                             return (
-                                                                <div key={month.value} className={`flex flex-col justify-center items-center p-3 rounded-lg transition-all ${bgClass}`}>
-                                                                    <span className={`text-sm tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
-                                                                    <span className={`text-sm mt-1 ${textClass}`}>
-                                                                        {valueDisplay || "-"}
+                                                                <div key={month.value} className={`flex flex-col justify-center items-center p-2 md:p-3 rounded-md md:rounded-lg transition-all ${bgClass}`}>
+                                                                    <span className={`text-xs md:text-sm tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
+                                                                    <span className={`text-[10px] md:text-sm mt-0.5 md:mt-1 ${textClass} flex flex-col items-center justify-center`}>
+                                                                        {valueDisplayMobile && <span className="md:hidden">{valueDisplayMobile}</span>}
+                                                                        {valueDisplayDesktop && <span className="hidden md:inline">{valueDisplayDesktop}</span>}
                                                                     </span>
                                                                 </div>
                                                             );
@@ -1693,16 +1698,16 @@ function ProfileContent() {
                                                 {/* Setup Legend */}
                                                 <div className="flex flex-wrap items-center justify-center gap-4 pt-4 border-t text-sm">
                                                     <div className="flex items-center gap-1.5">
-                                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                                        <span className="text-muted-foreground">Paid</span>
+                                                        <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-green-500"></div>
+                                                        <span className="text-muted-foreground text-xs md:text-sm">Paid</span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
-                                                        <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                                                        <span className="text-muted-foreground">Due (before 10th)</span>
+                                                        <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-yellow-400"></div>
+                                                        <span className="text-muted-foreground text-xs md:text-sm">Due <span className="hidden md:inline">(before 10th)</span></span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
-                                                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                                        <span className="text-muted-foreground">Overdue</span>
+                                                        <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-red-500"></div>
+                                                        <span className="text-muted-foreground text-xs md:text-sm">Overdue</span>
                                                     </div>
                                                 </div>
                                             </CardContent>

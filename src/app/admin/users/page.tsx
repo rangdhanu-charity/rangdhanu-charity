@@ -831,7 +831,7 @@ function UsersContent() {
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-4">
+                                            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1 mb-4">
                                                 {(!settings?.collectionYears?.includes(selectedCalendarYear) || activeMonths.length === 0) ? (
                                                     <div className="text-center py-6 text-muted-foreground col-span-full border-2 border-dashed rounded-lg">
                                                         No collections active for this year.
@@ -842,27 +842,32 @@ function UsersContent() {
 
                                                         let bgClass = "bg-background border-dashed opacity-60";
                                                         let textClass = "text-muted-foreground";
-                                                        let valueDisplay = null;
+                                                        let valueDisplayMobile: string | null = null;
+                                                        let valueDisplayDesktop: string | null = null;
 
                                                         if (statusData.status === 'paid') {
                                                             bgClass = "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800 border-solid";
                                                             textClass = "text-green-700 dark:text-green-400 font-bold";
-                                                            valueDisplay = `৳${statusData.payment?.amount || 0}`;
+                                                            valueDisplayMobile = `৳${statusData.payment?.amount || 0}`;
+                                                            valueDisplayDesktop = `৳${statusData.payment?.amount || 0}`;
                                                         } else if (statusData.status === 'due-yellow') {
                                                             bgClass = "bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800 border-solid";
                                                             textClass = "text-yellow-700 dark:text-yellow-400 font-medium";
-                                                            valueDisplay = "Due";
+                                                            valueDisplayMobile = null;
+                                                            valueDisplayDesktop = "Due";
                                                         } else if (statusData.status === 'due-red') {
                                                             bgClass = "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 border-solid";
                                                             textClass = "text-red-700 dark:text-red-400 font-medium";
-                                                            valueDisplay = "Overdue";
+                                                            valueDisplayMobile = null;
+                                                            valueDisplayDesktop = "Overdue";
                                                         }
 
                                                         return (
-                                                            <div key={month.value} className={`flex flex-col justify-center items-center p-2 rounded-md transition-all border ${bgClass}`}>
-                                                                <span className={`text-xs tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
-                                                                <span className={`text-xs mt-0.5 ${textClass}`}>
-                                                                    {valueDisplay || "-"}
+                                                            <div key={month.value} className={`flex flex-col justify-center items-center p-1.5 md:p-2 rounded-md transition-all border ${bgClass}`}>
+                                                                <span className={`text-[11px] md:text-xs tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
+                                                                <span className={`text-[9px] md:text-xs mt-0.5 ${textClass} flex flex-col items-center justify-center`}>
+                                                                    {valueDisplayMobile && <span className="md:hidden">{valueDisplayMobile}</span>}
+                                                                    {valueDisplayDesktop && <span className="hidden md:inline">{valueDisplayDesktop}</span>}
                                                                 </span>
                                                             </div>
                                                         );
@@ -871,17 +876,17 @@ function UsersContent() {
                                             </div>
 
                                             {/* Setup Legend */}
-                                            <div className="flex flex-wrap items-center justify-center gap-4 pt-3 border-t text-xs">
+                                            <div className="flex flex-wrap items-center justify-center gap-4 pt-3 border-t text-[10px] md:text-xs">
                                                 <div className="flex items-center gap-1.5">
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                                                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-green-500"></div>
                                                     <span className="text-muted-foreground">Paid</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
+                                                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-yellow-400"></div>
                                                     <span className="text-muted-foreground">Due</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                                                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-red-500"></div>
                                                     <span className="text-muted-foreground">Overdue</span>
                                                 </div>
                                             </div>
