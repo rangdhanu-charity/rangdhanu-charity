@@ -327,7 +327,7 @@ function MemberFinanceTab() {
                     {expenses.length === 0 ? (
                         <p className="text-center text-muted-foreground py-6">No expenses recorded yet.</p>
                     ) : (
-                        <div className="max-h-[300px] overflow-y-auto">
+                        <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -1412,7 +1412,7 @@ function ProfileContent() {
                 </div>
 
                 {/* Right Content Area */}
-                <div className="flex-1 w-full space-y-6">
+                <div className="flex-1 w-full max-w-full min-w-0 space-y-6">
                     <Section>
                         <Tabs ref={tabsRef} value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <TabsList className="mb-4 hidden md:inline-flex">
@@ -1815,64 +1815,66 @@ function ProfileContent() {
                                                 ) : myRequests.filter(r => !r.hiddenFromProfile).length === 0 ? (
                                                     <div className="text-center py-4 text-muted-foreground">No active requests.</div>
                                                 ) : (
-                                                    <Table>
-                                                        <TableHeader>
-                                                            <TableRow>
-                                                                <TableHead>Date</TableHead>
-                                                                <TableHead>Type</TableHead>
-                                                                <TableHead>Amount</TableHead>
-                                                                <TableHead>Status</TableHead>
-                                                                <TableHead>Notes</TableHead>
-                                                                <TableHead className="text-right"></TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                            {myRequests.filter((r: any) => !r.hiddenFromProfile).map((req: any) => (
-                                                                <TableRow key={req.id}>
-                                                                    <TableCell className="text-xs">
-                                                                        {(() => {
-                                                                            try {
-                                                                                if (req.createdAt?.toDate) return format(req.createdAt.toDate(), "MMM d, yyyy h:mm a");
-                                                                                if (req.rawDate?.toDate) return format(req.rawDate.toDate(), "MMM d, yyyy h:mm a");
-                                                                                const dateObj = new Date(req.createdAt || req.rawDate || req.date);
-                                                                                return isNaN(dateObj.getTime()) ? "-" : format(dateObj, "MMM d, yyyy h:mm a");
-                                                                            } catch (e) {
-                                                                                return "-";
-                                                                            }
-                                                                        })()}
-                                                                    </TableCell>
-                                                                    <TableCell className="capitalize text-xs max-w-[120px]">
-                                                                        <div className="flex flex-col gap-1">
-                                                                            <span>{req.type}</span>
-                                                                            {req.type === 'monthly' && req.months && (
-                                                                                <div className="flex flex-wrap gap-1 mt-1">
-                                                                                    {req.months.map((m: number) => (
-                                                                                        <Badge key={m} variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/20">
-                                                                                            {format(new Date(2000, m - 1, 1), 'MMM')} {req.year}
-                                                                                        </Badge>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </TableCell>
-                                                                    <TableCell className="font-medium">৳{req.amount}</TableCell>
-                                                                    <TableCell>
-                                                                        <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">
-                                                                            {req.status}
-                                                                        </Badge>
-                                                                    </TableCell>
-                                                                    <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={req.notes}>
-                                                                        {req.notes || "-"}
-                                                                    </TableCell>
-                                                                    <TableCell className="text-right">
-                                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHideRequest(req.id, e)}>
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </TableCell>
+                                                    <div className="overflow-x-auto">
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>Date</TableHead>
+                                                                    <TableHead>Type</TableHead>
+                                                                    <TableHead>Amount</TableHead>
+                                                                    <TableHead>Status</TableHead>
+                                                                    <TableHead>Notes</TableHead>
+                                                                    <TableHead className="text-right"></TableHead>
                                                                 </TableRow>
-                                                            ))}
-                                                        </TableBody>
-                                                    </Table>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {myRequests.filter((r: any) => !r.hiddenFromProfile).map((req: any) => (
+                                                                    <TableRow key={req.id}>
+                                                                        <TableCell className="text-xs">
+                                                                            {(() => {
+                                                                                try {
+                                                                                    if (req.createdAt?.toDate) return format(req.createdAt.toDate(), "MMM d, yyyy h:mm a");
+                                                                                    if (req.rawDate?.toDate) return format(req.rawDate.toDate(), "MMM d, yyyy h:mm a");
+                                                                                    const dateObj = new Date(req.createdAt || req.rawDate || req.date);
+                                                                                    return isNaN(dateObj.getTime()) ? "-" : format(dateObj, "MMM d, yyyy h:mm a");
+                                                                                } catch (e) {
+                                                                                    return "-";
+                                                                                }
+                                                                            })()}
+                                                                        </TableCell>
+                                                                        <TableCell className="capitalize text-xs max-w-[120px]">
+                                                                            <div className="flex flex-col gap-1">
+                                                                                <span>{req.type}</span>
+                                                                                {req.type === 'monthly' && req.months && (
+                                                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                                                        {req.months.map((m: number) => (
+                                                                                            <Badge key={m} variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/20">
+                                                                                                {format(new Date(2000, m - 1, 1), 'MMM')} {req.year}
+                                                                                            </Badge>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className="font-medium">৳{req.amount}</TableCell>
+                                                                        <TableCell>
+                                                                            <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">
+                                                                                {req.status}
+                                                                            </Badge>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={req.notes}>
+                                                                            {req.notes || "-"}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHideRequest(req.id, e)}>
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
                                                 )}
                                             </CardContent>}
                                         </Card>
