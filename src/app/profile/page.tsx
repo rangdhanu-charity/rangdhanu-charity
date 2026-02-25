@@ -854,7 +854,7 @@ function ProfileContent() {
             setActiveTab("overview");
             setIsDonateModalOpen(true);
             scrollToTabs();
-        } else if (tab === "finance" || tab === "security" || tab === "overview") {
+        } else if (tab === "finance" || tab === "security") {
             setActiveTab(tab);
             scrollToTabs();
         } else if (hash === "#history" || hash === "#requests") {
@@ -866,6 +866,9 @@ function ProfileContent() {
                 const el = document.getElementById(id);
                 if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
             }, 200);
+        } else {
+            // Default to 'overview' if there's no specific tab param (e.g. they clicked "Personal Overview" link)
+            setActiveTab("overview");
         }
     }, [searchParams]);
 

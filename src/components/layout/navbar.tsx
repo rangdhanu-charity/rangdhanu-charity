@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
     Menu, X, Heart, User as UserIcon, LogOut,
     LayoutDashboard, ChevronRight, Home, Info,
@@ -49,12 +49,13 @@ const ADMIN_NAV_LINKS = [
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
-export function Navbar() {
+function NavbarContent() {
     const [isOpen, setIsOpen] = React.useState(false);
     const [adminView, setAdminView] = React.useState(false);
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const isAdminOrMod = user?.roles?.includes("admin") || user?.roles?.includes("moderator");
     const [requestCount, setRequestCount] = React.useState(0);
@@ -243,7 +244,25 @@ export function Navbar() {
                         <nav className="flex-1 flex flex-col gap-1 p-3 overflow-y-auto">
                             {linksToShow.map((link) => {
                                 const Icon = link.icon;
-                                const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+
+                                let isActive = false;
+                                if (pathname === "/profile" && link.href.startsWith("/profile")) {
+                                    const linkHasFinance = link.href.includes("tab=finance");
+                                    const linkHasSecurity = link.href.includes("tab=security");
+                                    const linkHasDonate = link.href.includes("action=donate");
+                                    const linkHasHash = link.href.includes("#");
+
+                                    const currentTab = searchParams.get("tab");
+                                    const currentAction = searchParams.get("action");
+
+                                    if (linkHasFinance) isActive = currentTab === "finance";
+                                    else if (linkHasSecurity) isActive = currentTab === "security";
+                                    else if (linkHasDonate) isActive = currentAction === "donate";
+                                    else if (linkHasHash) isActive = false;
+                                    else isActive = !currentTab && !currentAction;
+                                } else {
+                                    isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+                                }
                                 return (
                                     <Link
                                         key={link.href}
@@ -314,5 +333,13 @@ export function Navbar() {
                 )}
             </AnimatePresence>
         </>
+    );
+}
+
+export function Navbar() {
+    return (
+        <React.Suspense fallback={<header className="sticky top-0 z-50 w-full border-b bg-background/95 h-16" />}>
+            <NavbarContent />
+        </React.Suspense>
     );
 }
