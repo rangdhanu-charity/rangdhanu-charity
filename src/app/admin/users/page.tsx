@@ -675,7 +675,7 @@ function UsersContent() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="absolute bottom-0 right-0 bg-primary h-10 w-10 text-primary-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                                    className="absolute bottom-0 left-0 bg-primary h-10 w-10 text-primary-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                                                     onClick={() => fileInputRef.current?.click()}
                                                     disabled={isUploadingImage}
                                                     title="Update Profile Picture"
