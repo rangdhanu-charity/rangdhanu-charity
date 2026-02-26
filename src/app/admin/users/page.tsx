@@ -1125,7 +1125,7 @@ function UsersContent() {
                                 </ul>
                                 <Button
                                     type="button"
-                                    className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
+                                    className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 active:scale-95 transition-all shadow-md hover:shadow-lg"
                                     disabled={isDeleting}
                                     onClick={() => handleConfirmDelete('preserve')}
                                 >
@@ -1148,7 +1148,7 @@ function UsersContent() {
                                 <Button
                                     type="button"
                                     variant="destructive"
-                                    className="w-full mt-2"
+                                    className="w-full mt-2 hover:scale-105 active:scale-95 transition-all shadow-md hover:shadow-lg hover:bg-red-700"
                                     disabled={isDeleting}
                                     onClick={() => handleConfirmDelete('purge')}
                                 >
