@@ -151,45 +151,31 @@ export function SessionTimeout() {
     return (
         <AnimatePresence>
             {isWarning && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
+                <div className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-[100] p-4 sm:p-0 pointer-events-none">
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                    />
-
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="relative z-10 w-full max-w-md bg-background border border-border shadow-2xl rounded-2xl overflow-hidden"
+                        className="w-full max-w-sm pointer-events-auto bg-background/95 backdrop-blur-md border border-destructive/20 shadow-2xl rounded-2xl overflow-hidden"
                     >
-                        {/* Header Banner */}
-                        <div className="bg-destructive/10 border-b border-destructive/20 p-6 flex flex-col items-center justify-center text-center">
-                            <div className="h-16 w-16 bg-destructive/20 text-destructive rounded-full flex items-center justify-center mb-4">
-                                <AlertTriangle className="h-8 w-8" />
+                        {/* Compact Header & Body */}
+                        <div className="p-5 flex items-start gap-4">
+                            <div className="flex-shrink-0 mt-1">
+                                <div className="h-10 w-10 bg-destructive/10 text-destructive rounded-full flex items-center justify-center">
+                                    <AlertTriangle className="h-5 w-5" />
+                                </div>
                             </div>
-                            <h2 className="text-xl font-bold text-foreground">Session Expiring Soon</h2>
-                            <p className="text-sm text-muted-foreground mt-2 max-w-[280px]">
-                                For your security, you will be automatically logged out due to inactivity.
-                            </p>
-                        </div>
 
-                        {/* Countdown Body */}
-                        <div className="p-8 flex flex-col items-center justify-center bg-card">
-                            <div className="relative flex items-center justify-center">
-                                {/* Pulsing background ring */}
-                                <motion.div
-                                    animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.2, 0.5] }}
-                                    transition={{ repeat: Infinity, duration: 2 }}
-                                    className="absolute inset-0 bg-red-100 dark:bg-red-900/40 rounded-full blur-xl"
-                                />
+                            <div className="flex-1 space-y-1 relative">
+                                <h2 className="text-base font-bold text-foreground">Session Expiring</h2>
+                                <p className="text-sm text-muted-foreground leading-tight">
+                                    You will be logged out due to inactivity in:
+                                </p>
 
-                                <div className="relative z-10 flex flex-col items-center justify-center h-40 w-40 rounded-full border-4 border-destructive/30 bg-background shadow-inner">
-                                    <Clock className="h-6 w-6 text-destructive mb-2" />
-                                    <span className="text-5xl font-mono font-bold tracking-tighter text-destructive">
+                                <div className="mt-3 flex items-center gap-2 bg-destructive/5 border border-destructive/10 rounded-lg p-2 w-fit">
+                                    <Clock className="h-4 w-4 text-destructive animate-pulse" />
+                                    <span className="text-xl font-mono font-extrabold tracking-tight text-destructive">
                                         {formatTime(countdown)}
                                     </span>
                                 </div>
@@ -197,22 +183,32 @@ export function SessionTimeout() {
                         </div>
 
                         {/* Actions */}
-                        <div className="p-4 bg-muted/30 border-t border-border flex flex-col sm:flex-row gap-3">
+                        <div className="px-5 pb-5 flex gap-2">
                             <Button
                                 variant="outline"
-                                className="flex-1 order-2 sm:order-1"
+                                size="sm"
+                                className="flex-1 border-destructive/20 hover:bg-destructive/5 text-muted-foreground hover:text-destructive"
                                 onClick={performLogout}
                             >
-                                <LogOut className="mr-2 h-4 w-4" />
-                                Log Out Now
+                                <LogOut className="mr-2 h-3.5 w-3.5" />
+                                Log Out
                             </Button>
                             <Button
-                                className="flex-1 order-1 sm:order-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg hover:shadow-primary/25 transition-all"
+                                size="sm"
+                                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
                                 onClick={handleStayLoggedIn}
                             >
                                 Stay Logged In
                             </Button>
                         </div>
+
+                        {/* Progress Bar under the card */}
+                        <motion.div
+                            className="h-1 bg-destructive/80"
+                            initial={{ width: "100%" }}
+                            animate={{ width: "0%" }}
+                            transition={{ duration: WARNING_DURATION / 1000, ease: "linear" }}
+                        />
                     </motion.div>
                 </div>
             )}
