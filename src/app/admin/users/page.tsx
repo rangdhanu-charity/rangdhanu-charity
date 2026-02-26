@@ -1129,7 +1129,7 @@ function UsersContent() {
                                     disabled={isDeleting}
                                     onClick={() => handleConfirmDelete('preserve')}
                                 >
-                                    {isDeleting ? "Processing..." : "Preserve Funds"}
+                                    {isDeleting ? "Processing..." : "Preserve Fund and Delete Profile"}
                                 </Button>
                             </CardContent>
                         </Card>
@@ -1152,7 +1152,7 @@ function UsersContent() {
                                     disabled={isDeleting}
                                     onClick={() => handleConfirmDelete('purge')}
                                 >
-                                    {isDeleting ? "Processing..." : "Erase Funds"}
+                                    {isDeleting ? "Processing..." : "Erase fund and Delete profile"}
                                 </Button>
                             </CardContent>
                         </Card>

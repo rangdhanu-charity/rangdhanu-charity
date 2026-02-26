@@ -151,6 +151,15 @@ export const RecycleService = {
                         await deleteDoc(d.ref); // Permanently delete the aggregated record
                     });
                     await Promise.all(destroyPromises);
+
+                    // 4. Destroy it even if it was ALREADY soft-deleted into the recycle bin!
+                    const qRecycledGroupedPayment = query(collection(db, BIN_COLLECTION), where("data.linkedBatchId", "==", item.batchId));
+                    const recycledGroupedSnap = await getDocs(qRecycledGroupedPayment);
+
+                    const destroyRecycledPromises = recycledGroupedSnap.docs.map(async (d) => {
+                        await deleteDoc(d.ref); // Permanently delete from recycle bin to prevent double restore
+                    });
+                    await Promise.all(destroyRecycledPromises);
                 }
             } else {
                 // STANDARD RESTORE
