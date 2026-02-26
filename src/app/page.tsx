@@ -206,15 +206,7 @@ export default function Home() {
       {/* Testimonials */}
       <HomeTestimonials />
 
-      {/* Call to Action */}
-      <section className="bg-primary text-primary-foreground py-16 md:py-24">
-        <div className="container px-4 text-center">
-          <h2 className="text-3xl font-bold tracking-tighter md:text-4xl mb-6">Make a Difference Today</h2>
-          <p className="max-w-[600px] mx-auto text-primary-foreground/80 mb-8 md:text-lg">
-            Your contribution can change a child's life forever. Join our mission to build a better future.
-          </p>
-        </div>
-      </section>
+
     </div>
   );
 }
