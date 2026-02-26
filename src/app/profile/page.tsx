@@ -1108,6 +1108,18 @@ function ProfileContent() {
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Handle incoming actions from URL (e.g. from Home page login redirect)
+    useEffect(() => {
+        if (searchParams?.get("action") === "donate") {
+            // Open the modal
+            setIsDonateModalOpen(true);
+
+            // Remove the action from the URL to prevent re-triggering on refresh
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, [searchParams]);
+
     useEffect(() => {
         if (user) {
             setEditForm({
@@ -1861,6 +1873,11 @@ function ProfileContent() {
                                                                             <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">
                                                                                 {req.status}
                                                                             </Badge>
+                                                                            {req.status === 'rejected' && req.rejectionReason && (
+                                                                                <div className="mt-2 text-[10px] text-red-600 dark:text-red-400 max-w-[150px] bg-red-50 dark:bg-red-950/20 p-1.5 rounded text-left leading-tight break-words border border-red-100 dark:border-red-900/30">
+                                                                                    <strong>Reason:</strong> {req.rejectionReason}
+                                                                                </div>
+                                                                            )}
                                                                         </TableCell>
                                                                         <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={req.notes}>
                                                                             {req.notes || "-"}

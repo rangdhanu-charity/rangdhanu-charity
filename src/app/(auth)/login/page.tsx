@@ -1,19 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Heart, Eye, EyeOff } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false); // Can be used to toggle some admin specific view if needed
     const { login } = useAuth();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -24,6 +27,14 @@ export default function LoginPage() {
         const res = await login(email, password, isAdmin);
         if (!res.success) {
             setError(res.error || "Login failed");
+        } else {
+            // Login was successful within auth-context, but we intercept the routing here if redirect exists
+            const redirectUrl = searchParams?.get('redirect');
+            if (redirectUrl && !isAdmin) {
+                // auth-context pushes to /profile by default, but Next.js router handles the last push
+                // To guarantee redirect wins, push it immediately after.
+                router.push(redirectUrl);
+            }
         }
         setLoading(false);
     };
@@ -117,5 +128,13 @@ export default function LoginPage() {
                 </CardFooter>
             </Card>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
+            <LoginForm />
+        </Suspense>
     );
 }

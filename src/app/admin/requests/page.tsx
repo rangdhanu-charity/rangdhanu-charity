@@ -42,11 +42,29 @@ export default function RequestsPage() {
     // Registration Review State
     const [registrationReview, setRegistrationReview] = useState<any>(null);
 
+    // Donation Rejection State
+    const [donationRejection, setDonationRejection] = useState<{ id: string, userId: string, userName: string, amount: number } | null>(null);
+    const [rejectionReason, setRejectionReason] = useState("");
+
     // Track user payments to check for previously paid months
     const [userPayments, setUserPayments] = useState<any[]>([]);
     const [loadingPayments, setLoadingPayments] = useState(false);
 
-    const handleViewUserDetails = async (userId: string) => {
+    const handleViewUserDetails = async (request: any) => {
+        const userId = request.userId;
+        if (userId === "guest") {
+            const rawContact = request.userEmail || "";
+            const isEmail = rawContact.includes("@");
+            setViewingUser({
+                name: request.userName || "Guest Donor",
+                username: "guest",
+                email: isEmail ? rawContact : "Not provided",
+                phone: !isEmail && rawContact ? rawContact : "Not provided",
+                role: "guest"
+            });
+            return;
+        }
+
         setLoadingUser(true);
         try {
             const { getDoc, doc } = await import("firebase/firestore");
@@ -66,6 +84,11 @@ export default function RequestsPage() {
     };
 
     const fetchUserPayments = async (userId: string) => {
+        if (userId === "guest") {
+            setUserPayments([]);
+            return;
+        }
+
         setLoadingPayments(true);
         try {
             const { getDocs, query, collection, where } = await import("firebase/firestore");
@@ -293,14 +316,16 @@ export default function RequestsPage() {
                 ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Approve Donation", `Approved ${request.type} donation of ৳${request.amount} from ${request.userName}`);
             }
 
-            await addDoc(collection(db, "notifications"), {
-                userId: request.userId,
-                title: "Donation Approved",
-                message: `Your donation of ৳${request.amount} has been verified and applied.`,
-                type: "success",
-                read: false,
-                createdAt: new Date().toISOString()
-            });
+            if (request.userId !== "guest") {
+                await addDoc(collection(db, "notifications"), {
+                    userId: request.userId,
+                    title: "Donation Approved",
+                    message: `Your donation of ৳${request.amount} has been verified and applied.`,
+                    type: "success",
+                    read: false,
+                    createdAt: new Date().toISOString()
+                });
+            }
 
             toast({ title: "Approved", description: "Donation verified and distributed." });
             return true;
@@ -358,7 +383,7 @@ export default function RequestsPage() {
             }
 
             setDistributionRequest(request);
-            handleViewUserDetails(request.userId);
+            handleViewUserDetails(request);
             fetchUserPayments(request.userId);
 
             return;
@@ -368,28 +393,42 @@ export default function RequestsPage() {
         }
     };
 
-    const handleRejectDonation = async (requestId: string, userId: string) => {
-        if (!confirm("Reject this donation request?")) return;
+    const handleRejectDonation = async () => {
+        if (!donationRejection) return;
+        setIsSubmittingDistribution(true); // Reusing spinning state for button disabled state
+        
         try {
             const { updateDoc, doc } = await import("firebase/firestore");
             const { db } = await import("@/lib/firebase");
-            await updateDoc(doc(db, "donation_requests", requestId), { status: "rejected" });
+            await updateDoc(doc(db, "donation_requests", donationRejection.id), { 
+                status: "rejected", 
+                rejectionReason: rejectionReason.trim() || null 
+            });
 
             if (user) {
-                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Reject Donation", `Rejected donation request ID ${requestId} from user ID ${userId}`);
+                ActivityLogService.logActivity(user.id, user.name || user.username || "Admin", "Reject Donation", `Rejected donation request ID ${donationRejection.id} from user ID ${donationRejection.userId}`);
             }
 
-            await sendNotification(
-                userId,
-                "Your donation request was rejected. Please contact admin for details.",
-                "error"
-            );
+            if (donationRejection.userId !== "guest") {
+                const message = rejectionReason.trim() 
+                    ? `Your donation request was rejected. Reason: ${rejectionReason.trim()}`
+                    : "Your donation request was rejected. Please contact admin for details.";
+                await sendNotification(
+                    donationRejection.userId,
+                    message,
+                    "error"
+                );
+            }
 
             toast({ title: "Rejected", description: "Donation request rejected." });
+            setDonationRejection(null);
+            setRejectionReason("");
             fetchRequests();
         } catch (error) {
             console.error(error);
             toast({ title: "Error", description: "Failed to reject.", variant: "destructive" });
+        } finally {
+            setIsSubmittingDistribution(false);
         }
     };
 
@@ -492,7 +531,10 @@ export default function RequestsPage() {
                                             <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50" onClick={() => handleDirectApproveDonation(req)}>
                                                 <Check className="h-4 w-4" />
                                             </Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => handleRejectDonation(req.id, req.userId)}>
+                                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => {
+                                                setDonationRejection({ id: req.id, userId: req.userId, userName: req.userName, amount: req.amount });
+                                                setRejectionReason("");
+                                            }}>
                                                 <X className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
@@ -588,7 +630,13 @@ export default function RequestsPage() {
             </Dialog>
 
             {/* Distribution Override Modal */}
-            <Dialog open={!!distributionRequest} onOpenChange={(open: boolean) => !open && setDistributionRequest(null)}>
+            <Dialog open={!!distributionRequest} onOpenChange={(open: boolean) => {
+                if (!open) {
+                    setDistributionRequest(null);
+                    setViewingUser(null);
+                    setUserPayments([]);
+                }
+            }}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Verify Donation Details</DialogTitle>
@@ -742,6 +790,36 @@ export default function RequestsPage() {
                     )}
                     <DialogFooter>
                         <Button onClick={() => setViewingUser(null)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Donation Rejection Modal */}
+            <Dialog open={!!donationRejection} onOpenChange={(open: boolean) => !open && setDonationRejection(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600">Reject Donation</DialogTitle>
+                        <DialogDescription>
+                            You are rejecting a donation of ৳{donationRejection?.amount} from {donationRejection?.userName}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="reason">Reason for Rejection (Optional)</Label>
+                            <Input
+                                id="reason"
+                                placeholder="E.g., Transaction ID not found / Amount mismatch"
+                                value={rejectionReason}
+                                onChange={(e) => setRejectionReason(e.target.value)}
+                            />
+                            <p className="text-[10px] text-muted-foreground">This note will be visible to the donor.</p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDonationRejection(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleRejectDonation} disabled={isSubmittingDistribution}>
+                            {isSubmittingDistribution && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirm Rejection
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

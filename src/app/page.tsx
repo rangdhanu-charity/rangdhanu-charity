@@ -3,11 +3,10 @@ import { Section } from "@/components/layout/section";
 import { HomeFeaturedProjects } from "@/components/sections/home-featured-projects";
 import { HomeTestimonials } from "@/components/sections/home-testimonials";
 import { HomeImpactStats } from "@/components/sections/home-impact-stats";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { PROJECTS } from "@/lib/data";
-import { ArrowRight, CheckCircle, Heart } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, CheckCircle, Heart, CreditCard, CalendarCheck, Landmark } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
+import { HomeDonateModal } from "@/components/features/donations/home-donate-modal";
 
 export default function Home() {
   return (
@@ -25,14 +24,14 @@ export default function Home() {
             </p>
           </div>
           <div className="mx-auto mt-8 flex max-w-sm flex-col gap-4 sm:flex-row sm:justify-center">
-            <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-pink-500 hover:opacity-90 transition-opacity">
-              <Link href="/donate">
+            <HomeDonateModal>
+              <Button size="lg" className="bg-gradient-to-r from-blue-600 to-pink-500 hover:opacity-90 transition-opacity">
                 Donate Now <Heart className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+              </Button>
+            </HomeDonateModal>
             <Button asChild variant="outline" size="lg">
-              <Link href="/volunteer">
-                Become a Volunteer <CheckCircle className="ml-2 h-4 w-4" />
+              <Link href="/register">
+                Become a member <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </div>
@@ -41,6 +40,120 @@ export default function Home() {
 
       {/* Impact Stats */}
       <HomeImpactStats />
+
+      {/* Donation Plans & Procedures */}
+      <section className="py-20 bg-muted/30">
+        <div className="container px-4 md:px-6">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <h2 className="text-3xl font-bold tracking-tight mb-4">Our Donation Plans</h2>
+            <p className="text-muted-foreground text-lg">
+              We offer two easy ways to support our cause. Whether you want to commit long-term or make a one-time contribution, every bit helps us reach our goal.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Monthly Membership */}
+            <Card className="relative overflow-hidden border-t-4 border-t-blue-500 shadow-md">
+              <div className="absolute top-0 right-0 p-6 opacity-5">
+                <CalendarCheck className="w-32 h-32" />
+              </div>
+              <CardHeader>
+                <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
+                  <CalendarCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <CardTitle className="text-2xl">Monthly Membership</CardTitle>
+                <CardDescription className="text-base text-foreground/80 mt-2">
+                  For our registered members who want to build a sustainable future with consistent impact.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <span>Minimum contribution of <strong>100 BDT</strong> each month.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <span>General deadline is by the <strong>10th</strong> of each month.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <span>Highly flexible: pay anytime for a single month or bulk pay for multiple months ahead!</span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* One-Time Donation */}
+            <Card className="relative overflow-hidden border-t-4 border-t-pink-500 shadow-md">
+              <div className="absolute top-0 right-0 p-6 opacity-5">
+                <Heart className="w-32 h-32" />
+              </div>
+              <CardHeader>
+                <div className="h-12 w-12 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center mb-4">
+                  <Heart className="h-6 w-6 text-pink-600 dark:text-pink-400" />
+                </div>
+                <CardTitle className="text-2xl">One-Time Donation</CardTitle>
+                <CardDescription className="text-base text-foreground/80 mt-2">
+                  Open for everyone. Immediate support from the general public with zero constraints.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <span>Open to non-members and the general public. No account needed.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <span>Donate any amount you wish safely and securely.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <span>Submit your transfer details directly via the "Donate Now" button.</span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Payment Methods */}
+          <div className="mt-16 max-w-4xl mx-auto">
+            <h3 className="text-xl font-bold text-center mb-8">Accepted Payment Methods</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="bg-white dark:bg-card flex flex-col items-center justify-center p-6 text-center shadow-sm">
+                <div className="mb-3 p-3 bg-pink-100 dark:bg-pink-900/20 rounded-full">
+                  <CreditCard className="h-6 w-6 text-pink-600" />
+                </div>
+                <h4 className="font-semibold text-lg">bKash / Nagad</h4>
+                <p className="text-sm text-muted-foreground mt-1">+880 1829-965153</p>
+                <p className="text-xs text-muted-foreground mt-1 cursor-default">(Mohammad Ful Mia)</p>
+              </Card>
+              <Card className="bg-white dark:bg-card flex flex-col items-center justify-center p-6 text-center shadow-sm">
+                <div className="mb-3 p-3 bg-orange-100 dark:bg-orange-900/20 rounded-full">
+                  <Landmark className="h-6 w-6 text-orange-600" />
+                </div>
+                <h4 className="font-semibold text-lg">Dutch Bangla</h4>
+                <p className="text-sm text-muted-foreground mt-1">2261510170962</p>
+                <p className="text-xs text-muted-foreground mt-1 cursor-default">Account Name: Mohammad Ful Mia</p>
+              </Card>
+              <Card className="bg-white dark:bg-card flex flex-col items-center justify-center p-6 text-center shadow-sm">
+                <div className="mb-3 p-3 bg-green-100 dark:bg-green-900/20 rounded-full">
+                  <Heart className="h-6 w-6 text-green-600" />
+                </div>
+                <h4 className="font-semibold text-lg">Cash</h4>
+                <p className="text-sm text-muted-foreground mt-1">In Person</p>
+                <p className="text-xs text-muted-foreground mt-1 cursor-default">Directly to Administration</p>
+              </Card>
+            </div>
+            <div className="text-center mt-8">
+              <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                Once you transfer the amount, please fill out the payment information using the <strong>Donate Now</strong> button above. If you prefer to drop off cash or wish to confirm verbally, simply contact our admins.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Featured Projects */}
       <HomeFeaturedProjects />
@@ -55,9 +168,11 @@ export default function Home() {
           <p className="max-w-[600px] mx-auto text-primary-foreground/80 mb-8 md:text-lg">
             Your contribution can change a child's life forever. Join our mission to build a better future.
           </p>
-          <Button asChild size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
-            <Link href="/donate">Donate Now</Link>
-          </Button>
+          <HomeDonateModal>
+            <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
+              Donate Now
+            </Button>
+          </HomeDonateModal>
         </div>
       </section>
     </div>

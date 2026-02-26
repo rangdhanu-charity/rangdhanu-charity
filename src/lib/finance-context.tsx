@@ -22,6 +22,8 @@ export interface Payment {
     year?: number;
     notes?: string;
     createdAt: Date;
+    method?: string;
+    transactionId?: string;
 }
 
 export interface Expense {
@@ -217,7 +219,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const topContributors = React.useMemo(() => {
         const contributorMap = new Map<string, number>();
         payments.forEach(p => {
-            if (!p.userId) return;
+            if (!p.userId || p.userId === "guest") return;
             contributorMap.set(p.userId, (contributorMap.get(p.userId) || 0) + Number(p.amount));
         });
         return Array.from(contributorMap.entries())

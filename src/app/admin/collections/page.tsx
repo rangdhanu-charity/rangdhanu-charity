@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Check, X, Trash2, Edit, Plus, Menu, Settings2, Calculator, Calendar, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, Search } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -791,6 +792,7 @@ export default function CollectionsPage() {
                                     >
                                         Amount <SortIcon col="amount" />
                                     </TableHead>
+                                    <TableHead>Payment Info</TableHead>
                                     <TableHead>Notes</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -826,9 +828,27 @@ export default function CollectionsPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     {payment.memberName}
-                                                    {payment.userId && <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Member</span>}
+                                                    {payment.userId && payment.userId !== "guest" && <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Member</span>}
+                                                    {payment.userId === "guest" && <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Public</span>}
                                                 </TableCell>
                                                 <TableCell className="font-medium">৳{payment.amount}</TableCell>
+                                                <TableCell>
+                                                    {payment.method ? (
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="capitalize text-sm font-medium">{payment.method}</span>
+                                                                <Badge variant="secondary" className="text-[10px] h-4 px-1">Request</Badge>
+                                                            </div>
+                                                            {payment.transactionId && (
+                                                                <span className="font-mono text-xs text-muted-foreground flex items-center gap-1">
+                                                                    TrxID: {payment.transactionId}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-sm italic">Manual Entry</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell className="max-w-[200px] truncate text-muted-foreground">{payment.notes}</TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="ghost" size="icon" onClick={() => {
