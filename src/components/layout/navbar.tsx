@@ -23,8 +23,7 @@ const PUBLIC_NAV_LINKS = [
     { href: "/", label: "Home", icon: Home },
     { href: "/about", label: "About Us", icon: Info },
     { href: "/projects", label: "Projects", icon: FolderOpen },
-    { href: "/volunteer", label: "Volunteer", icon: HandHelping },
-    { href: "/transparency", label: "Transparency", icon: BarChart3 },
+    { href: "/public-track", label: "Public Track", icon: BarChart3 },
     { href: "/contact", label: "Contact", icon: Mail },
 ];
 
@@ -261,7 +260,12 @@ function NavbarContent() {
                                     else if (linkHasHash) isActive = false;
                                     else isActive = !currentTab && !currentAction;
                                 } else {
-                                    isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+                                    if (link.href === "/admin") {
+                                        // Dashboard should only be active if the path is exactly /admin
+                                        isActive = pathname === "/admin";
+                                    } else {
+                                        isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+                                    }
                                 }
                                 return (
                                     <Link

@@ -89,6 +89,26 @@ export function HomeDonateModal({ children }: { children: React.ReactNode }) {
                     </DialogDescription>
                 </DialogHeader>
 
+                <div className="space-y-4 p-4 mt-4 bg-muted/30 rounded-lg border border-muted">
+                    <div>
+                        <h3 className="text-sm font-semibold mb-2 flex flex-row items-center gap-2"><span className="bg-primary text-primary-foreground w-5 h-5 rounded-full flex items-center justify-center text-xs">1</span> Transfer your donation</h3>
+                        <p className="text-xs text-muted-foreground mb-2">First, send your donation to one of the following accounts:</p>
+                        <ul className="text-sm space-y-1 text-muted-foreground bg-background p-3 rounded border">
+                            <li><strong className="text-foreground">bKash/Nagad:</strong> +880 1829-965153 (Mohammad Ful Mia)</li>
+                            <li><strong className="text-foreground">Dutch Bangla:</strong> 2261510170962</li>
+                            <li><strong className="text-foreground">Cash:</strong> In Person</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h3 className="text-sm font-semibold mb-2 flex flex-row items-center gap-2 mt-4"><span className="bg-primary text-primary-foreground w-5 h-5 rounded-full flex items-center justify-center text-xs">2</span> Fill out this form</h3>
+                        <p className="text-xs text-muted-foreground">After transferring, securely log your donation below and submit. Our team will verify the transaction.</p>
+                        <p className="text-xs text-muted-foreground mt-2 font-medium bg-blue-50/50 p-2 rounded border border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/50">
+                            You can track the live status (Pending, Approved, or Rejected) of your donation payment in the <strong>Public Donation Track</strong> tab.
+                        </p>
+                    </div>
+                </div>
+
                 <Tabs defaultValue="one-time" className="mt-4">
                     <TabsList className="grid w-full grid-cols-2 text-xs sm:text-sm">
                         <TabsTrigger value="one-time">One-time donation</TabsTrigger>
@@ -133,26 +153,8 @@ export function HomeDonateModal({ children }: { children: React.ReactNode }) {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-muted">
-                                <div>
-                                    <h3 className="text-sm font-semibold mb-2 flex flex-row items-center gap-2"><span className="bg-primary text-primary-foreground w-5 h-5 rounded-full flex items-center justify-center text-xs">1</span> Transfer your donation</h3>
-                                    <p className="text-xs text-muted-foreground mb-2">First, send your donation to one of the following accounts:</p>
-                                    <ul className="text-sm space-y-1 text-muted-foreground bg-background p-3 rounded border">
-                                        <li><strong className="text-foreground">bKash/Nagad:</strong> +880 1829-965153 (Mohammad Ful Mia)</li>
-                                        <li><strong className="text-foreground">Dutch Bangla:</strong> 2261510170962</li>
-                                        <li><strong className="text-foreground">Cash:</strong> In Person</li>
-                                    </ul>
-                                </div>
-                                
-                                <div>
-                                    <h3 className="text-sm font-semibold mb-2 flex flex-row items-center gap-2 mt-4"><span className="bg-primary text-primary-foreground w-5 h-5 rounded-full flex items-center justify-center text-xs">2</span> Fill out this form</h3>
-                                    <p className="text-xs text-muted-foreground">After transferring, securely log your donation below and click <strong>"Submit Donation Transfer"</strong>. Our team will verify the transaction.</p>
-                                    <p className="text-xs text-muted-foreground mt-2 font-medium bg-blue-50/50 p-2 rounded border border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/50">
-                                        You can track the live status (Pending, Approved, or Rejected) of your donation payment in the <strong>Public Donation Track</strong> tab.
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-muted-foreground/20">
+                            <div className="p-4 bg-muted/10 rounded-lg border border-muted/50">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="guest-amount">Amount (৳)</Label>
                                         <Input
@@ -181,7 +183,7 @@ export function HomeDonateModal({ children }: { children: React.ReactNode }) {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="space-y-2">
                                 <Label htmlFor="guest-date">Payment Date</Label>
                                 <Input

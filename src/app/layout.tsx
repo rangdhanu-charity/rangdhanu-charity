@@ -10,6 +10,7 @@ import { DataProvider } from "@/lib/data-context";
 import { NotificationProvider } from "@/lib/notification-context";
 import { MessageProvider } from "@/lib/message-context";
 import { Toaster } from "@/components/ui/toaster";
+import { SessionTimeout } from "@/components/common/session-timeout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,7 @@ export default function RootLayout({
           <NotificationProvider>
             <MessageProvider>
               <DataProvider>
+                <SessionTimeout />
                 <ThemeProvider
                   attribute="class"
                   defaultTheme="system"

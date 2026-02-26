@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Section } from "@/components/layout/section";
 import { HomeFeaturedProjects } from "@/components/sections/home-featured-projects";
 import { HomeTestimonials } from "@/components/sections/home-testimonials";
-import { HomeImpactStats } from "@/components/sections/home-impact-stats";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, CheckCircle, Heart, CreditCard, CalendarCheck, Landmark } from "lucide-react";
 import Link from "next/link";
@@ -37,9 +36,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Impact Stats */}
-      <HomeImpactStats />
 
       {/* Donation Plans & Procedures */}
       <section className="py-20 bg-muted/30">
@@ -145,11 +141,60 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground mt-1">In Person</p>
                 <p className="text-xs text-muted-foreground mt-1 cursor-default">Directly to Administration</p>
               </Card>
-            </div>
-            <div className="text-center mt-8">
               <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
                 Once you transfer the amount, please fill out the payment information using the <strong>Donate Now</strong> button above. If you prefer to drop off cash or wish to confirm verbally, simply contact our admins.
               </p>
+            </div>
+
+            {/* Detailed Donation Guide */}
+            <div className="mt-16 max-w-4xl mx-auto bg-blue-50/50 dark:bg-blue-950/20 p-6 md:p-8 rounded-xl border border-blue-100 dark:border-blue-900/50">
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-blue-900 dark:text-blue-100">
+                <CheckCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                How to Successfully Send Your Donation
+              </h3>
+
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-sm">
+                    1
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg text-foreground">Transfer Your Donation</h4>
+                    <p className="text-muted-foreground text-sm mt-1 mb-2">
+                      First, send your donation to one of the following accounts:
+                    </p>
+                    <ul className="text-sm space-y-2 text-muted-foreground bg-white dark:bg-card p-4 rounded-lg border shadow-sm">
+                      <li className="flex items-center gap-2"><ArrowRight className="h-4 w-4 text-primary" /> <strong className="text-foreground">bKash/Nagad:</strong> +880 1829-965153 (Mohammad Ful Mia)</li>
+                      <li className="flex items-center gap-2"><ArrowRight className="h-4 w-4 text-primary" /> <strong className="text-foreground">Dutch Bangla:</strong> 2261510170962</li>
+                      <li className="flex items-center gap-2"><ArrowRight className="h-4 w-4 text-primary" /> <strong className="text-foreground">Cash:</strong> In Person</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-sm">
+                    2
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg text-foreground">Fill out the "Donate Now" Form</h4>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      After transferring, securely log your donation using the <strong className="text-foreground">"Donate Now"</strong> button at the top of the page. Fill in all the requested details and click <strong className="text-foreground">"Submit Donation Transfer"</strong>. Our team will verify the transaction against our account records.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-sm">
+                    3
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg text-foreground">Track Your Donation</h4>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      You can track the live status (Pending, Approved, or Rejected) of your donation payment in the <strong className="text-foreground text-blue-600 dark:text-blue-400">Public Track</strong> tab in the navigation menu. Members can also view their history directly in their profile dashboard.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -168,11 +213,6 @@ export default function Home() {
           <p className="max-w-[600px] mx-auto text-primary-foreground/80 mb-8 md:text-lg">
             Your contribution can change a child's life forever. Join our mission to build a better future.
           </p>
-          <HomeDonateModal>
-            <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
-              Donate Now
-            </Button>
-          </HomeDonateModal>
         </div>
       </section>
     </div>
