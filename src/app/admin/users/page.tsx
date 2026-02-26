@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where, getDocs, addDoc, Timestamp, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, doc, setDoc, onSnapshot, query, updateDoc, where, getDocs, addDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -169,25 +169,22 @@ function UsersContent() {
         const { id, name } = deleteModalUser;
 
         try {
-            // 1. Fetch all their payments
             const paymentsRef = collection(db, "payments");
             const q = query(paymentsRef, where("userId", "==", id));
             const snapshot = await getDocs(q);
 
-            // 2. Calculate sum and prepare batch delete
-            const batch = writeBatch(db);
-            let totalAmount = 0;
+            const batchId = `user-del-${id}-${Date.now()}`;
 
-            snapshot.docs.forEach((docSnap) => {
-                totalAmount += Number(docSnap.data().amount || 0);
-                batch.delete(docSnap.ref); // Delete every individual payment
+            let totalAmount = 0;
+            const paymentsToSoftDelete = snapshot.docs.map(doc => {
+                totalAmount += Number(doc.data().amount || 0);
+                return { id: doc.id, data: doc.data() };
             });
 
-            // 3. Option A logic: Preserve Financials as One-Time
+            // If Preserve, create the consolidated One-Time Donation
             if (type === 'preserve' && totalAmount > 0) {
-                // Add consolidated one-time donation
                 const newDocRef = doc(collection(db, "payments"));
-                batch.set(newDocRef, {
+                await setDoc(newDocRef, {
                     userId: "deleted-user",
                     memberName: `Deleted Member: ${name}`,
                     email: deleteModalUser.email,
@@ -199,28 +196,31 @@ function UsersContent() {
                     month: new Date().getMonth() + 1,
                     year: new Date().getFullYear(),
                     receiptRef: "",
-                    note: "Consolidated historical funds from a deleted user profile.",
+                    note: "Consolidated funds from a deleted user. Restoring the user will revert this.",
                     recordedBy: currentUser?.name || currentUser?.username || "Admin",
-                    recordedAt: new Date().toISOString()
+                    recordedAt: new Date().toISOString(),
+                    linkedBatchId: batchId // CRITICAL: Tag to allow undoing this action if restored
                 });
             }
 
-            // 4. Execute the batch operation (removes old payments, potentially adds the 1 consolidated one)
-            await batch.commit();
+            // Move all old payments to Recycle Bin (whether preserving or purging, we want them stored)
+            for (const payment of paymentsToSoftDelete) {
+                await RecycleService.softDelete("payments", payment.id, "payment", `Payment (৳${payment.data.amount}) by ${name}`, currentUser?.username || "admin", { batchId });
+            }
 
-            // 5. Soft delete the user profile so they can't log in
-            await RecycleService.softDelete("users", id, "user", name, currentUser?.username || "admin");
+            // Soft delete the user profile so they can't log in
+            await RecycleService.softDelete("users", id, "user", name, currentUser?.username || "admin", { batchId });
 
             if (type === 'preserve') {
-                toast({ title: "User Deleted & Funds Preserved", description: `${name}'s profile was moved to recycle bin. Their lifetime contributions (৳${totalAmount}) were bundled into a single One-Time Donation.` });
+                toast({ title: "User Deleted & Funds Preserved", description: `Contributions (৳${totalAmount}) consolidated.` });
             } else {
-                toast({ title: "User & Funds Erased", description: `${name}'s profile and all their historical financial records have been completely purged.` });
+                toast({ title: "User & Funds Erased", description: `Profile and financial records purged.` });
             }
 
             setDeleteModalUser(null);
         } catch (error) {
             console.error("Error deleting user:", error);
-            toast({ title: "Error", description: "Failed to delete user and process financials.", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to process.", variant: "destructive" });
         } finally {
             setIsDeleting(false);
         }
@@ -1115,21 +1115,21 @@ function UsersContent() {
                         {/* Option A: Preserve */}
                         <Card className="border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-blue-700 dark:text-blue-400 text-lg">Option A: Preserve Financials</CardTitle>
+                                <CardTitle className="text-blue-700 dark:text-blue-400 text-lg">Preserve Financials</CardTitle>
                             </CardHeader>
                             <CardContent className="text-sm text-muted-foreground space-y-3">
-                                <p><strong>Best for:</strong> Retiring/leaving members.</p>
+                                <p><strong>Ideal for:</strong> Retiring members.</p>
                                 <ul className="list-disc pl-4 space-y-1">
-                                    <li>Deletes the user profile so they can't log in.</li>
-                                    <li>Consolidates all their past lifetime payments into a single, generic "One-Time Donation" record.</li>
-                                    <li><strong>Keeps your transparent Dashboard total money accurate.</strong></li>
+                                    <li>Revokes login access.</li>
+                                    <li>Safely converts all past payments into a single <strong>One-Time Donation</strong> to keep the Dashboard totals accurate.</li>
                                 </ul>
                                 <Button
+                                    type="button"
                                     className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
                                     disabled={isDeleting}
                                     onClick={() => handleConfirmDelete('preserve')}
                                 >
-                                    {isDeleting ? "Processing..." : "Delete & Preserve Funds"}
+                                    {isDeleting ? "Processing..." : "Preserve Funds"}
                                 </Button>
                             </CardContent>
                         </Card>
@@ -1137,22 +1137,22 @@ function UsersContent() {
                         {/* Option B: Purge */}
                         <Card className="border-destructive/30 bg-destructive/5 hover:border-destructive/50 transition-colors">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-destructive text-lg">Option B: Purge Financials</CardTitle>
+                                <CardTitle className="text-destructive text-lg">Purge Financials</CardTitle>
                             </CardHeader>
                             <CardContent className="text-sm text-muted-foreground space-y-3">
-                                <p><strong>Best for:</strong> Mistakes, spam accounts, or full refunds.</p>
+                                <p><strong>Ideal for:</strong> Mistakes or refunds.</p>
                                 <ul className="list-disc pl-4 space-y-1">
-                                    <li>Deletes the user profile completely.</li>
-                                    <li>Deletes <strong>EVERY</strong> past payment record they ever made.</li>
-                                    <li><strong>Lowers your dashboard's total money acquired.</strong></li>
+                                    <li>Revokes login access entirely.</li>
+                                    <li>Permanently deletes <strong>EVERY</strong> past payment they made, lowering the Dashboard collections total.</li>
                                 </ul>
                                 <Button
+                                    type="button"
                                     variant="destructive"
                                     className="w-full mt-2"
                                     disabled={isDeleting}
                                     onClick={() => handleConfirmDelete('purge')}
                                 >
-                                    {isDeleting ? "Processing..." : "Delete & Erase Funds"}
+                                    {isDeleting ? "Processing..." : "Erase Funds"}
                                 </Button>
                             </CardContent>
                         </Card>

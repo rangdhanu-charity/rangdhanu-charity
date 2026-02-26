@@ -124,6 +124,34 @@ export const RecycleService = {
                     });
                     await Promise.all(batchPromises);
                 }
+            } else if (item.type === 'user') {
+                // SPECIAL HANDLER FOR USER
+                // 1. Restore User Profile
+                await setDoc(doc(db, item.originalCollection, item.originalId), item.data);
+
+                if (item.batchId) {
+                    // 2. Restore Linked Payments from Recycle Bin
+                    const qBatch = query(collection(db, BIN_COLLECTION), where("batchId", "==", item.batchId));
+                    const batchSnap = await getDocs(qBatch);
+
+                    const batchPromises = batchSnap.docs.map(async (d) => {
+                        if (d.id === recycleId) return; // Skip self
+                        const batchItem = d.data() as RecycleItem;
+                        await setDoc(doc(db, batchItem.originalCollection, batchItem.originalId), batchItem.data);
+                        await deleteDoc(d.ref);
+                    });
+                    await Promise.all(batchPromises);
+
+                    // 3. Destroy specifically grouped "One-Time Donation" if they were Soft-Deleted (Preserved)
+                    // The Preserve function creates a new payment with `linkedBatchId: batchId` attached.
+                    const qGroupedPayment = query(collection(db, "payments"), where("linkedBatchId", "==", item.batchId));
+                    const groupedSnap = await getDocs(qGroupedPayment);
+
+                    const destroyPromises = groupedSnap.docs.map(async (d) => {
+                        await deleteDoc(d.ref); // Permanently delete the aggregated record
+                    });
+                    await Promise.all(destroyPromises);
+                }
             } else {
                 // STANDARD RESTORE
                 // Restore to original
