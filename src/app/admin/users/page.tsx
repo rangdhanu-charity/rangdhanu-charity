@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where, getDocs, addDoc, Timestamp } from "firebase/firestore";
+import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where, getDocs, addDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Plus, Search, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Calendar as CalendarIcon, Camera } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Calendar as CalendarIcon, Camera, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { RecycleService } from "@/lib/recycle-service";
@@ -63,10 +63,17 @@ export default function UsersPage() {
 
 function UsersContent() {
     const [users, setUsers] = useState<User[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const { user: currentUser, adminUpdateUser } = useAuth();
     const { settings } = useSettings();
+
+    // Filter states
+    const [roleFilter, setRoleFilter] = useState("all");
+
+    // Deletion Modal States
+    const [deleteModalUser, setDeleteModalUser] = useState<User | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const { topContributors } = useFinance();
     const { toast } = useToast();
 
@@ -152,15 +159,70 @@ function UsersContent() {
         return () => unsubscribe();
     }, []);
 
-    const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    const handleDeleteClick = (user: User) => {
+        setDeleteModalUser(user);
+    };
+
+    const handleConfirmDelete = async (type: 'preserve' | 'purge') => {
+        if (!deleteModalUser) return;
+        setIsDeleting(true);
+        const { id, name } = deleteModalUser;
+
         try {
+            // 1. Fetch all their payments
+            const paymentsRef = collection(db, "payments");
+            const q = query(paymentsRef, where("userId", "==", id));
+            const snapshot = await getDocs(q);
+
+            // 2. Calculate sum and prepare batch delete
+            const batch = writeBatch(db);
+            let totalAmount = 0;
+
+            snapshot.docs.forEach((docSnap) => {
+                totalAmount += Number(docSnap.data().amount || 0);
+                batch.delete(docSnap.ref); // Delete every individual payment
+            });
+
+            // 3. Option A logic: Preserve Financials as One-Time
+            if (type === 'preserve' && totalAmount > 0) {
+                // Add consolidated one-time donation
+                const newDocRef = doc(collection(db, "payments"));
+                batch.set(newDocRef, {
+                    userId: "deleted-user",
+                    memberName: `Deleted Member: ${name}`,
+                    email: deleteModalUser.email,
+                    phone: deleteModalUser.phone || "",
+                    amount: totalAmount,
+                    date: new Date().toISOString(),
+                    type: "one-time",
+                    verified: true,
+                    month: new Date().getMonth() + 1,
+                    year: new Date().getFullYear(),
+                    receiptRef: "",
+                    note: "Consolidated historical funds from a deleted user profile.",
+                    recordedBy: currentUser?.name || currentUser?.username || "Admin",
+                    recordedAt: new Date().toISOString()
+                });
+            }
+
+            // 4. Execute the batch operation (removes old payments, potentially adds the 1 consolidated one)
+            await batch.commit();
+
+            // 5. Soft delete the user profile so they can't log in
             await RecycleService.softDelete("users", id, "user", name, currentUser?.username || "admin");
-            // await deleteDoc(doc(db, "users", id));
-            toast({ title: "User Deleted", description: `${name} has been moved to recycle bin.` });
+
+            if (type === 'preserve') {
+                toast({ title: "User Deleted & Funds Preserved", description: `${name}'s profile was moved to recycle bin. Their lifetime contributions (৳${totalAmount}) were bundled into a single One-Time Donation.` });
+            } else {
+                toast({ title: "User & Funds Erased", description: `${name}'s profile and all their historical financial records have been completely purged.` });
+            }
+
+            setDeleteModalUser(null);
         } catch (error) {
             console.error("Error deleting user:", error);
-            toast({ title: "Error", description: "Failed to delete user.", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to delete user and process financials.", variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -418,10 +480,10 @@ function UsersContent() {
     };
 
     const filteredUsers = users.filter(user =>
-        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.phone && user.phone.includes(searchTerm))
+        user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (user.phone && user.phone.includes(searchQuery))
     ).sort((a, b) => {
         let valA: any;
         let valB: any;
@@ -474,8 +536,8 @@ function UsersContent() {
                             <Input
                                 placeholder="Search by name, email, username or phone..."
                                 className="pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
                     </div>
@@ -552,8 +614,8 @@ function UsersContent() {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="text-destructive hover:text-destructive/90"
-                                                                onClick={() => handleDelete(user.id, user.name)}
+                                                                className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                                                onClick={() => handleDeleteClick(user)}
                                                                 disabled={currentUser?.id === user.id} // Prevent self-delete
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
@@ -905,7 +967,7 @@ function UsersContent() {
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Add New User</DialogTitle>
-                        <DialogDescription>Create a new member record.</DialogDescription>
+                        <DialogDescription>Create a new user account. Temporary password will be their phone number (if provided) or 'password123'.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleCreateUser} className="space-y-4">
                         <div className="grid gap-2">
@@ -1036,6 +1098,78 @@ function UsersContent() {
                 onCropComplete={handleCropComplete}
                 isUploading={isUploadingImage}
             />
+
+            {/* Advanced Delete Confirmation Dialog */}
+            <Dialog open={!!deleteModalUser} onOpenChange={(open) => !open && setDeleteModalUser(null)}>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-destructive flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5" /> Delete Member: {deleteModalUser?.name}
+                        </DialogTitle>
+                        <DialogDescription className="text-base mt-2">
+                            You are about to delete this user profile. Because charities must maintain accurate financial records, please choose how you want to handle their historical payment data.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+                        {/* Option A: Preserve */}
+                        <Card className="border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-blue-700 dark:text-blue-400 text-lg">Option A: Preserve Financials</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-sm text-muted-foreground space-y-3">
+                                <p><strong>Best for:</strong> Retiring/leaving members.</p>
+                                <ul className="list-disc pl-4 space-y-1">
+                                    <li>Deletes the user profile so they can't log in.</li>
+                                    <li>Consolidates all their past lifetime payments into a single, generic "One-Time Donation" record.</li>
+                                    <li><strong>Keeps your transparent Dashboard total money accurate.</strong></li>
+                                </ul>
+                                <Button
+                                    className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
+                                    disabled={isDeleting}
+                                    onClick={() => handleConfirmDelete('preserve')}
+                                >
+                                    {isDeleting ? "Processing..." : "Delete & Preserve Funds"}
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* Option B: Purge */}
+                        <Card className="border-destructive/30 bg-destructive/5 hover:border-destructive/50 transition-colors">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-destructive text-lg">Option B: Purge Financials</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-sm text-muted-foreground space-y-3">
+                                <p><strong>Best for:</strong> Mistakes, spam accounts, or full refunds.</p>
+                                <ul className="list-disc pl-4 space-y-1">
+                                    <li>Deletes the user profile completely.</li>
+                                    <li>Deletes <strong>EVERY</strong> past payment record they ever made.</li>
+                                    <li><strong>Lowers your dashboard's total money acquired.</strong></li>
+                                </ul>
+                                <Button
+                                    variant="destructive"
+                                    className="w-full mt-2"
+                                    disabled={isDeleting}
+                                    onClick={() => handleConfirmDelete('purge')}
+                                >
+                                    {isDeleting ? "Processing..." : "Delete & Erase Funds"}
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <DialogFooter className="sm:justify-start">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setDeleteModalUser(null)}
+                            disabled={isDeleting}
+                        >
+                            Cancel
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
