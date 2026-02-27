@@ -4,6 +4,7 @@
 export const NAV_LINKS = [
     { href: "/", label: "Home" },
     { href: "/about", label: "About Us" },
+    { href: "/stories", label: "Stories" },
     { href: "/projects", label: "Projects" },
     { href: "/public-track", label: "Public Track" },
     { href: "/contact", label: "Contact" },

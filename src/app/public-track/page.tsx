@@ -35,20 +35,20 @@ const maskName = (name: string) => {
 
 const maskContact = (contact: string) => {
     if (!contact) return "";
-    
+
     // If it looks like an email
     if (contact.includes("@")) {
         const [local, domain] = contact.split("@");
         if (local.length <= 2) return `${local[0]}***@${domain}`;
         return `${local.substring(0, 2)}***@${domain}`;
     }
-    
+
     // If it looks like a phone number
     const digitsOnly = contact.replace(/\D/g, "");
     if (digitsOnly.length > 4) {
         return `*****${digitsOnly.slice(-4)}`;
     }
-    
+
     return "*****";
 };
 
@@ -73,13 +73,13 @@ export default function PublicTrackPage() {
                     limit(150)
                 );
                 const querySnapshot = await getDocs(q);
-                
+
                 const donations = querySnapshot.docs
                     .map(doc => ({
                         id: doc.id,
                         ...doc.data()
                     })) as PublicDonation[];
-                    
+
                 const guestDonations = donations
                     .filter(d => (d as any).isGuest === true);
 
@@ -93,7 +93,7 @@ export default function PublicTrackPage() {
                     try {
                         const { deleteDoc, doc } = await import("firebase/firestore");
                         oldDonations.forEach(d => {
-                            deleteDoc(doc(db, "donation_requests", d.id)).catch(() => {}); // Silent catch for permission errors if run by non-admin
+                            deleteDoc(doc(db, "donation_requests", d.id)).catch(() => { }); // Silent catch for permission errors if run by non-admin
                         });
                     } catch (e) {
                         // Ignore import errors
@@ -118,7 +118,7 @@ export default function PublicTrackPage() {
                         Public Donation Track
                     </h1>
                     <p className="text-muted-foreground text-lg">
-                        Recent verified one-time public donations shown below.
+                        The 20 most recent verified one-time public donations are shown below.
                         Names are securely masked for privacy.
                     </p>
                     <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md border border-blue-100 dark:border-blue-900 mt-4">

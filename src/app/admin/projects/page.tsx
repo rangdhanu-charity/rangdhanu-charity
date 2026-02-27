@@ -25,7 +25,14 @@ export default function ProjectsManager() {
                 {projects.map((project) => (
                     <Card key={project.id}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-lg font-bold">{project.title}</CardTitle>
+                            <div className="flex items-center gap-3">
+                                <CardTitle className="text-lg font-bold">{project.title}</CardTitle>
+                                {project.status === "completed" ? (
+                                    <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">Completed</span>
+                                ) : (
+                                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">Active</span>
+                                )}
+                            </div>
                             <div className="flex gap-2">
                                 <Button variant="outline" size="icon" asChild>
                                     <Link href={`/admin/projects/${project.id}`}>
@@ -47,10 +54,11 @@ export default function ProjectsManager() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{project.description}</p>
-                            <div className="flex justify-between text-sm">
-                                <span>Raised: ${project.raised}</span>
-                                <span>Goal: ${project.goal}</span>
-                            </div>
+                            {project.goal > 0 ? (
+                                <div className="text-sm font-medium">Goal: ৳{project.goal}</div>
+                            ) : (
+                                <div className="text-sm text-muted-foreground italic">No Collection Goal Set</div>
+                            )}
                         </CardContent>
                     </Card>
                 ))}

@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Heart, LayoutDashboard, FolderOpen, Users, LogOut, BarChart3, MessageSquareQuote, Trash2, Settings, Megaphone } from "lucide-react";
+import { Heart, LayoutDashboard, FolderOpen, Users, LogOut, BarChart3, MessageSquareQuote, Trash2, Settings, Megaphone, BookOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { FinanceProvider } from "@/lib/finance-context";
 import { SettingsProvider } from "@/lib/settings-context";
-import { Coins, PiggyBank, FileText } from "lucide-react";
+import { Coins, PiggyBank, FileText, Library } from "lucide-react";
 
 export default function AdminLayout({
     children,
@@ -24,6 +24,7 @@ export default function AdminLayout({
     const pathname = usePathname();
 
     const [requestCount, setRequestCount] = useState(0);
+    const [isContentOpen, setIsContentOpen] = useState(false);
 
     useEffect(() => {
         if (!isLoading) {
@@ -67,11 +68,19 @@ export default function AdminLayout({
 
     const sidebarItems = [
         { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+        {
+            href: "/admin/content",
+            label: "Content Hub",
+            icon: Library,
+            subItems: [
+                { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+                { href: "/admin/stories", label: "Stories", icon: BookOpen },
+                { href: "/admin/projects", label: "Projects", icon: FolderOpen },
+            ]
+        },
         { href: "/admin/collections", label: "Collections", icon: Coins },
         { href: "/admin/finance", label: "Finance", icon: PiggyBank },
         { href: "/admin/reports", label: "Reports", icon: FileText },
-        { href: "/admin/projects", label: "Projects", icon: FolderOpen },
         { href: "/admin/users", label: "Members", icon: Users },
         { href: "/admin/requests", label: "Requests", icon: MessageSquareQuote },
         { href: "/admin/settings", label: "Settings", icon: Settings },
@@ -88,24 +97,61 @@ export default function AdminLayout({
                 </div>
                 <nav className="flex flex-col gap-2 p-4">
                     {sidebarItems.map((item) => (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cn(
-                                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-primary",
-                                pathname === item.href
-                                    ? "bg-muted text-primary"
-                                    : "text-muted-foreground"
+                        <div key={item.href}>
+                            <div className="flex items-center group">
+                                <Link
+                                    href={item.href}
+                                    className={cn(
+                                        "flex flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-primary",
+                                        pathname === item.href
+                                            ? "bg-muted text-primary"
+                                            : "text-muted-foreground"
+                                    )}
+                                >
+                                    <item.icon className="h-4 w-4" />
+                                    {item.label}
+                                    {item.href === "/admin/requests" && requestCount > 0 && (
+                                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+                                            {requestCount}
+                                        </span>
+                                    )}
+                                </Link>
+                                {item.subItems && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setIsContentOpen(!isContentOpen);
+                                        }}
+                                        className={cn(
+                                            "p-2 ml-1 rounded-md text-muted-foreground hover:bg-muted hover:text-primary transition-colors",
+                                            isContentOpen && "bg-muted text-primary"
+                                        )}
+                                        aria-label="Toggle sub-menu"
+                                    >
+                                        {isContentOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                    </button>
+                                )}
+                            </div>
+                            {item.subItems && isContentOpen && (
+                                <div className="ml-6 mt-1 flex flex-col gap-1 border-l pl-2">
+                                    {item.subItems.map((sub) => (
+                                        <Link
+                                            key={sub.href}
+                                            href={sub.href}
+                                            className={cn(
+                                                "flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-all hover:text-primary",
+                                                pathname === sub.href
+                                                    ? "bg-muted text-primary"
+                                                    : "text-muted-foreground"
+                                            )}
+                                        >
+                                            <sub.icon className="h-3.5 w-3.5" />
+                                            {sub.label}
+                                        </Link>
+                                    ))}
+                                </div>
                             )}
-                        >
-                            <item.icon className="h-4 w-4" />
-                            {item.label}
-                            {item.href === "/admin/requests" && requestCount > 0 && (
-                                <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
-                                    {requestCount}
-                                </span>
-                            )}
-                        </Link>
+                        </div>
                     ))}
                     <Button
                         variant="ghost"

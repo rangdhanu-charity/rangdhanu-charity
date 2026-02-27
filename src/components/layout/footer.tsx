@@ -25,28 +25,28 @@ export function Footer() {
                         <Link href="/about" className="text-sm text-muted-foreground hover:text-primary">
                             About Us
                         </Link>
+                        <Link href="/stories" className="text-sm text-muted-foreground hover:text-primary">
+                            Stories
+                        </Link>
                         <Link href="/projects" className="text-sm text-muted-foreground hover:text-primary">
-                            Our Projects
+                            Projects
                         </Link>
-                        <Link href="/volunteer" className="text-sm text-muted-foreground hover:text-primary">
-                            Volunteer
-                        </Link>
-                        <Link href="/transparency" className="text-sm text-muted-foreground hover:text-primary">
-                            Transparency
+                        <Link href="/public-track" className="text-sm text-muted-foreground hover:text-primary">
+                            Public Track
                         </Link>
                     </div>
                     <div className="flex flex-col gap-4">
                         <h3 className="font-semibold text-foreground">Contact</h3>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <MapPin className="h-4 w-4" />
-                            <span>Dhaka, Bangladesh</span>
+                            <MapPin className="h-4 w-4 shrink-0" />
+                            <span>Meghna - 3515, Cumilla, Bangladesh</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Phone className="h-4 w-4" />
-                            <span>+880 1234 567890</span>
+                            <Phone className="h-4 w-4 shrink-0" />
+                            <span>+880 1829-965153</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Mail className="h-4 w-4" />
+                            <Mail className="h-4 w-4 shrink-0" />
                             <span>info@rangdhanu.org</span>
                         </div>
                     </div>

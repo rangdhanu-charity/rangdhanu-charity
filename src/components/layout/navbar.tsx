@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
     Menu, X, Heart, User as UserIcon, LogOut,
-    LayoutDashboard, ChevronRight, Home, Info,
+    LayoutDashboard, ChevronRight, ChevronDown, Home, Info,
     FolderOpen, HandHelping, BarChart3, Mail, ShieldCheck,
-    Coins, PiggyBank, FileText, Users, MessageSquareQuote, Settings, Megaphone
+    Coins, PiggyBank, FileText, Users, MessageSquareQuote, Settings, Megaphone, BookOpen, Library
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,15 +19,23 @@ import { NAV_LINKS } from "@/lib/data";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-const PUBLIC_NAV_LINKS = [
+type NavLink = {
+    href: string;
+    label: string;
+    icon: React.ElementType;
+    subItems?: { href: string; label: string; icon: React.ElementType }[];
+};
+
+const PUBLIC_NAV_LINKS: NavLink[] = [
     { href: "/", label: "Home", icon: Home },
     { href: "/about", label: "About Us", icon: Info },
+    { href: "/stories", label: "Stories", icon: BookOpen },
     { href: "/projects", label: "Projects", icon: FolderOpen },
     { href: "/public-track", label: "Public Track", icon: BarChart3 },
     { href: "/contact", label: "Contact", icon: Mail },
 ];
 
-const MEMBER_NAV_LINKS = [
+const MEMBER_NAV_LINKS: NavLink[] = [
     { href: "/profile", label: "Personal Overview", icon: UserIcon },
     { href: "/profile?action=donate", label: "Donate Now", icon: Heart },
     { href: "/profile?tab=finance", label: "Organisation Finance", icon: BarChart3 },
@@ -36,13 +44,21 @@ const MEMBER_NAV_LINKS = [
     { href: "/profile#requests", label: "My Requests", icon: MessageSquareQuote },
 ];
 
-const ADMIN_NAV_LINKS = [
+const ADMIN_NAV_LINKS: NavLink[] = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+    {
+        href: "/admin/content",
+        label: "Content Hub",
+        icon: Library,
+        subItems: [
+            { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+            { href: "/admin/stories", label: "Stories", icon: BookOpen },
+            { href: "/admin/projects", label: "Projects", icon: FolderOpen },
+        ]
+    },
     { href: "/admin/collections", label: "Collections", icon: Coins },
     { href: "/admin/finance", label: "Finance", icon: PiggyBank },
     { href: "/admin/reports", label: "Reports", icon: FileText },
-    { href: "/admin/projects", label: "Projects", icon: FolderOpen },
     { href: "/admin/users", label: "Members", icon: Users },
     { href: "/admin/requests", label: "Requests", icon: MessageSquareQuote },
     { href: "/admin/settings", label: "Settings", icon: Settings },
@@ -51,6 +67,7 @@ const ADMIN_NAV_LINKS = [
 function NavbarContent() {
     const [isOpen, setIsOpen] = React.useState(false);
     const [adminView, setAdminView] = React.useState(false);
+    const [isMobileContentOpen, setIsMobileContentOpen] = React.useState(false);
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const router = useRouter();
@@ -268,27 +285,67 @@ function NavbarContent() {
                                     }
                                 }
                                 return (
-                                    <Link
-                                        key={link.href}
-                                        href={link.href}
-                                        onClick={() => setIsOpen(false)}
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                                            isActive
-                                                ? "bg-primary/10 text-primary"
-                                                : "text-foreground hover:bg-muted"
+                                    <div key={link.href} className="flex flex-col">
+                                        <div className="flex items-center group">
+                                            <Link
+                                                href={link.href}
+                                                onClick={() => setIsOpen(false)}
+                                                className={cn(
+                                                    "flex flex-1 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                                                    isActive
+                                                        ? "bg-primary/10 text-primary"
+                                                        : "text-foreground hover:bg-muted"
+                                                )}
+                                            >
+                                                <Icon className="h-4 w-4 shrink-0" />
+                                                {link.label}
+                                                {link.href === "/admin/requests" && requestCount > 0 && (
+                                                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+                                                        {requestCount}
+                                                    </span>
+                                                )}
+                                            </Link>
+                                            {link.subItems && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setIsMobileContentOpen(!isMobileContentOpen);
+                                                    }}
+                                                    className={cn(
+                                                        "p-2 ml-1 rounded-md text-foreground hover:bg-muted transition-colors",
+                                                        isMobileContentOpen && "bg-muted"
+                                                    )}
+                                                    aria-label="Toggle sub-menu"
+                                                >
+                                                    {isMobileContentOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                </button>
+                                            )}
+                                        </div>
+                                        {link.subItems && isMobileContentOpen && (
+                                            <div className="ml-6 mt-1 flex flex-col gap-1 border-l pl-2">
+                                                {link.subItems.map((sub) => {
+                                                    const SubIcon = sub.icon;
+                                                    const isSubActive = pathname === sub.href;
+                                                    return (
+                                                        <Link
+                                                            key={sub.href}
+                                                            href={sub.href}
+                                                            onClick={() => setIsOpen(false)}
+                                                            className={cn(
+                                                                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors",
+                                                                isSubActive
+                                                                    ? "bg-primary/10 text-primary"
+                                                                    : "text-foreground hover:bg-muted"
+                                                            )}
+                                                        >
+                                                            <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                                                            {sub.label}
+                                                        </Link>
+                                                    );
+                                                })}
+                                            </div>
                                         )}
-                                    >
-                                        <Icon className="h-4 w-4 shrink-0" />
-                                        {link.label}
-                                        {link.href === "/admin/requests" && requestCount > 0 && (
-                                            <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
-                                                {requestCount}
-                                            </span>
-                                        )}
-                                        {isActive && link.href !== "/admin/requests" && <ChevronRight className="h-4 w-4 ml-auto text-primary/70" />}
-                                        {isActive && link.href === "/admin/requests" && requestCount === 0 && <ChevronRight className="h-4 w-4 ml-auto text-primary/70" />}
-                                    </Link>
+                                    </div>
                                 );
                             })}
                         </nav>

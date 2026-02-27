@@ -21,82 +21,42 @@ export default function ContactPage() {
             </section>
 
             <Section>
-                <div className="grid gap-12 lg:grid-cols-2">
-                    {/* Contact Info */}
-                    <div className="space-y-8">
-                        <div className="grid gap-6">
-                            <Card>
-                                <CardHeader className="flex flex-row items-center gap-4">
+                <div className="max-w-4xl mx-auto">
+                    <div className="grid gap-6 md:grid-cols-3">
+                        <Card className="text-center">
+                            <CardHeader className="flex flex-col items-center gap-2">
+                                <div className="p-3 bg-primary/10 rounded-full">
                                     <MapPin className="h-6 w-6 text-primary" />
-                                    <div>
-                                        <CardTitle>Visit Us</CardTitle>
-                                        <CardDescription>
-                                            123 Charity Lane, Dhaka 1200, Bangladesh
-                                        </CardDescription>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center gap-4">
+                                </div>
+                                <CardTitle>Visit Us</CardTitle>
+                                <CardDescription className="w-full">
+                                    Meghna - 3515, Cumilla, Bangladesh
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
+                        <Card className="text-center">
+                            <CardHeader className="flex flex-col items-center gap-2">
+                                <div className="p-3 bg-primary/10 rounded-full">
                                     <Phone className="h-6 w-6 text-primary" />
-                                    <div>
-                                        <CardTitle>Call Us</CardTitle>
-                                        <CardDescription>
-                                            +880 1234 567890
-                                        </CardDescription>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center gap-4">
+                                </div>
+                                <CardTitle>Call Us</CardTitle>
+                                <CardDescription className="w-full">
+                                    +880 1829-965153
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
+                        <Card className="text-center">
+                            <CardHeader className="flex flex-col items-center gap-2">
+                                <div className="p-3 bg-primary/10 rounded-full">
                                     <Mail className="h-6 w-6 text-primary" />
-                                    <div>
-                                        <CardTitle>Email Us</CardTitle>
-                                        <CardDescription>
-                                            info@rangdhanu.org
-                                        </CardDescription>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                        </div>
-
-                        {/* Map Placeholder */}
-                        <div className="aspect-video w-full bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                            Google Maps Embed Placeholder
-                        </div>
+                                </div>
+                                <CardTitle>Email Us</CardTitle>
+                                <CardDescription className="w-full">
+                                    info@rangdhanu.org
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
                     </div>
-
-                    {/* Contact Form */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Send us a Message</CardTitle>
-                            <CardDescription>We will get back to you as soon as possible.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form className="space-y-4">
-                                <div className="grid gap-2">
-                                    <label className="text-sm font-medium">Name</label>
-                                    <Input placeholder="Your Name" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <label className="text-sm font-medium">Email</label>
-                                    <Input type="email" placeholder="Your Email" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <label className="text-sm font-medium">Subject</label>
-                                    <Input placeholder="Subject" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <label className="text-sm font-medium">Message</label>
-                                    <textarea
-                                        className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        placeholder="Your message here..."
-                                    />
-                                </div>
-                                <Button type="submit" className="w-full">Send Message</Button>
-                            </form>
-                        </CardContent>
-                    </Card>
                 </div>
             </Section>
         </div>

@@ -234,7 +234,7 @@ export default function AdminDashboard() {
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                 {/* Monthly Trend Chart */}
-                <Card className="col-span-4">
+                <Card className="md:col-span-2 lg:col-span-4">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle>Collection Trend</CardTitle>
@@ -285,36 +285,36 @@ export default function AdminDashboard() {
                 </Card>
 
                 {/* Top Contributors */}
-                <Card className="col-span-3">
+                <Card className="md:col-span-2 lg:col-span-3">
                     <CardHeader>
                         <CardTitle>Top Contributors</CardTitle>
                         <CardDescription>Highest financial contributions</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pl-2">
                         <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={topContributors} layout="horizontal" margin={{ bottom: 40 }} key={`${JSON.stringify(topContributors)}-${lastUpdate}`}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={topContributors} layout="vertical" margin={{ top: 5, right: 5, left: 0, bottom: 5 }} key={`${JSON.stringify(topContributors)}-${lastUpdate}`}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                                     <XAxis
-                                        dataKey="name"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tick={{ fontSize: 11 }}
-                                        interval={0}
-                                        angle={-45}
-                                        textAnchor="end"
-                                        height={60}
-                                    />
-                                    <YAxis
+                                        type="number"
                                         tickLine={false}
                                         axisLine={false}
                                         tickFormatter={(value) => `৳${value}`}
+                                        tick={{ fontSize: 10 }}
+                                    />
+                                    <YAxis
+                                        dataKey="name"
+                                        type="category"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tick={{ fontSize: 11 }}
+                                        width={80}
                                     />
                                     <Tooltip
                                         formatter={(value: any) => [`৳${value}`, "Contributed"]}
                                         cursor={{ fill: 'transparent' }}
                                     />
-                                    <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                                    <Bar dataKey="amount" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -322,29 +322,6 @@ export default function AdminDashboard() {
                 </Card>
             </div>
 
-            {/* Original Project Stats (Preserved but pushed down) */}
-            <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Active Projects</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {projects.slice(0, 3).map((project) => (
-                                <div key={project.id} className="flex items-center justify-between border-b last:border-0 pb-2 last:pb-0">
-                                    <div>
-                                        <p className="font-medium">{project.title}</p>
-                                        <p className="text-sm text-muted-foreground">৳{project.raised.toLocaleString()} / ৳{project.goal.toLocaleString()}</p>
-                                    </div>
-                                    <div className="text-sm text-muted-foreground">
-                                        {Math.round((project.raised / project.goal) * 100)}%
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+        </div >
     );
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { Section } from "@/components/layout/section";
 
 export function HomeFeaturedProjects() {
@@ -27,7 +28,7 @@ export function HomeFeaturedProjects() {
         );
     }
 
-    const featuredProjects = projects.slice(0, 3); // Show top 3
+    const featuredProjects = projects.filter(p => p.status !== "completed").slice(0, 3); // Show top 3 active
 
     return (
         <Section id="projects">
@@ -41,28 +42,26 @@ export function HomeFeaturedProjects() {
                 {featuredProjects.map((project) => (
                     <Card key={project.id} className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
                         <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                            {/* Placeholder for project image */}
-                            <div className="flex items-center justify-center h-full text-muted-foreground bg-gray-200 dark:bg-gray-800">
-                                Image: {project.title}
-                            </div>
+                            {project.image && project.image !== "/images/placeholder.jpg" ? (
+                                <Image src={project.image} alt={project.title} fill className="object-cover transition-transform hover:scale-105 duration-500" unoptimized />
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-muted-foreground bg-gray-200 dark:bg-gray-800">
+                                    No Image
+                                </div>
+                            )}
                         </div>
                         <CardHeader>
                             <CardTitle className="line-clamp-1">{project.title}</CardTitle>
                             <CardDescription className="line-clamp-2">{project.description}</CardDescription>
                         </CardHeader>
                         <CardContent className="flex-1">
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Raised: ${project.raised}</span>
-                                    <span className="font-medium text-primary">Goal: ${project.goal}</span>
+                            {project.goal > 0 ? (
+                                <div className="inline-block bg-primary/10 text-primary px-3 py-1 rounded-full font-medium text-xs">
+                                    Project Goal: ৳{project.goal}
                                 </div>
-                                <div className="h-2 w-full rounded-full bg-secondary/20">
-                                    <div
-                                        className="h-full rounded-full bg-secondary transition-all"
-                                        style={{ width: `${Math.min(100, (project.raised / project.goal) * 100)}%` }}
-                                    />
-                                </div>
-                            </div>
+                            ) : (
+                                <div className="text-sm text-muted-foreground italic">Upcoming Event</div>
+                            )}
                         </CardContent>
                         <CardFooter>
                             <Button asChild className="w-full">
