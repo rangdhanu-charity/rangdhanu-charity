@@ -118,6 +118,7 @@ export default function CollectionsPage() {
     });
     const [userSearchTerm, setUserSearchTerm] = useState("");
     const [showUserSuggestions, setShowUserSuggestions] = useState(false);
+    const [publishToPublic, setPublishToPublic] = useState(false);
 
     // --- One-Time Sort State ---
     type OneTimeSortKey = "createdAt" | "memberName" | "amount";
@@ -572,9 +573,22 @@ export default function CollectionsPage() {
                         read: false,
                         createdAt: Timestamp.now()
                     });
+                } else if (publishToPublic) {
+                    await addDoc(collection(db, "donation_requests"), {
+                        userName: dataToSave.memberName,
+                        userEmail: "",
+                        amount: dataToSave.amount,
+                        method: "Manual Admin Entry",
+                        transactionId: "",
+                        date: format(new Date(dataToSave.date), "yyyy-MM-dd"),
+                        createdAt: Timestamp.now(),
+                        status: "approved",
+                        isGuest: true
+                    });
                 }
             }
             setIsOneTimeDialogOpen(false);
+            setPublishToPublic(false);
         } catch (error) { console.error(error); }
     };
 
@@ -942,6 +956,18 @@ export default function CollectionsPage() {
                             <Label>Notes</Label>
                             <Input value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
                         </div>
+                        {!formData.userId && (
+                            <div className="flex items-center space-x-2 pt-2 bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-md border border-blue-100 dark:border-blue-800 mt-2">
+                                <Checkbox
+                                    id="publishToPublic"
+                                    checked={publishToPublic}
+                                    onCheckedChange={(checked) => setPublishToPublic(!!checked)}
+                                />
+                                <Label htmlFor="publishToPublic" className="font-normal cursor-pointer text-sm">
+                                    Publish to <span className="font-medium text-blue-700 dark:text-blue-400">Public Track</span> history
+                                </Label>
+                            </div>
+                        )}
                         <DialogFooter><Button type="submit">Save Donation</Button></DialogFooter>
                     </form>
                 </DialogContent>

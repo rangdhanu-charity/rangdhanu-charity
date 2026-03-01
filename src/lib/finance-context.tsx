@@ -88,7 +88,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                     id: doc.id,
                     ...data,
                     date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
-                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date()
+                    createdAt: data.createdAt?.toDate
+                        ? data.createdAt.toDate()
+                        : new Date(data.createdAt || data.recordedAt || data.date || new Date())
                 } as Payment;
             });
             setPayments(loadedPayments);
@@ -105,7 +107,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                     id: doc.id,
                     ...data,
                     date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
-                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date()
+                    createdAt: data.createdAt?.toDate
+                        ? data.createdAt.toDate()
+                        : new Date(data.createdAt || data.date || new Date())
                 } as Expense;
             });
             setExpenses(loadedExpenses);

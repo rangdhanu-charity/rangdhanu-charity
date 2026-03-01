@@ -15,6 +15,14 @@ export default function ContentHubPage() {
             bg: "bg-blue-500/10"
         },
         {
+            title: "Public Banner",
+            description: "Configure global dynamic homepage alerts.",
+            icon: Megaphone,
+            href: "/admin/banner",
+            color: "text-red-500",
+            bg: "bg-red-500/10"
+        },
+        {
             title: "Stories",
             description: "Publish and manage impact stories, reports, and updates.",
             icon: BookOpen,

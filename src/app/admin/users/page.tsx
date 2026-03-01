@@ -183,6 +183,12 @@ function UsersContent() {
 
             // If Preserve, create the consolidated One-Time Donation
             if (type === 'preserve' && totalAmount > 0) {
+                // To keep the dashboard accurate chronologically without jumping to today, 
+                // try to backdate the creation time to the oldest payment or the user's join date.
+                const earliestDate = paymentsToSoftDelete.length > 0
+                    ? new Date(Math.min(...paymentsToSoftDelete.map(p => new Date(p.data.createdAt || p.data.date || new Date()).getTime())))
+                    : (deleteModalUser.createdAt?.toDate ? deleteModalUser.createdAt.toDate() : new Date(deleteModalUser.createdAt || new Date()));
+
                 const newDocRef = doc(collection(db, "payments"));
                 await setDoc(newDocRef, {
                     userId: "deleted-user",
@@ -190,15 +196,16 @@ function UsersContent() {
                     email: deleteModalUser.email,
                     phone: deleteModalUser.phone || "",
                     amount: totalAmount,
-                    date: new Date().toISOString(),
+                    date: earliestDate.toISOString(),
                     type: "one-time",
                     verified: true,
-                    month: new Date().getMonth() + 1,
-                    year: new Date().getFullYear(),
+                    month: earliestDate.getMonth() + 1,
+                    year: earliestDate.getFullYear(),
                     receiptRef: "",
                     note: "Consolidated funds from a deleted user. Restoring the user will revert this.",
                     recordedBy: currentUser?.name || currentUser?.username || "Admin",
                     recordedAt: new Date().toISOString(),
+                    createdAt: earliestDate, // Critical: Backdate the raw timestamp so it sinks in the UI
                     linkedBatchId: batchId // CRITICAL: Tag to allow undoing this action if restored
                 });
             }

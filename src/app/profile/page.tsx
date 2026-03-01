@@ -47,6 +47,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { ImageCropper } from "@/components/image-cropper";
 import { TopContributorBadge, TopContributorNameBadge } from "@/components/ui/top-contributor-badge";
+import { MemberTestimonialTab } from "./components/member-testimonial-tab";
 
 // ─── Member Finance Transparency Tab ─────────────────────────────────────────
 function MemberFinanceTab() {
@@ -1431,6 +1432,7 @@ function ProfileContent() {
                                 <TabsTrigger value="overview">Personal Overview</TabsTrigger>
                                 <TabsTrigger value="finance">Organisation Finance</TabsTrigger>
                                 <TabsTrigger value="security">Security</TabsTrigger>
+                                <TabsTrigger value="voice">My Voice</TabsTrigger>
                             </TabsList>
 
                             {/* ── OVERVIEW TAB ── */}
@@ -1902,6 +1904,11 @@ function ProfileContent() {
                             {/* ── FINANCE TAB ── */}
                             <TabsContent value="finance">
                                 <MemberFinanceTab />
+                            </TabsContent>
+
+                            {/* ── MY VOICE TAB ── */}
+                            <TabsContent value="voice">
+                                <MemberTestimonialTab />
                             </TabsContent>
 
                             {/* ── SECURITY TAB ── */}

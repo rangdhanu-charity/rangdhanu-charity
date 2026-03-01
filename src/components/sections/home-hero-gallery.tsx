@@ -58,8 +58,8 @@ export function HomeHeroGallery() {
                 {/* 3. Last Image (Right on Desktop, Bottom on Mobile) */}
                 <div className="absolute bottom-0 right-0 w-full h-[40%] md:w-[40%] md:h-full z-10 group">
                     <Image
-                        src={galleryImages[2].src}
-                        alt={galleryImages[2].alt}
+                        src={galleryImages[1].src}
+                        alt={galleryImages[1].alt}
                         fill
                         className="object-cover w-full h-full filter brightness-[0.75] contrast-[1.15] saturate-[1.1] transition-all duration-[2000ms] ease-out group-hover:brightness-[0.9] group-hover:saturate-125 group-hover:scale-105"
                     />

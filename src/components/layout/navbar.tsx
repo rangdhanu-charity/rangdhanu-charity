@@ -40,6 +40,7 @@ const MEMBER_NAV_LINKS: NavLink[] = [
     { href: "/profile?action=donate", label: "Donate Now", icon: Heart },
     { href: "/profile?tab=finance", label: "Organisation Finance", icon: BarChart3 },
     { href: "/profile?tab=security", label: "Security", icon: ShieldCheck },
+    { href: "/profile?tab=voice", label: "My Voice", icon: MessageSquareQuote },
     { href: "/profile#history", label: "Donation History", icon: FileText },
     { href: "/profile#requests", label: "My Requests", icon: MessageSquareQuote },
 ];
@@ -54,6 +55,7 @@ const ADMIN_NAV_LINKS: NavLink[] = [
             { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
             { href: "/admin/stories", label: "Stories", icon: BookOpen },
             { href: "/admin/projects", label: "Projects", icon: FolderOpen },
+            { href: "/admin/banner", label: "Public Banner", icon: Megaphone },
         ]
     },
     { href: "/admin/collections", label: "Collections", icon: Coins },

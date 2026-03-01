@@ -74,6 +74,7 @@ export default function AdminLayout({
             icon: Library,
             subItems: [
                 { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+                { href: "/admin/banner", label: "Public Banner", icon: Megaphone },
                 { href: "/admin/stories", label: "Stories", icon: BookOpen },
                 { href: "/admin/projects", label: "Projects", icon: FolderOpen },
             ]
