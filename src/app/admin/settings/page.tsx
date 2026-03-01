@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, getDocs, writeBatch, doc, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, writeBatch, doc, query, orderBy, onSnapshot, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RecycleService, RecycleItem } from "@/lib/recycle-service";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -28,6 +29,11 @@ export default function SettingsPage() {
     // --- ACTIVITY LOGS STATE ---
     const [activityLogs, setActivityLogs] = useState<any[]>([]);
     const [logsLoading, setLogsLoading] = useState(true);
+
+    // --- DATABASE RESET STATE ---
+    const [wipeDialogState, setWipeDialogState] = useState<{ isOpen: boolean; type: "finance" | "complete" | null }>({ isOpen: false, type: null });
+    const [wipeInput, setWipeInput] = useState("");
+    const [isWiping, setIsWiping] = useState(false);
 
     // --- EFFECTS ---
     useEffect(() => {
@@ -190,15 +196,63 @@ export default function SettingsPage() {
         toast({ title: "Restore Complete", description: `Restored ${count} items successfully.` });
     };
 
+    const handleWipeConfirm = async () => {
+        setIsWiping(true);
+        try {
+            if (wipeDialogState.type === "finance") {
+                toast({ title: "Starting Wipe", description: "Deleting financial records only..." });
+                const collectionsToWipe = ["payments", "expenses", "stats", "donation_requests", "recycle_bin"];
+                for (const c of collectionsToWipe) {
+                    const snap = await getDocs(collection(db, c));
+                    const promises = snap.docs.map(d => deleteDoc(doc(db, c, d.id)));
+                    await Promise.all(promises);
+                }
+                toast({ title: "Wipe Complete", description: "Financial records have been cleanly reset." });
+            } else if (wipeDialogState.type === "complete") {
+                toast({ title: "Starting Wipe", description: "Deleting entire database (excluding admins)..." });
+                const collectionsToWipe = ["projects", "stories", "testimonials", "payments", "expenses", "stats", "donation_requests", "registration_requests", "recycle_bin", "team"];
+                for (const c of collectionsToWipe) {
+                    const snap = await getDocs(collection(db, c));
+                    const promises = snap.docs.map(d => deleteDoc(doc(db, c, d.id)));
+                    await Promise.all(promises);
+                }
+
+                // Handle Users special case
+                const usersSnap = await getDocs(collection(db, "users"));
+                const userDeletePromises = [];
+                usersSnap.forEach(d => {
+                    const data = d.data();
+                    if (!data.roles?.includes("admin")) {
+                        userDeletePromises.push(deleteDoc(doc(db, "users", d.id)));
+                    }
+                });
+                await Promise.all(userDeletePromises);
+
+                toast({ title: "Wipe Complete", description: "Database has been completely reset to a clean state." });
+            }
+        } catch (e) {
+            console.error(e);
+            toast({ title: "Error", description: `Failed to wipe ${wipeDialogState.type === "finance" ? "finances" : "some collections"}.`, variant: "destructive" });
+        } finally {
+            setIsWiping(false);
+            setWipeDialogState({ isOpen: false, type: null });
+            setWipeInput("");
+        }
+    };
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
 
             <Tabs defaultValue="general" className="w-full">
-                <TabsList className="flex w-full justify-start overflow-x-auto sm:grid sm:grid-cols-3 lg:w-[600px] mb-4">
-                    <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="recycle">Recycle Bin</TabsTrigger>
-                    <TabsTrigger value="activity">Activity Logs</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-4 h-auto">
+                    <TabsTrigger value="general" className="py-2">General</TabsTrigger>
+                    <TabsTrigger value="recycle" className="py-2">Recycle Bin</TabsTrigger>
+                    <TabsTrigger value="activity" className="py-2">Activity Logs</TabsTrigger>
+                    <TabsTrigger value="reset" className="py-2 relative overflow-hidden group">
+                        <span className="relative z-10 flex items-center gap-2">Database Reset</span>
+                        <div className="absolute inset-0 bg-red-500/10 translate-y-full group-data-[state=active]:translate-y-0 transition-transform duration-300" />
+                    </TabsTrigger>
                 </TabsList>
 
                 {/* --- GENERAL TAB --- */}
@@ -487,6 +541,171 @@ export default function SettingsPage() {
                             </Table>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                {/* --- DATABASE RESET TAB --- */}
+                <TabsContent value="reset" className="space-y-6 mt-6">
+                    <div>
+                        <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                            Database Reset Configuration
+                        </h2>
+                        <p className="text-muted-foreground max-w-3xl mt-1">
+                            Manage full system resets. These tools are designed for starting new financial periods or completely wiping the system for a fresh start.
+                        </p>
+                    </div>
+
+                    <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 text-destructive mb-6">
+                        <AlertTriangle className="h-5 w-5" />
+                        <AlertTitle className="text-lg font-semibold">Warning: Destructive Actions</AlertTitle>
+                        <AlertDescription className="text-sm mt-2 leading-relaxed">
+                            The actions below permanently delete data from the database and cannot be undone.
+                            <strong> It is highly recommended to perform a Full Export Backup (General Tab) before running any resets!</strong>
+                        </AlertDescription>
+                    </Alert>
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                        {/* Option 2: Financial Wipe (Keep Members) - Placed first as it's more common */}
+                        <Card className="border-muted/60 shadow-sm relative overflow-hidden group">
+                            <div className="absolute -right-6 -top-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                                <FileSpreadsheet className="w-32 h-32 text-primary" />
+                            </div>
+                            <CardHeader className="border-b border-muted/30 pb-4">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <RotateCcw className="h-5 w-5 text-primary" /> Financial Year Reset
+                                </CardTitle>
+                                <CardDescription className="font-medium mt-1.5">
+                                    Start a new financial period while keeping your community intact.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-6 relative z-10 space-y-5">
+                                <div className="space-y-3 text-sm flex-1">
+                                    <div>
+                                        <p className="font-semibold text-foreground mb-1.5 flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5 text-destructive" /> Data to be deleted:</p>
+                                        <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                                            <li>All Financial Records (Payments, Expenses, Stats)</li>
+                                            <li>Donation Requests & Recycle Bin</li>
+                                        </ul>
+                                    </div>
+                                    <div className="pt-2">
+                                        <p className="font-semibold text-foreground mb-1.5 flex items-center gap-1.5"><Activity className="h-3.5 w-3.5 text-green-600" /> Data kept safe:</p>
+                                        <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                                            <li>All Member Profiles (Logins, Photos, Bios)</li>
+                                            <li>Public Records (Projects, Stories, Testimonials)</li>
+                                            <li>System Administrators</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-muted/30">
+                                    <button
+                                        type="button"
+                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium h-10 px-4 py-2 w-full border border-primary/20 bg-transparent text-primary hover:bg-primary hover:text-primary-foreground transition-all group-hover:border-primary disabled:opacity-50"
+                                        onClick={() => {
+                                            setWipeDialogState({ isOpen: true, type: "finance" });
+                                            setWipeInput("");
+                                        }}
+                                    >
+                                        Perform Financial Reset
+                                    </button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Option 1: Complete Wipe (Keep Admins) */}
+                        <Card className="border-destructive/20 shadow-sm relative overflow-hidden group">
+                            <div className="absolute -right-6 -top-6 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                                <Trash className="w-32 h-32 text-destructive" />
+                            </div>
+                            <CardHeader className="border-b border-destructive/10 pb-4">
+                                <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+                                    <AlertTriangle className="h-5 w-5" /> Complete System Wipe
+                                </CardTitle>
+                                <CardDescription className="font-medium mt-1.5">
+                                    Start a completely new organization from scratch.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-6 relative z-10 space-y-5">
+                                <div className="space-y-3 text-sm flex-1">
+                                    <div>
+                                        <p className="font-semibold text-foreground mb-1.5 flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5 text-destructive" /> Data to be deleted:</p>
+                                        <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                                            <li><strong>All Members/Users</strong> (except Admins)</li>
+                                            <li>Public Records (Projects, Stories, Testimonials)</li>
+                                            <li>All Financial Records & Recycle Bin</li>
+                                        </ul>
+                                    </div>
+                                    <div className="pt-2">
+                                        <p className="font-semibold text-foreground mb-1.5 flex items-center gap-1.5"><Activity className="h-3.5 w-3.5 text-green-600" /> Data kept safe:</p>
+                                        <ul className="list-disc pl-5 text-muted-foreground">
+                                            <li>Admin profiles and root settings</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-destructive/10">
+                                    <button
+                                        type="button"
+                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium h-10 px-4 py-2 w-full border border-destructive/20 bg-transparent text-destructive hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all group-hover:border-destructive disabled:opacity-50"
+                                        onClick={() => {
+                                            setWipeDialogState({ isOpen: true, type: "complete" });
+                                            setWipeInput("");
+                                        }}
+                                    >
+                                        Perform Hard Reset
+                                    </button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <Dialog open={wipeDialogState.isOpen} onOpenChange={(open) => !isWiping && setWipeDialogState({ isOpen: open, type: wipeDialogState.type })}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle className={wipeDialogState.type === "complete" ? "text-destructive flex items-center gap-2" : "flex items-center gap-2"}>
+                                    {wipeDialogState.type === "complete" ? <AlertTriangle className="h-5 w-5" /> : <RotateCcw className="h-5 w-5 text-primary" />}
+                                    {wipeDialogState.type === "finance" ? "Confirm Financial Reset" : "Confirm Complete System Wipe"}
+                                </DialogTitle>
+                                <DialogDescription className="text-base pt-2 text-foreground/80">
+                                    {wipeDialogState.type === "finance" ? (
+                                        "This will permanently delete all financial records. Member profiles and public records will remain intact."
+                                    ) : (
+                                        "This will permanently delete ALL data (members, public records, and finances). Only admin accounts will remain."
+                                    )}
+                                </DialogDescription>
+                                <div className="mt-4 p-3 bg-muted rounded-md text-sm text-foreground">
+                                    <strong>This action cannot be undone.</strong> Please type <strong>{wipeDialogState.type === "finance" ? "FINANCE" : "WIPE"}</strong> below to confirm.
+                                </div>
+                            </DialogHeader>
+                            <div className="py-2">
+                                <Input
+                                    value={wipeInput}
+                                    onChange={(e) => setWipeInput(e.target.value)}
+                                    placeholder={wipeDialogState.type === "finance" ? "Type FINANCE" : "Type WIPE"}
+                                    disabled={isWiping}
+                                    className="text-center font-bold tracking-widest text-lg h-12"
+                                />
+                            </div>
+                            <DialogFooter className="gap-2 sm:gap-0">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setWipeDialogState({ isOpen: false, type: null });
+                                        setWipeInput("");
+                                    }}
+                                    disabled={isWiping}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant={wipeDialogState.type === "complete" ? "destructive" : "default"}
+                                    disabled={isWiping || wipeInput !== (wipeDialogState.type === "finance" ? "FINANCE" : "WIPE")}
+                                    onClick={handleWipeConfirm}
+                                >
+                                    {isWiping ? "Deleting..." : "Permanently Delete"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </TabsContent>
             </Tabs>
         </div >
