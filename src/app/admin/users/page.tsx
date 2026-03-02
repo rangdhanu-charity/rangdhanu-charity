@@ -159,6 +159,36 @@ function UsersContent() {
         return () => unsubscribe();
     }, []);
 
+    // ONE-TIME SCRUB: Fix Shah Paran phantom data
+    useEffect(() => {
+        const cleanupPhantomData = async () => {
+            try {
+                // 1. Reset Shah Paran in admins collection back to 'System Admin' so they aren't locked out
+                const adminsQ = query(collection(db, "admins"), where("name", "==", "Shah Paran"));
+                const adminsSnap = await getDocs(adminsQ);
+                if (!adminsSnap.empty) {
+                    const batch = writeBatch(db);
+                    adminsSnap.docs.forEach((doc) => batch.update(doc.ref, { name: "System Admin", photoURL: "" }));
+                    await batch.commit();
+                    console.log("Reset Shah Paran back to System Admin in admins collection.");
+                }
+
+                // 2. Deactivate testimonials specifically named Shah Paran
+                const testiQ = query(collection(db, "testimonials"), where("name", "==", "Shah Paran"));
+                const testiSnap = await getDocs(testiQ);
+                if (!testiSnap.empty) {
+                    const batch = writeBatch(db);
+                    testiSnap.docs.forEach((doc) => batch.update(doc.ref, { isActive: false }));
+                    await batch.commit();
+                    console.log("Scrubbed Shah Paran from active testimonials.");
+                }
+            } catch (error) {
+                console.error("Scrub failed", error);
+            }
+        };
+        cleanupPhantomData();
+    }, []);
+
     const handleDeleteClick = (user: User) => {
         setDeleteModalUser(user);
     };
@@ -218,7 +248,17 @@ function UsersContent() {
             // Soft delete the user profile so they can't log in
             await RecycleService.softDelete("users", id, "user", name, currentUser?.username || "admin", { batchId });
 
-            // Update any stories authored by this user
+            // Remove from 'admins' collection if they were an admin
+            const adminsRef = collection(db, "admins");
+            const qAdmins = query(adminsRef, where("email", "==", deleteModalUser.email));
+            const adminsSnapshot = await getDocs(qAdmins);
+            if (!adminsSnapshot.empty) {
+                const batch = writeBatch(db);
+                adminsSnapshot.docs.forEach((adminDoc) => batch.delete(doc(db, "admins", adminDoc.id)));
+                await batch.commit();
+            }
+
+            // Sync: Update any stories authored by this user
             const storiesRef = collection(db, "stories");
             const qStories = query(storiesRef, where("createdBy", "==", name));
             const storiesSnapshot = await getDocs(qStories);
@@ -227,6 +267,19 @@ function UsersContent() {
                 const batch = writeBatch(db);
                 storiesSnapshot.docs.forEach((storyDoc) => {
                     batch.update(doc(db, "stories", storyDoc.id), { createdBy: "Deleted Admin" });
+                });
+                await batch.commit();
+            }
+
+            // Sync: Deactivate testimonials written by this user
+            const testimonialsRef = collection(db, "testimonials");
+            const qTesti = query(testimonialsRef, where("userId", "==", id));
+            const testimonialsSnapshot = await getDocs(qTesti);
+
+            if (!testimonialsSnapshot.empty) {
+                const batch = writeBatch(db);
+                testimonialsSnapshot.docs.forEach((testiDoc) => {
+                    batch.update(doc(db, "testimonials", testiDoc.id), { isActive: false });
                 });
                 await batch.commit();
             }
