@@ -219,7 +219,7 @@ export default function SettingsPage() {
 
                 // Handle Users special case
                 const usersSnap = await getDocs(collection(db, "users"));
-                const userDeletePromises = [];
+                const userDeletePromises: any[] = [];
                 usersSnap.forEach(d => {
                     const data = d.data();
                     if (!data.roles?.includes("admin")) {
