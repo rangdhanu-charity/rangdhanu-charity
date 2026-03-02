@@ -855,7 +855,7 @@ function ProfileContent() {
             setActiveTab("overview");
             setIsDonateModalOpen(true);
             scrollToTabs();
-        } else if (tab === "finance" || tab === "security") {
+        } else if (tab === "finance" || tab === "security" || tab === "voice") {
             setActiveTab(tab);
             scrollToTabs();
         } else if (hash === "#history" || hash === "#requests") {

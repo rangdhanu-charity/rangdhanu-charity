@@ -267,6 +267,7 @@ function NavbarContent() {
                                 if (pathname === "/profile" && link.href.startsWith("/profile")) {
                                     const linkHasFinance = link.href.includes("tab=finance");
                                     const linkHasSecurity = link.href.includes("tab=security");
+                                    const linkHasVoice = link.href.includes("tab=voice");
                                     const linkHasDonate = link.href.includes("action=donate");
                                     const linkHasHash = link.href.includes("#");
 
@@ -275,6 +276,7 @@ function NavbarContent() {
 
                                     if (linkHasFinance) isActive = currentTab === "finance";
                                     else if (linkHasSecurity) isActive = currentTab === "security";
+                                    else if (linkHasVoice) isActive = currentTab === "voice";
                                     else if (linkHasDonate) isActive = currentAction === "donate";
                                     else if (linkHasHash) isActive = false;
                                     else isActive = !currentTab && !currentAction;

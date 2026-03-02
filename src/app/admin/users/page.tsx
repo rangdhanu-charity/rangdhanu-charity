@@ -218,6 +218,19 @@ function UsersContent() {
             // Soft delete the user profile so they can't log in
             await RecycleService.softDelete("users", id, "user", name, currentUser?.username || "admin", { batchId });
 
+            // Update any stories authored by this user
+            const storiesRef = collection(db, "stories");
+            const qStories = query(storiesRef, where("createdBy", "==", name));
+            const storiesSnapshot = await getDocs(qStories);
+
+            if (!storiesSnapshot.empty) {
+                const batch = writeBatch(db);
+                storiesSnapshot.docs.forEach((storyDoc) => {
+                    batch.update(doc(db, "stories", storyDoc.id), { createdBy: "Deleted Admin" });
+                });
+                await batch.commit();
+            }
+
             if (type === 'preserve') {
                 toast({ title: "User Deleted & Funds Preserved", description: `Contributions (৳${totalAmount}) consolidated.` });
             } else {

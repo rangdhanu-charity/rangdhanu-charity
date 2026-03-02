@@ -114,12 +114,12 @@ export function MemberTestimonialTab() {
                 {!testimonial || isEditing ? (
                     <div className="space-y-4">
                         <div className="relative">
-                            <Quote className="absolute top-3 left-3 h-5 w-5 text-muted-foreground/30" />
+                            <Quote className="absolute top-3 right-3 h-5 w-5 text-muted-foreground/30" />
                             <Textarea
                                 placeholder="Write your thoughts..."
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
-                                className="pl-10 min-h-[150px] resize-none text-base leading-relaxed p-4"
+                                className="pr-10 p-4 min-h-[150px] resize-none text-base leading-relaxed"
                             />
                         </div>
                         <p className="text-xs text-muted-foreground">

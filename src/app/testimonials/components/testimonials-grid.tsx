@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,7 +43,29 @@ export function TestimonialsGrid() {
                     return dateB.getTime() - dateA.getTime();
                 });
 
-                setTestimonials(data);
+                // Fetch latest user data for photos if userId exists
+                const testimonialsWithLiveUsers = await Promise.all(
+                    data.map(async (testimonial) => {
+                        if (testimonial.userId) {
+                            try {
+                                const userDoc = await getDoc(doc(db, "users", testimonial.userId));
+                                if (userDoc.exists()) {
+                                    const userData = userDoc.data();
+                                    return {
+                                        ...testimonial,
+                                        photoURL: userData.photoURL || testimonial.photoURL,
+                                        name: userData.name || userData.username || testimonial.name,
+                                    };
+                                }
+                            } catch (error) {
+                                console.error(`Error fetching user ${testimonial.userId}:`, error);
+                            }
+                        }
+                        return testimonial;
+                    })
+                );
+
+                setTestimonials(testimonialsWithLiveUsers);
             } catch (error) {
                 console.error("Error fetching testimonials:", error);
             } finally {

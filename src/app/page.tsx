@@ -18,7 +18,7 @@ export default function Home() {
       <section className="relative flex flex-col items-center justify-center overflow-hidden py-24 md:py-36 lg:py-56">
         <HomeHeroGallery />
         <div className="container relative z-20 px-4 text-center md:px-6">
-          <div className="mx-auto max-w-3xl space-y-4 bg-white/20 dark:bg-black/20 backdrop-blur-sm p-6 sm:p-10 rounded-3xl border border-white/30 dark:border-white/10 shadow-xl">
+          <div className="mx-auto max-w-3xl space-y-4 bg-white/10 dark:bg-black/10 backdrop-blur-sm p-6 sm:p-10 rounded-3xl border border-white/20 dark:border-white/10 shadow-xl">
             <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl bg-gradient-to-r from-blue-800 via-blue-600 to-teal-600 dark:from-blue-400 dark:via-blue-300 dark:to-teal-300 bg-clip-text text-transparent animate-gradient drop-shadow-sm">
               Empowering Future Generations
             </h1>

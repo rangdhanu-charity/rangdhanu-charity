@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Section } from "@/components/layout/section";
@@ -49,7 +49,29 @@ export function HomeTestimonials() {
                 // Limit to 3 for the home page
                 data = data.slice(0, 3);
 
-                setTestimonials(data);
+                // Fetch latest user data for photos if userId exists
+                const testimonialsWithLiveUsers = await Promise.all(
+                    data.map(async (testimonial) => {
+                        if (testimonial.userId) {
+                            try {
+                                const userDoc = await getDoc(doc(db, "users", testimonial.userId));
+                                if (userDoc.exists()) {
+                                    const userData = userDoc.data();
+                                    return {
+                                        ...testimonial,
+                                        photoURL: userData.photoURL || testimonial.photoURL,
+                                        name: userData.name || userData.username || testimonial.name,
+                                    };
+                                }
+                            } catch (error) {
+                                console.error(`Error fetching user ${testimonial.userId}:`, error);
+                            }
+                        }
+                        return testimonial;
+                    })
+                );
+
+                setTestimonials(testimonialsWithLiveUsers);
             } catch (error) {
                 console.error("Error fetching testimonials:", error);
             } finally {

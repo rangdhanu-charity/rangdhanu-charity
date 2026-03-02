@@ -30,6 +30,19 @@ export default function StoriesPage() {
                 ...doc.data(),
             })) as Story[];
 
+            // Temporary one-time scrub for the deleted admin "Shah Paran"
+            snapshot.docs.forEach(async (docSnap) => {
+                const storyData = docSnap.data();
+                if (storyData.createdBy === "Shah Paran") {
+                    try {
+                        const { updateDoc, doc } = await import("firebase/firestore");
+                        await updateDoc(doc(db, "stories", docSnap.id), { createdBy: "Deleted Admin" });
+                    } catch (e) {
+                        console.error("Failed to scrub deleted admin name", e);
+                    }
+                }
+            });
+
             // Sort by descending created date
             data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 

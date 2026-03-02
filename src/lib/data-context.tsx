@@ -51,38 +51,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const qProjects = query(collection(db, "projects"));
         const unsubProjects = onSnapshot(qProjects, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // If empty (first run), we could seed data, but for now we just show empty or what's there
-            // To prevent empty state on first load for demo:
-            if (data.length === 0 && !localStorage.getItem("seeded_projects")) {
-                // Optional: Seed default projects if needed, or just let user add them.
-                // For now, let's stick to valid DB data.
-                setProjects(DEFAULT_PROJECTS);
-            } else {
-                setProjects(data.length > 0 ? data : DEFAULT_PROJECTS);
-            }
+            setProjects(data);
         }, (error) => {
             console.error("Error fetching projects:", error);
-            setProjects(DEFAULT_PROJECTS); // Fallback
+            setProjects([]); // Fallback
         });
 
         // Testimonials Listener
         const qTestimonials = query(collection(db, "testimonials"));
         const unsubTestimonials = onSnapshot(qTestimonials, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setTestimonials(data.length > 0 ? data : DEFAULT_TESTIMONIALS);
+            setTestimonials(data);
         }, (error) => {
             console.error("Error fetching testimonials:", error);
-            setTestimonials(DEFAULT_TESTIMONIALS);
+            setTestimonials([]);
         });
 
         // Team Listener
         const qTeam = query(collection(db, "team"));
         const unsubTeam = onSnapshot(qTeam, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setTeamMembers(data.length > 0 ? data : DEFAULT_TEAM_MEMBERS);
+            setTeamMembers(data);
         }, (error) => {
             console.error("Error fetching team:", error);
-            setTeamMembers(DEFAULT_TEAM_MEMBERS);
+            setTeamMembers([]);
         });
 
         // Impact Stats Listener
