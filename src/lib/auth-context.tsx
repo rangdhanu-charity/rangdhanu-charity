@@ -265,11 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             roles = userData.roles;
                         } else if (userData.role) {
                             roles = [userData.role];
-                        } else {
-                            roles = ["member"];
                         }
-
-                        // STRICT SESSION MASKING: 
                         // If logging in as regular user, REMOVE 'admin' role from session
                         // even if they have it in database.
                         roles = roles.filter(r => r !== "admin");
@@ -529,8 +525,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const adminDoc = !adminSnap.empty ? adminSnap.docs[0] : null;
 
             // Determine effective Admin status
-            // If passed explicitly, use it. If undefined, use current status (existence of adminDoc)
-            const shouldBeAdmin = isAdmin !== undefined ? isAdmin : !!adminDoc;
+            // If explicit isAdmin is passed, use it. Otherwise, check if 'admin' is in the incoming roles array.
+            // If roles array isn't being updated, fall back to whether they currently have an admin doc.
+            let shouldBeAdmin = false;
+            if (isAdmin !== undefined) {
+                shouldBeAdmin = isAdmin;
+            } else if (userData.roles) {
+                shouldBeAdmin = userData.roles.includes("admin");
+            } else {
+                shouldBeAdmin = !!adminDoc;
+            }
 
             if (shouldBeAdmin) {
                 // Determine Password to Save
