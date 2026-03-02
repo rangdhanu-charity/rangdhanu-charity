@@ -110,8 +110,8 @@ function UsersContent() {
         email: "",
         username: "",
         phone: "",
-        role: "member",
-        password: "password123"
+        roles: ["member"] as string[],
+        password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4)
     });
 
     // View Profile State
@@ -367,7 +367,7 @@ function UsersContent() {
 
             await addDoc(usersRef, {
                 ...newUserForm,
-                roles: [newUserForm.role],
+                roles: newUserForm.roles,
                 createdAt: new Date().toISOString(),
                 photoURL: ""
             });
@@ -379,8 +379,8 @@ function UsersContent() {
                 email: "",
                 username: "",
                 phone: "",
-                role: "member",
-                password: "password123"
+                roles: ["member"],
+                password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4)
             });
         } catch (error) {
             console.error("Error creating user:", error);
@@ -1040,7 +1040,7 @@ function UsersContent() {
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Add New User</DialogTitle>
-                        <DialogDescription>Create a new user account. Temporary password will be their phone number (if provided) or 'password123'.</DialogDescription>
+                        <DialogDescription>Create a new user account. A secure temporary password will be randomly generated.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleCreateUser} className="space-y-4">
                         <div className="grid gap-2">
@@ -1051,16 +1051,29 @@ function UsersContent() {
                             <Label htmlFor="new-username">Username</Label>
                             <Input id="new-username" value={newUserForm.username} onChange={(e) => setNewUserForm({ ...newUserForm, username: e.target.value })} required placeholder="johndoe" />
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="new-role">Role</Label>
-                            <Select value={newUserForm.role} onValueChange={(value) => setNewUserForm({ ...newUserForm, role: value })}>
-                                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="member">Member</SelectItem>
-                                    <SelectItem value="moderator">Moderator</SelectItem>
-                                    <SelectItem value="admin">Admin</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="space-y-3">
+                            <Label>Roles & Permissions</Label>
+                            <div className="flex flex-wrap gap-4 p-4 border rounded-md">
+                                {["admin", "moderator", "member"].map((role) => (
+                                    <div key={role} className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id={`role-modal-${role}`}
+                                            checked={newUserForm.roles.includes(role)}
+                                            onChange={() => {
+                                                const newRoles = newUserForm.roles.includes(role)
+                                                    ? newUserForm.roles.filter((r) => r !== role)
+                                                    : [...newUserForm.roles, role];
+                                                setNewUserForm({ ...newUserForm, roles: newRoles });
+                                            }}
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        />
+                                        <label htmlFor={`role-modal-${role}`} className="text-sm font-medium leading-none capitalize cursor-pointer">
+                                            {role}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="new-email">Email</Label>

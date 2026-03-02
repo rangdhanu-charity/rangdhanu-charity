@@ -21,9 +21,16 @@ export default function NewUserPage() {
         email: "",
         username: "",
         phone: "",
-        role: "member",
-        password: "password123" // Default temporary password
+        roles: ["member"] as string[],
+        password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4) // Random 12-char password
     });
+
+    const handleRoleToggle = (role: string) => {
+        const newRoles = formData.roles.includes(role)
+            ? formData.roles.filter(r => r !== role)
+            : [...formData.roles, role];
+        setFormData({ ...formData, roles: newRoles });
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,7 +67,7 @@ export default function NewUserPage() {
 
             await addDoc(usersRef, {
                 ...formData,
-                roles: [formData.role], // Helper for role array
+                roles: formData.roles,
                 createdAt: new Date().toISOString(),
                 photoURL: ""
             });
@@ -120,21 +127,27 @@ export default function NewUserPage() {
                                     placeholder="johndoe"
                                 />
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="role">Role</Label>
-                                <Select
-                                    value={formData.role}
-                                    onValueChange={(value) => setFormData({ ...formData, role: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select role" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="member">Member</SelectItem>
-                                        <SelectItem value="moderator">Moderator</SelectItem>
-                                        <SelectItem value="admin">Admin</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="space-y-3">
+                                <Label>Roles & Permissions</Label>
+                                <div className="flex flex-wrap gap-4 p-4 border rounded-md">
+                                    {["admin", "moderator", "member"].map((role) => (
+                                        <div key={role} className="flex items-center space-x-2">
+                                            <input
+                                                type="checkbox"
+                                                id={`role-new-${role}`}
+                                                checked={formData.roles.includes(role)}
+                                                onChange={() => handleRoleToggle(role)}
+                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                            />
+                                            <label htmlFor={`role-new-${role}`} className="text-sm font-medium leading-none capitalize cursor-pointer">
+                                                {role}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Checking "admin" will automatically create a secure portal login for them.
+                                </p>
                             </div>
                         </div>
 
