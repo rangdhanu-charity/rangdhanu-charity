@@ -101,6 +101,7 @@ function UsersContent() {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [editForm, setEditForm] = useState<Partial<User>>({});
     const [isSaving, setIsSaving] = useState(false);
+    const [notifyUserEdit, setNotifyUserEdit] = useState(false);
 
     // New User State
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -263,6 +264,22 @@ function UsersContent() {
             const qStories = query(storiesRef, where("createdBy", "==", name));
             const storiesSnapshot = await getDocs(qStories);
 
+            // Ban the email so they can never Google Sign-In as a new member
+            if (deleteModalUser.email) {
+                const bannedRef = collection(db, "banned_emails");
+                // Only add if not already present
+                const existingBan = await getDocs(query(bannedRef, where("email", "==", deleteModalUser.email)));
+                if (existingBan.empty) {
+                    await addDoc(bannedRef, {
+                        email: deleteModalUser.email,
+                        name: deleteModalUser.name || deleteModalUser.username || "Unknown",
+                        reason: "Member account was deleted by an administrator.",
+                        deletedBy: currentUser?.username || currentUser?.name || "Admin",
+                        deletedAt: Timestamp.now()
+                    });
+                }
+            }
+
             if (!storiesSnapshot.empty) {
                 const batch = writeBatch(db);
                 storiesSnapshot.docs.forEach((storyDoc) => {
@@ -322,6 +339,18 @@ function UsersContent() {
         const res = await adminUpdateUser(editingUser.id, cleanData);
 
         if (res.success) {
+            // If an admin is updating an email that was previously banned, lift the ban
+            const updatedEmail = cleanData.email || editingUser.email;
+            if (updatedEmail) {
+                const bannedRef = collection(db, "banned_emails");
+                const bannedQ = query(bannedRef, where("email", "==", updatedEmail));
+                const bannedSnap = await getDocs(bannedQ);
+                if (!bannedSnap.empty) {
+                    const batch = writeBatch(db);
+                    bannedSnap.docs.forEach(d => batch.delete(doc(db, "banned_emails", d.id)));
+                    await batch.commit();
+                }
+            }
             await addDoc(collection(db, "notifications"), {
                 userId: editingUser.id,
                 title: "Profile Updated",
@@ -331,8 +360,31 @@ function UsersContent() {
                 createdAt: Timestamp.now()
             });
 
+            if (notifyUserEdit && editingUser.email) {
+                try {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: editingUser.email,
+                            subject: 'Your Profile Has Been Updated',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                    <h2>Hello ${editingUser.name || 'Member'},</h2>
+                                    <p>An administrator has recently updated your profile information on the Rangdhanu Charity portal.</p>
+                                    <p>If you did not request this change, please contact an administrator immediately.</p>
+                                </div>
+                            `
+                        })
+                    });
+                } catch (e) {
+                    console.error("Failed to send update email", e);
+                }
+            }
+
             toast({ title: "User Updated", description: "User information saved successfully." });
             setEditingUser(null);
+            setNotifyUserEdit(false);
         } else {
             toast({ title: "Error", description: res.error || "Failed to update user.", variant: "destructive" });
         }
@@ -365,12 +417,52 @@ function UsersContent() {
                 return;
             }
 
+            // If the email was previously banned (deleted member), automatically lift the ban
+            // since an admin is intentionally re-creating the account.
+            if (newUserForm.email) {
+                const bannedRef = collection(db, "banned_emails");
+                const bannedQ = query(bannedRef, where("email", "==", newUserForm.email));
+                const bannedSnap = await getDocs(bannedQ);
+                if (!bannedSnap.empty) {
+                    const batch = writeBatch(db);
+                    bannedSnap.docs.forEach(d => batch.delete(doc(db, "banned_emails", d.id)));
+                    await batch.commit();
+                }
+            }
+
             await addDoc(usersRef, {
                 ...newUserForm,
                 roles: newUserForm.roles,
                 createdAt: new Date().toISOString(),
                 photoURL: ""
             });
+
+            if (newUserForm.email) {
+                try {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: newUserForm.email,
+                            subject: 'Welcome to Rangdhanu Charity!',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                    <h2>Welcome, ${newUserForm.name}!</h2>
+                                    <p>An administrator has manually created an account for you on the Rangdhanu Charity portal.</p>
+                                    <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                                        <p style="margin: 0;"><strong>Username:</strong> ${newUserForm.username}</p>
+                                        <p style="margin: 0;"><strong>Email:</strong> ${newUserForm.email}</p>
+                                        <p style="margin: 5px 0 0 0;"><strong>Temporary Password:</strong> ${newUserForm.password}</p>
+                                    </div>
+                                    <p><em>Please secure your account by changing this password in your profile settings after logging in, or simply link your Google account.</em></p>
+                                </div>
+                            `
+                        })
+                    });
+                } catch (emailError) {
+                    console.error("Failed to send welcome email:", emailError);
+                }
+            }
 
             toast({ title: "Success", description: "User created successfully." });
             setIsAddUserOpen(false);
@@ -1162,6 +1254,21 @@ function UsersContent() {
                                         </label>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4 mt-2 border-t pt-4">
+                            <Label className="text-right self-start">Notifications</Label>
+                            <div className="col-span-3 flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id="notify-user-edit"
+                                    checked={notifyUserEdit}
+                                    onChange={(e) => setNotifyUserEdit(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <label htmlFor="notify-user-edit" className="text-sm font-medium leading-none cursor-pointer select-none">
+                                    Notify user of these changes via email
+                                </label>
                             </div>
                         </div>
                     </div>

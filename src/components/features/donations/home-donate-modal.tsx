@@ -47,6 +47,32 @@ export function HomeDonateModal({ children }: { children: React.ReactNode }) {
                 isGuest: true
             });
 
+            // Send acknowledgment email to guest
+            if (formData.contact && formData.contact.includes('@')) {
+                try {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: formData.contact,
+                            subject: 'Donation Request Received - Rangdhanu Charity',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                    <h2>Thank You, ${formData.name || 'Generous Donor'}!</h2>
+                                    <p>We have successfully received your donation request for <strong>৳${formData.amount}</strong>.</p>
+                                    <p>Your request is currently <strong>pending review</strong> by our team. Once verified against our bank records, you will receive another email confirming your official receipt!</p>
+                                    <p>Method: ${formData.method}</p>
+                                    <p>Transaction ID: ${formData.method === 'cash' ? 'N/A' : formData.transactionId}</p>
+                                    <p><br/>Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                </div>
+                            `
+                        })
+                    });
+                } catch (e) {
+                    console.error("Failed to send acknowledgment email:", e);
+                }
+            }
+
             toast({
                 title: "Thank You!",
                 description: "Your donation request has been received. Our team will verify it shortly."

@@ -41,6 +41,7 @@ export default function RequestsPage() {
 
     // Registration Review State
     const [registrationReview, setRegistrationReview] = useState<any>(null);
+    const [approvingId, setApprovingId] = useState<string | null>(null);
 
     // Donation Rejection State
     const [donationRejection, setDonationRejection] = useState<{ id: string, userId: string, userName: string, amount: number } | null>(null);
@@ -49,6 +50,9 @@ export default function RequestsPage() {
     // Track user payments to check for previously paid months
     const [userPayments, setUserPayments] = useState<any[]>([]);
     const [loadingPayments, setLoadingPayments] = useState(false);
+
+    // Password Reset Requests State
+    const [passwordResetRequests, setPasswordResetRequests] = useState<any[]>([]);
 
     const handleViewUserDetails = async (request: any) => {
         const userId = request.userId;
@@ -111,7 +115,7 @@ export default function RequestsPage() {
     const fetchRequests = async () => {
         setLoading(true);
         try {
-            const [regData, donationData] = await Promise.all([
+            const [regData, donationData, pwdResetData] = await Promise.all([
                 getRegistrationRequests(),
                 (async () => {
                     try {
@@ -131,6 +135,19 @@ export default function RequestsPage() {
                         return [];
                     }
                 })()
+                ,
+                (async () => {
+                    try {
+                        const { getDocs, collection, query, where } = await import("firebase/firestore");
+                        const { db } = await import("@/lib/firebase");
+                        const q = query(collection(db, "password_reset_requests"), where("status", "==", "pending"));
+                        const snap = await getDocs(q);
+                        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    } catch (e) {
+                        console.error("Password reset requests fetch error:", e);
+                        return [];
+                    }
+                })()
             ]);
             setRequests(regData.sort((a: any, b: any) => {
                 const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -138,6 +155,7 @@ export default function RequestsPage() {
                 return timeB - timeA;
             }));
             setDonationRequests(donationData);
+            setPasswordResetRequests(pwdResetData);
         } catch (error) {
             console.error("Failed to fetch requests", error);
             // toast({ title: "Error", description: "Failed to load requests.", variant: "destructive" });
@@ -147,6 +165,7 @@ export default function RequestsPage() {
     };
 
     const handleApprove = async (request: any) => {
+        setApprovingId(request.id);
         // Generate random password
         const tempPassword = Math.random().toString(36).slice(-8);
         const username = request.username || request.email.split("@")[0]; // Use requested username or fallback
@@ -177,6 +196,7 @@ export default function RequestsPage() {
                 variant: "destructive"
             });
         }
+        setApprovingId(null);
     };
 
     const handleReject = async (requestId: string) => {
@@ -327,6 +347,34 @@ export default function RequestsPage() {
                 });
             }
 
+            // Attempt to send Thank You Email
+            const contactEmail = request.userEmail || (viewingUser ? viewingUser.email : null);
+            if (contactEmail && contactEmail.includes('@')) {
+                try {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: contactEmail,
+                            subject: 'Thank You for Your Donation - Rangdhanu Charity',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                    <h2>Thank You, ${request.userName || 'Generous Donor'}!</h2>
+                                    <p>Your donation of <strong>৳${request.amount}</strong> has been successfully verified and applied to our records.</p>
+                                    <p>Date: ${new Date().toLocaleDateString()}</p>
+                                    <p>Method: ${request.method}</p>
+                                    <p>Transaction ID: ${request.transactionId || 'N/A'}</p>
+                                    <p>Your contribution directly helps us continue our mission. We deeply appreciate your support!</p>
+                                    <p><br/>Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                </div>
+                            `
+                        })
+                    });
+                } catch (emailError) {
+                    console.error("Failed to send donation receipt email:", emailError);
+                }
+            }
+
             toast({ title: "Approved", description: "Donation verified and distributed." });
             return true;
         } catch (error) {
@@ -396,13 +444,13 @@ export default function RequestsPage() {
     const handleRejectDonation = async () => {
         if (!donationRejection) return;
         setIsSubmittingDistribution(true); // Reusing spinning state for button disabled state
-        
+
         try {
             const { updateDoc, doc } = await import("firebase/firestore");
             const { db } = await import("@/lib/firebase");
-            await updateDoc(doc(db, "donation_requests", donationRejection.id), { 
-                status: "rejected", 
-                rejectionReason: rejectionReason.trim() || null 
+            await updateDoc(doc(db, "donation_requests", donationRejection.id), {
+                status: "rejected",
+                rejectionReason: rejectionReason.trim() || null
             });
 
             if (user) {
@@ -410,7 +458,7 @@ export default function RequestsPage() {
             }
 
             if (donationRejection.userId !== "guest") {
-                const message = rejectionReason.trim() 
+                const message = rejectionReason.trim()
                     ? `Your donation request was rejected. Reason: ${rejectionReason.trim()}`
                     : "Your donation request was rejected. Please contact admin for details.";
                 await sendNotification(
@@ -418,6 +466,33 @@ export default function RequestsPage() {
                     message,
                     "error"
                 );
+            }
+
+            // FIX 4: Send rejection email to donor if they have an email
+            try {
+                const contactEmail = (donationRejection as any).userEmail;
+                if (contactEmail && contactEmail.includes('@')) {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: contactEmail,
+                            subject: 'Donation Request Update - Rangdhanu Charity',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                                    <h2>Donation Request Status Update</h2>
+                                    <p>Dear ${donationRejection.userName || 'Donor'},</p>
+                                    <p>Thank you for your generous intention to support Rangdhanu Charity. After reviewing your donation request of <strong>BDT ${donationRejection.amount}</strong>, we were unable to process it at this time.</p>
+                                    ${rejectionReason.trim() ? `<div style="background:#fff3cd;border:1px solid #ffc107;padding:12px;border-radius:6px;margin:16px 0;"><strong>Reason:</strong> ${rejectionReason.trim()}</div>` : ''}
+                                    <p>If you believe this is a mistake or would like to resubmit, please contact us or try again through our portal.</p>
+                                    <p>Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                </div>
+                            `
+                        })
+                    });
+                }
+            } catch (emailErr) {
+                console.error("Failed to send rejection email:", emailErr);
             }
 
             toast({ title: "Rejected", description: "Donation request rejected." });
@@ -429,6 +504,72 @@ export default function RequestsPage() {
             toast({ title: "Error", description: "Failed to reject.", variant: "destructive" });
         } finally {
             setIsSubmittingDistribution(false);
+        }
+    };
+
+    const handleResolvePasswordReset = async (req: any, generateNew: boolean) => {
+        try {
+            let newPassword = req.oldPassword;
+
+            if (generateNew) {
+                newPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4);
+                // Update users collection
+                const { updateDoc, doc } = await import("firebase/firestore");
+                const { db } = await import("@/lib/firebase");
+                await updateDoc(doc(db, "users", req.userId), { password: newPassword });
+
+                // Notify the member if they have an email
+                if (req.email) {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: req.email,
+                            subject: 'Your Password Has Been Reset - Rangdhanu Charity',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                                    <h2>Password Reset</h2>
+                                    <p>Dear ${req.name || req.username},</p>
+                                    <p>An administrator has reset your password as requested. Your new credentials are:</p>
+                                    <div style="background:#f4f4f4; padding:15px; border-radius:5px; margin:16px 0;">
+                                        <p style="margin:0"><strong>Username:</strong> ${req.username}</p>
+                                        <p style="margin:5px 0 0"><strong>New Password:</strong> ${newPassword}</p>
+                                    </div>
+                                    <p>Please log in and change your password immediately from your profile settings.</p>
+                                    <p>Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                </div>
+                            `
+                        })
+                    });
+                }
+
+                // Send in-app notification
+                await addDoc(collection(db, "notifications"), {
+                    userId: req.userId,
+                    title: "Password Reset",
+                    message: generateNew
+                        ? `An admin has reset your password. New password: ${newPassword}. Please log in and change it.`
+                        : "An admin has resolved your password reset request. Please check with the admin for your new password.",
+                    type: "info",
+                    read: false,
+                    createdAt: Timestamp.now()
+                });
+            }
+
+            // Mark request as resolved
+            const { updateDoc, doc } = await import("firebase/firestore");
+            const { db } = await import("@/lib/firebase");
+            await updateDoc(doc(db, "password_reset_requests", req.id), {
+                status: "resolved",
+                resolvedAt: Timestamp.now(),
+                newPassword: generateNew ? newPassword : null
+            });
+
+            toast({ title: "Resolved", description: generateNew ? `New password set for ${req.username}.` : "Request marked as resolved." });
+            setPasswordResetRequests(prev => prev.filter(r => r.id !== req.id));
+        } catch (err) {
+            console.error("Failed to resolve password reset:", err);
+            toast({ title: "Error", description: "Failed to resolve request.", variant: "destructive" });
         }
     };
 
@@ -444,6 +585,54 @@ export default function RequestsPage() {
                     Refresh
                 </Button>
             </div>
+
+            {/* Password Reset Requests */}
+            {passwordResetRequests.length > 0 && (
+                <Card className="border-orange-200 bg-orange-50/40">
+                    <CardHeader>
+                        <CardTitle className="text-orange-800">Password Reset Requests ({passwordResetRequests.length})</CardTitle>
+                        <CardDescription>Members without email who forgot their password. Contact them in person or generate a new password.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Member</TableHead>
+                                    <TableHead>Contact</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {passwordResetRequests.map((req) => (
+                                    <TableRow key={req.id}>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            {req.createdAt?.toDate ? req.createdAt.toDate().toLocaleDateString() : "Unknown"}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="font-medium">{req.name || req.username}</div>
+                                            <div className="text-xs text-muted-foreground">@{req.username}</div>
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {req.email || "No email"}{req.phone ? ` · ${req.phone}` : ""}
+                                        </TableCell>
+                                        <TableCell className="text-right space-x-2">
+                                            <Button size="sm" variant="outline" className="text-green-700 border-green-300 hover:bg-green-50"
+                                                onClick={() => handleResolvePasswordReset(req, true)}>
+                                                Generate New Password
+                                            </Button>
+                                            <Button size="sm" variant="ghost" className="text-muted-foreground"
+                                                onClick={() => handleResolvePasswordReset(req, false)}>
+                                                Mark Resolved (In Person)
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Unified Requests Table */}
             <Card>
@@ -486,10 +675,10 @@ export default function RequestsPage() {
                                             <Button size="sm" variant="outline" className="text-blue-600 hover:bg-blue-50" onClick={() => setRegistrationReview(req)}>
                                                 Review
                                             </Button>
-                                            <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50" onClick={() => handleApprove(req)}>
-                                                <Check className="h-4 w-4" />
+                                            <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50" onClick={() => handleApprove(req)} disabled={approvingId === req.id}>
+                                                {approvingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                                             </Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => handleReject(req.id)}>
+                                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => handleReject(req.id)} disabled={approvingId === req.id}>
                                                 <X className="h-4 w-4" />
                                             </Button>
                                         </TableCell>

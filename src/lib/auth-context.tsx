@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, getDocs, updateDoc, doc, addDoc, getDoc, setDoc, deleteDoc, Timestamp, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, getDoc, updateDoc, setDoc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, Timestamp, deleteDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword, deleteUser, updateEmail } from "firebase/auth";
 import { ActivityLogService } from "@/lib/activity-log-service";
 
 // Roles can be 'admin', 'moderator', 'member'
@@ -22,7 +23,8 @@ export interface User {
 
 interface AuthContextType {
     user: User | null;
-    login: (identifier: string, password: string, isAdminLogin?: boolean) => Promise<{ success: boolean; error?: string }>;
+    login: (identifier: string, isPassword?: string, isAdminLogin?: boolean) => Promise<{ success: boolean; error?: string }>;
+    loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
     submitRegistrationRequest: (data: any) => Promise<{ success: boolean; error?: string }>;
     getRegistrationRequests: () => Promise<any[]>;
@@ -95,214 +97,277 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => unsubscribe();
     }, [user?.id]);
 
-    const login = async (identifier: string, password: string, isAdminLogin: boolean = false): Promise<{ success: boolean; error?: string }> => {
+    // --- GOOGLE AUTHENTICATION ---
+    const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
         setIsLoading(true);
         try {
-            if (isAdminLogin) {
-                // Admin Login: Check 'admins' collection first
-                const adminsRef = collection(db, "admins");
-                // Check email or username in admins
-                let q = query(adminsRef, where("email", "==", identifier));
-                let snapshot = await getDocs(q);
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const fbUser = result.user;
 
-                if (snapshot.empty) {
-                    // Try querying by username
-                    q = query(adminsRef, where("username", "==", identifier));
-                    snapshot = await getDocs(q);
-                }
+            // 1. Check if user exists in our active Firestore users collection
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", fbUser.email));
+            const snapshot = await getDocs(q);
 
-                console.log("Admin Login Attempt:", { identifier, found: !snapshot.empty });
+            let userData: any;
+            let userId = "";
 
-                let adminAuthenticated = false;
-                let adminDocId = "";
-                let adminData: any = {};
+            if (snapshot.empty) {
+                // If they are not in the active database, check if they were explicitly banned
+                const bannedRef = collection(db, "banned_emails");
+                const bannedQ = query(bannedRef, where("email", "==", fbUser.email));
+                const bannedSnap = await getDocs(bannedQ);
 
-                if (!snapshot.empty) {
-                    const adminDoc = snapshot.docs[0];
-                    adminData = adminDoc.data();
-
-                    console.log("Admin Found:", {
-                        email: adminData.email,
-                        hasPassword: !!adminData.password,
-                        inputPasswordMatch: adminData.password === password
-                    });
-
-                    if (adminData.password === password) {
-                        adminAuthenticated = true;
-                        adminDocId = adminDoc.id;
-                    } else {
-                        console.warn("Admin Password Mismatch");
-                    }
-                } else {
-                    console.warn("Admin Not Found in 'admins' collection");
-                }
-
-                if (adminAuthenticated) {
-                    // Admin Authenticated. Now try to fetch detailed profile from 'users' if it exists.
-                    // We assume the admin email links to a user profile.
-                    const usersRef = collection(db, "users");
-                    const userQ = query(usersRef, where("email", "==", adminData.email));
-                    const userSnap = await getDocs(userQ);
-
-                    let userProfile: any = {};
-                    let userId = adminDocId; // Default to admin ID if no user profile
-
-                    if (!userSnap.empty) {
-                        const userDoc = userSnap.docs[0];
-                        userProfile = userDoc.data();
-                        userId = userDoc.id; // Use the User ID as the main ID
-                    }
-
-                    // Merge roles: Admin role + any roles from user profile
-                    const roles = ["admin"];
-                    if (userProfile.roles && Array.isArray(userProfile.roles)) {
-                        userProfile.roles.forEach((r: string) => {
-                            if (!roles.includes(r)) roles.push(r);
-                        });
-                    } else if (userProfile.role) {
-                        // Backward compatibility
-                        if (!roles.includes(userProfile.role)) roles.push(userProfile.role);
-                    }
-
-                    const authenticatedUser: User = {
-                        id: userId,
-                        username: adminData.username || userProfile.username || identifier,
-                        name: userProfile.name || adminData.name || "Admin",
-                        email: adminData.email,
-                        roles: roles,
-                        phone: userProfile.phone || adminData.phone,
-                        photoURL: userProfile.photoURL || adminData.photoURL
-                    };
-
-                    setUser(authenticatedUser);
-                    sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
-                    ActivityLogService.logActivity(authenticatedUser.id, authenticatedUser.name || authenticatedUser.username, "Login", "Admin logged in");
-                    router.push("/admin");
+                if (!bannedSnap.empty) {
+                    // Sign them out of Firebase Auth silently
+                    try { await auth.signOut(); } catch (e) { /* ignore */ }
                     setIsLoading(false);
-                    return { success: true };
+                    return { success: false, error: "Your account was removed by an administrator. Please submit a new membership request or contact an admin to regain access." };
                 }
 
-                // --- EMERGENCY RECOVERY LOGIC (Runs if adminAuthenticated is false) ---
-                console.warn("Attempting Emergency Recovery via 'users' collection...");
-
-                const usersRef = collection(db, "users");
-                // Check email or username in 'users'
-                let userQ = query(usersRef, where("email", "==", identifier));
-                let userSnap = await getDocs(userQ);
-                if (userSnap.empty) {
-                    userQ = query(usersRef, where("username", "==", identifier));
-                    userSnap = await getDocs(userQ);
-                }
-
-                if (!userSnap.empty) {
-                    const userDoc = userSnap.docs[0];
-                    const userData = userDoc.data();
-
-                    // Verify password against User record AND check for 'admin' role
-                    if (userData.password === password && userData.roles && userData.roles.includes("admin")) {
-                        console.log("EMERGENCY RECOVERY: Valid Admin found in 'users'. Repairing 'admins' collection...");
-
-                        // Repair Admin Doc
-                        const adminDataToRestore = {
-                            email: userData.email,
-                            username: userData.username,
-                            password: userData.password,
-                            name: userData.name,
-                            role: "admin"
-                        };
-
-                        // Check if admin doc exists (maybe just password mismatch) or needs creation
-                        if (!snapshot.empty) {
-                            await updateDoc(doc(db, "admins", snapshot.docs[0].id), adminDataToRestore);
-                        } else {
-                            await addDoc(collection(db, "admins"), adminDataToRestore);
-                        }
-
-                        // Login Success via Recovery
-                        const authenticatedUser: User = {
-                            id: userDoc.id,
-                            username: userData.username,
-                            name: userData.name,
-                            email: userData.email,
-                            roles: userData.roles,
-                            phone: userData.phone,
-                            photoURL: userData.photoURL
-                        };
-
-                        setUser(authenticatedUser);
-                        sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
-                        ActivityLogService.logActivity(authenticatedUser.id, authenticatedUser.name || authenticatedUser.username, "Login", "Admin logged in via recovery");
-                        router.push("/admin");
-                        setIsLoading(false);
-                        return { success: true };
+                // Otherwise, normal Membership Gatekeeping: Reject auto-registration
+                if (fbUser) {
+                    try {
+                        await deleteUser(fbUser);
+                    } catch (e) {
+                        console.error("Failed to delete unauthorized Firebase Auth user", e);
                     }
                 }
-
                 setIsLoading(false);
-                return { success: false, error: "Invalid admin credentials (Recovery failed)" };
-
+                return { success: false, error: "Your account has not been registered or approved by an admin yet." };
             } else {
-                // Regular User Login: Check 'users' collection
+                const userDoc = snapshot.docs[0];
+                userData = userDoc.data();
+                userId = userDoc.id;
+            }
+
+            // Parse roles securely
+            let roles: string[] = ["member"]; // Default minimum
+            if (userData.roles && Array.isArray(userData.roles)) {
+                roles = userData.roles;
+            } else if (userData.role) {
+                roles = [userData.role];
+            }
+
+            // Strict checking: Google Login never starts an Admin session unless explicitly caught
+            // For now, strip admin role during regular Google login to be safe unless they are in admins db
+            // (We will allow admin via standard email/password form to be safest)
+            roles = roles.filter(r => r !== "admin");
+            if (roles.length === 0) roles.push("member");
+
+            const authenticatedUser: User = {
+                id: userId,
+                name: userData.name || fbUser.displayName,
+                email: userData.email,
+                username: userData.username,
+                roles: roles,
+                phone: userData.phone || "",
+                photoURL: userData.photoURL || fbUser.photoURL || ""
+            };
+
+            setUser(authenticatedUser);
+            sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
+            router.push("/profile");
+            setIsLoading(false);
+            return { success: true };
+
+        } catch (error: any) {
+            setIsLoading(false);
+            if (error.code === 'auth/popup-closed-by-user') {
+                return { success: false, error: "" }; // Silent fail if user simply closed the window
+            }
+            console.error("Google Login failed:", error);
+            return { success: false, error: error.message || "Google Login failed" };
+        }
+    };
+
+    // --- EMAIL / PASSWORD LOGINS ---
+    const login = async (identifier: string, password?: string, isAdminLogin: boolean = false): Promise<{ success: boolean; error?: string }> => {
+        setIsLoading(true);
+        try {
+            // Because identifier can be an email OR a username, we must resolve it to an email for Firebase Auth.
+            let emailToUse = identifier;
+
+            if (!identifier.includes("@")) {
                 const usersRef = collection(db, "users");
-                let q = query(usersRef, where("email", "==", identifier));
-                let snapshot = await getDocs(q);
-
-                if (snapshot.empty) {
-                    q = query(usersRef, where("username", "==", identifier));
-                    snapshot = await getDocs(q);
-                }
-
-                console.log("User Login Attempt:", { identifier, found: !snapshot.empty });
-
-                if (!snapshot.empty) {
-                    const userDoc = snapshot.docs[0];
-                    const userData = userDoc.data();
-
-                    if (userData.password === password) {
-                        // Parse Roles
-                        let roles: string[] = [];
-                        if (userData.roles && Array.isArray(userData.roles)) {
-                            roles = userData.roles;
-                        } else if (userData.role) {
-                            roles = [userData.role];
-                        }
-                        // If logging in as regular user, REMOVE 'admin' role from session
-                        // even if they have it in database.
-                        roles = roles.filter(r => r !== "admin");
-
-                        // Ensure they have at least 'member' or 'moderator' to be valid
-                        if (roles.length === 0) {
-                            roles.push("member");
-                        }
-
-                        const authenticatedUser: User = {
-                            id: userDoc.id,
-                            name: userData.name,
-                            email: userData.email,
-                            username: userData.username,
-                            roles: roles,
-                            phone: userData.phone,
-                            photoURL: userData.photoURL
-                        };
-
-                        setUser(authenticatedUser);
-                        sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
-                        router.push("/profile");
-                        setIsLoading(false);
-                        return { success: true };
-                    } else {
-                        setIsLoading(false);
-                        return { success: false, error: "Invalid password" };
-                    }
-                } else {
+                const q = query(usersRef, where("username", "==", identifier));
+                const snap = await getDocs(q);
+                if (snap.empty) {
                     setIsLoading(false);
-                    return { success: false, error: "User not found" };
+                    return { success: false, error: "Username not found" };
+                }
+                emailToUse = snap.docs[0].data().email;
+            }
+
+            if (!password) {
+                setIsLoading(false);
+                return { success: false, error: "Password is required" };
+            }
+
+            // Check if the email is banned (previously deleted member)
+            if (!isAdminLogin) {
+                const bannedRef = collection(db, "banned_emails");
+                const bannedQ = query(bannedRef, where("email", "==", emailToUse));
+                const bannedSnap = await getDocs(bannedQ);
+                if (!bannedSnap.empty) {
+                    setIsLoading(false);
+                    return { success: false, error: "Your account was removed by an administrator. Please submit a new membership request or contact an admin to regain access." };
                 }
             }
-        } catch (error) {
+
+            // Attempt true Firebase authentication first
+            let firebaseAuthSuccess = false;
+            try {
+                await signInWithEmailAndPassword(auth, emailToUse, password);
+                firebaseAuthSuccess = true;
+                console.log("Firebase Auth Sign-In Successful");
+            } catch (authError: any) {
+                console.warn("Firebase Auth failed (might be legacy user):", authError.message);
+                // We don't fail immediately because they might be a legacy plaintext user not yet migrated to Auth
+            }
+
+            // Now, regardless of auth provider success, we verify their roles in Firestore
+            if (isAdminLogin) {
+                const adminsRef = collection(db, "admins");
+                const q = query(adminsRef, where("email", "==", emailToUse));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    setIsLoading(false);
+                    return { success: false, error: "Admin account not found" };
+                }
+
+                const adminDoc = snapshot.docs[0];
+                const adminData = adminDoc.data();
+
+                // Gather user profile if exists (we do this BEFORE password check so we can use the most recent password from users collection, not the stale admins collection)
+                const usersRef = collection(db, "users");
+                const userQ = query(usersRef, where("email", "==", emailToUse));
+                const userSnap = await getDocs(userQ);
+
+                let userProfile: any = {};
+                let userId = adminDoc.id;
+
+                if (!userSnap.empty) {
+                    userProfile = userSnap.docs[0].data();
+                    userId = userSnap.docs[0].id;
+                }
+
+                // MODIFIED: Always verify against Firestore password if it exists to enforce database-side resets
+                // Prioritize userProfile.password because that's where change requests go
+                const activePassword = userProfile.password || adminData.password;
+
+                if (activePassword && activePassword !== password) {
+                    setIsLoading(false);
+                    return { success: false, error: "Invalid admin credentials" };
+                }
+
+                if (!firebaseAuthSuccess && !activePassword) {
+                    setIsLoading(false);
+                    return { success: false, error: "Invalid admin credentials" };
+                }
+
+                if (!firebaseAuthSuccess) {
+                    console.log("Legacy Admin Authenticated via Firestore.");
+                }
+
+                const roles = ["admin"];
+                if (userProfile.roles && Array.isArray(userProfile.roles)) {
+                    userProfile.roles.forEach((r: string) => {
+                        if (!roles.includes(r)) roles.push(r);
+                    });
+                }
+
+                const authenticatedUser: User = {
+                    id: userId,
+                    username: adminData.username || userProfile.username || identifier,
+                    name: userProfile.name || adminData.name || "Admin",
+                    email: adminData.email,
+                    roles: roles,
+                    phone: userProfile.phone || adminData.phone,
+                    photoURL: userProfile.photoURL || adminData.photoURL
+                };
+
+                setUser(authenticatedUser);
+                sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
+                ActivityLogService.logActivity(authenticatedUser.id, authenticatedUser.name || authenticatedUser.username, "Login", "Admin logged in");
+                router.push("/admin");
+                setIsLoading(false);
+                return { success: true };
+
+            } else {
+                // Regular User Check
+                const usersRef = collection(db, "users");
+                const q = query(usersRef, where("email", "==", emailToUse));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    setIsLoading(false);
+                    return { success: false, error: "User profile not found in database" };
+                }
+
+                const userDoc = snapshot.docs[0];
+                const userData = userDoc.data();
+
+                // MODIFIED: Always verify against Firestore password if it exists to enforce database-side resets
+                if (userData.password && userData.password !== password) {
+                    setIsLoading(false);
+                    return { success: false, error: "Invalid password" };
+                }
+
+                if (!firebaseAuthSuccess && !userData.password) {
+                    setIsLoading(false);
+                    return { success: false, error: "Invalid password" };
+                }
+
+                if (!firebaseAuthSuccess) {
+                    console.log("Legacy User Authenticated via Firestore.");
+                }
+
+                let roles: string[] = [];
+                if (userData.roles && Array.isArray(userData.roles)) {
+                    roles = userData.roles;
+                } else if (userData.role) {
+                    roles = [userData.role];
+                }
+
+                // Strip admin role from basic login
+                roles = roles.filter(r => r !== "admin");
+                if (roles.length === 0) roles.push("member");
+
+                const authenticatedUser: User = {
+                    id: userDoc.id,
+                    name: userData.name,
+                    email: userData.email,
+                    username: userData.username,
+                    roles: roles,
+                    phone: userData.phone,
+                    photoURL: userData.photoURL
+                };
+
+                // FIX 1: If user signed in via Firebase Auth successfully, sync the password
+                // they just used into Firestore so the admin Members tab stays up-to-date,
+                // and the legacy plaintext fallback can no longer accept an outdated password.
+                if (firebaseAuthSuccess) {
+                    try {
+                        await updateDoc(userDoc.ref, { password });
+                    } catch (e) {
+                        console.warn("Could not sync password to Firestore:", e);
+                    }
+                }
+
+                setUser(authenticatedUser);
+                sessionStorage.setItem("auth_user", JSON.stringify(authenticatedUser));
+                router.push("/profile");
+                setIsLoading(false);
+                return { success: true };
+            }
+
+        } catch (error: any) {
             console.error("Login failed:", error);
             setIsLoading(false);
-            return { success: false, error: "Login failed due to system error" };
+            return { success: false, error: error.message || "Login failed due to system error" };
         }
     };
 
@@ -323,7 +388,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const requestsRef = collection(db, "registration_requests");
                 const q2 = query(requestsRef, where("email", "==", data.email));
                 const snapshot2 = await getDocs(q2);
-                if (!snapshot2.empty) {
+
+                // Fix: Only block if the duplicate request is specifically "pending".
+                // This allows users whose previous requests were rejected/deleted to reapply.
+                const hasPending = snapshot2.docs.some(doc => doc.data().status === "pending");
+                if (hasPending) {
                     setIsLoading(false);
                     return { success: false, error: "A request with this email is already pending" };
                 }
@@ -369,17 +438,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const approveRegistrationRequest = async (requestId: string, userData: any): Promise<{ success: boolean; error?: string }> => {
         if (!user || !user.roles.includes('admin')) return { success: false, error: "Unauthorized" };
         try {
+            // Prevent double-submissions!
+            const requestRef = doc(db, "registration_requests", requestId);
+            const requestSnap = await getDoc(requestRef);
+            if (!requestSnap.exists() || requestSnap.data().status !== "pending") {
+                return { success: false, error: "This request has already been processed." };
+            }
+
             const usersRef = collection(db, "users");
+            // Generate temporary password
+            const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4);
+
             // Default new users to 'member' role if not specified, stored in roles array
             const newUserRef = await addDoc(usersRef, {
                 ...userData,
+                password: tempPassword,
                 roles: ["member"],
                 createdAt: new Date().toISOString()
             });
 
-            await updateDoc(doc(db, "registration_requests", requestId), { status: "approved" });
+            await updateDoc(requestRef, { status: "approved" });
 
-            // Send Welcome Notification
+            // Send In-App Welcome Notification
             await addDoc(collection(db, "notifications"), {
                 userId: newUserRef.id,
                 message: "Welcome! Your account has been approved. You can now access member features.",
@@ -387,6 +467,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 read: false,
                 createdAt: Timestamp.now()
             });
+
+            // Send actual Zoho Email Notification
+            if (userData.email) {
+                try {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: userData.email,
+                            subject: 'Welcome to Rangdhanu Charity - Account Approved',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                                    <h2>Welcome to Rangdhanu Charity, ${userData.name || 'Member'}!</h2>
+                                    <p>Your membership registration has been approved by our team.</p>
+                                    <p>You can now log in to the portal using your email or username.</p>
+                                    <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                                        <p style="margin: 0;"><strong>Username:</strong> ${userData.username}</p>
+                                        <p style="margin: 5px 0 0 0;"><strong>Temporary Password:</strong> ${tempPassword}</p>
+                                    </div>
+                                    <p><em>Please secure your account by changing this password in your profile settings after logging in, or simply link your Google account.</em></p>
+                                    <p>Thank you for joining our mission.</p>
+                                </div>
+                            `
+                        })
+                    });
+                } catch (emailError) {
+                    console.error("Failed to send welcome email via Zoho API:", emailError);
+                    // We don't fail the whole approval process if just the email fails
+                }
+            }
 
             return { success: true };
         } catch (error) {
@@ -398,8 +508,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const rejectRegistrationRequest = async (requestId: string): Promise<{ success: boolean; error?: string }> => {
         if (!user || !user.roles.includes('admin')) return { success: false, error: "Unauthorized" };
         try {
+            const requestSnap = await getDoc(doc(db, "registration_requests", requestId));
+            const requestData = requestSnap.exists() ? requestSnap.data() : null;
+
             await updateDoc(doc(db, "registration_requests", requestId), { status: "rejected" });
-            // Cannot notify rejected user as they don't have an account
+
+            // Send rejection email if the request had an email
+            if (requestData?.email) {
+                try {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: requestData.email,
+                            subject: 'Membership Application Update - Rangdhanu Charity',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                                    <h2>Application Status Update</h2>
+                                    <p>Dear ${requestData.name || 'Applicant'},</p>
+                                    <p>Thank you for your interest in joining Rangdhanu Charity. After careful review, we were unable to approve your membership application at this time.</p>
+                                    <p>If you believe this is a mistake or would like more information, please contact us directly.</p>
+                                    <p>Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                </div>
+                            `
+                        })
+                    });
+                } catch (e) {
+                    console.error("Failed to send rejection email:", e);
+                }
+            }
+
             return { success: true };
         } catch (error) {
             console.error("Rejection failed:", error);
@@ -410,50 +548,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const changePassword = async (newPassword: string, oldPassword?: string): Promise<boolean> => {
         if (!user) return false;
         try {
-            // Determine collection based on whether they are logged in as admin
-            // However, user.id usually points to 'users' doc. 
-            // Only if they are SUPER admin without user profile it might point to admin doc.
-            // For simplicity, we check both or prioritize based on roles.
-
-            // If user has 'admin' role, we might need to update password in 'admins' collection too?
-            // The constraint is: "separate folder for admin infos like password".
-            // So if I am admin, my password IS in 'admins' collection.
-
             let success = false;
 
-            if (user.roles.includes('admin')) {
-                // Try to find admin doc
+            // 1. Attempt to update 'users' password if they have a user profile (Primary Source of Truth)
+            const userDocRef = doc(db, "users", user.id);
+            const userSnap = await getDoc(userDocRef);
+
+            if (userSnap.exists()) {
+                if (oldPassword && userSnap.data().password !== oldPassword) {
+                    return false; // Old password doesn't match primary database
+                }
+                await updateDoc(userDocRef, { password: newPassword });
+                success = true;
+            }
+
+            // 2. Also attempt to update Firebase Auth if logged in there natively
+            if (auth.currentUser) {
+                try {
+                    // Must import updatePassword dynamically to avoid top-level issues if not used
+                    const { updatePassword: fUpdatePassword } = await import("firebase/auth");
+                    await fUpdatePassword(auth.currentUser, newPassword);
+                } catch (e) {
+                    console.warn("Could not sync to Firebase Auth directly. Might require re-authentication.", e);
+                }
+            }
+
+            // 3. Sync to 'admins' collection if applicable (Secondary Legacy Source of Truth)
+            if (user.roles.includes('admin') || user.email) {
                 const adminsRef = collection(db, "admins");
                 const q = query(adminsRef, where("email", "==", user.email));
                 const snap = await getDocs(q);
 
                 if (!snap.empty) {
                     const adminDoc = snap.docs[0];
-                    // Verify old
-                    if (oldPassword && adminDoc.data().password !== oldPassword) return false;
-
-                    await updateDoc(doc(db, "admins", adminDoc.id), { password: newPassword });
-                    success = true;
-                }
-            }
-
-            // Also attempt to update 'users' password if they have a user profile
-            // Use user.id as it likely points to the user doc (from login logic)
-            const userDocRef = doc(db, "users", user.id);
-            const userSnap = await getDoc(userDocRef);
-
-            if (userSnap.exists()) {
-                if (oldPassword) {
-                    // Only fail if this was the ONLY place (not admin) and it failed
-                    if (userSnap.data().password === oldPassword) {
-                        await updateDoc(userDocRef, { password: newPassword });
-                        success = true;
-                    } else if (!success) {
-                        // If we didn't update admin (maybe not admin), and this failed, then fail.
+                    // If the primary user document failed or didn't exist, we use the admins doc as fallback truth
+                    if (!success && oldPassword && adminDoc.data().password !== oldPassword) {
                         return false;
                     }
-                } else {
-                    await updateDoc(userDocRef, { password: newPassword });
+
+                    // Force sync the legacy admin doc
+                    await updateDoc(doc(db, "admins", adminDoc.id), { password: newPassword });
                     success = true;
                 }
             }
@@ -470,6 +604,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             // Update 'users' collection
             await updateDoc(doc(db, "users", user.id), data);
+
+            // FIX 5: If email is being changed, sync it to Firebase Authentication
+            if (data.email && data.email !== user.email) {
+                const currentFbUser = auth.currentUser;
+                if (currentFbUser) {
+                    try {
+                        await updateEmail(currentFbUser, data.email);
+                    } catch (authErr: any) {
+                        console.warn("Could not update Firebase Auth email (may need re-authentication):", authErr.message);
+                        // Don't fail the whole operation — Firestore is updated
+                    }
+                }
+            }
 
             // If admin, maybe update 'admins' name/phone if those exist there?
             if (user.roles.includes('admin')) {
@@ -602,62 +749,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const requestPasswordReset = async (email: string): Promise<{ success: boolean; error?: string; code?: string }> => {
         setIsLoading(true);
         try {
-            const usersRef = collection(db, "users");
-            const q = query(usersRef, where("email", "==", email));
-            const snapshot = await getDocs(q);
-
-            if (snapshot.empty) {
-                setIsLoading(false);
-                return { success: false, error: "User not found" };
-            }
-
-            const userDoc = snapshot.docs[0];
-            const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-            await updateDoc(doc(db, "users", userDoc.id), { resetCode: code });
-            console.log(`Password reset code for ${email}: ${code}`);
-
+            await sendPasswordResetEmail(auth, email);
             setIsLoading(false);
-            return { success: true, code };
-        } catch (error) {
+            return { success: true };
+        } catch (error: any) {
             console.error("Reset request failed:", error);
             setIsLoading(false);
-            return { success: false, error: "Failed to request reset" };
+            return { success: false, error: error.message || "Failed to request reset" };
         }
     }
 
     const resetPasswordWithCode = async (email: string, code: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
-        setIsLoading(true);
-        try {
-            const usersRef = collection(db, "users");
-            const q = query(usersRef, where("email", "==", email));
-            const snapshot = await getDocs(q);
-
-            if (snapshot.empty) {
-                setIsLoading(false);
-                return { success: false, error: "User not found" };
-            }
-
-            const userDoc = snapshot.docs[0];
-            const userData = userDoc.data();
-
-            if (userData.resetCode !== code) {
-                setIsLoading(false);
-                return { success: false, error: "Invalid code" };
-            }
-
-            await updateDoc(doc(db, "users", userDoc.id), {
-                password: newPassword,
-                resetCode: null
-            });
-
-            setIsLoading(false);
-            return { success: true };
-        } catch (error) {
-            console.error("Reset failed:", error);
-            setIsLoading(false);
-            return { success: false, error: "Failed to reset password" };
-        }
+        // Firebase Auth natively handles password resets via emailed links.
+        // We deprecate this manual code entry path.
+        return { success: false, error: "Please use the password reset link sent to your email to securely change your password." };
     }
 
     const logout = () => {
@@ -670,7 +775,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, submitRegistrationRequest, getRegistrationRequests, approveRegistrationRequest, rejectRegistrationRequest, isLoading, changePassword, requestPasswordReset, resetPasswordWithCode, updateProfile, adminUpdateUser }}>
+        <AuthContext.Provider value={{
+            user, login, loginWithGoogle, logout, submitRegistrationRequest, getRegistrationRequests,
+            approveRegistrationRequest, rejectRegistrationRequest, isLoading, changePassword,
+            requestPasswordReset, resetPasswordWithCode, updateProfile, adminUpdateUser
+        }}>
             {children}
         </AuthContext.Provider>
     );

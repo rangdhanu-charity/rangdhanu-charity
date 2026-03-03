@@ -1919,7 +1919,7 @@ function ProfileContent() {
                                         <CardDescription>Update your password.</CardDescription>
                                     </CardHeader>
                                     <CardContent>
-                                        <form onSubmit={handleChangePassword} className="space-y-4">
+                                        <div onKeyDown={(e) => { if (e.key === 'Enter') handleChangePassword(e as any) }} className="space-y-4">
                                             <div className="grid md:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="old-password">Current Password</Label>
@@ -1930,6 +1930,7 @@ function ProfileContent() {
                                                             value={oldPassword}
                                                             onChange={(e) => setOldPassword(e.target.value)}
                                                             placeholder="Enter current password"
+                                                            autoComplete="off"
                                                             required
                                                         />
                                                         <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowOldPassword(!showOldPassword)}>
@@ -1946,6 +1947,7 @@ function ProfileContent() {
                                                             value={newPassword}
                                                             onChange={(e) => setNewPassword(e.target.value)}
                                                             placeholder="Enter new password"
+                                                            autoComplete="new-password"
                                                             required
                                                         />
                                                         <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent" onClick={() => setShowNewPassword(!showNewPassword)}>
@@ -1955,9 +1957,9 @@ function ProfileContent() {
                                                 </div>
                                             </div>
                                             <div className="flex justify-end">
-                                                <Button type="submit">Update Password</Button>
+                                                <Button type="button" onClick={(e) => handleChangePassword(e as any)}>Update Password</Button>
                                             </div>
-                                        </form>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             </TabsContent>

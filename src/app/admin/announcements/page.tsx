@@ -25,6 +25,7 @@ export default function AnnouncementsPage() {
     const [subject, setSubject] = useState("");
     const [content, setContent] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const [sendAlsoEmails, setSendAlsoEmails] = useState(false);
 
     const [messageHistory, setMessageHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -88,6 +89,38 @@ export default function AnnouncementsPage() {
                 recipientNameLabel = targetUsers.length === 1 ? targetUsers[0].name : `${targetUsers.length} Members`;
             }
 
+            // EMAIL INTEGRATION HOOK
+            if (sendAlsoEmails) {
+                const validEmails = targetUsers.filter(u => u.email).map(u => u.email);
+                if (validEmails.length > 0) {
+                    // Fire-and-forget the emails to not block the UI for too long
+                    Promise.all(validEmails.map(async (emailAddress) => {
+                        try {
+                            await fetch('/api/email', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    to: emailAddress,
+                                    subject: subject.trim() || 'New Announcement from Rangdhanu',
+                                    html: `
+                                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                                            <h2>${subject.trim() || 'Important Announcement'}</h2>
+                                            <div style="white-space: pre-wrap; padding: 20px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">${content.trim()}</div>
+                                            <p style="font-size: 12px; color: #888; margin-top: 30px; text-align: center;">
+                                                Sent via Rangdhanu Charity Portal.<br>
+                                                You received this message because you are a registered member.
+                                            </p>
+                                        </div>
+                                    `
+                                })
+                            });
+                        } catch (e) {
+                            console.error("Failed to email " + emailAddress, e);
+                        }
+                    }));
+                }
+            }
+
             // 2. Log in announcement_history
             await addDoc(collection(db, "announcement_history"), {
                 senderId: user?.id,
@@ -97,7 +130,8 @@ export default function AnnouncementsPage() {
                 recipientType,
                 recipientName: recipientNameLabel,
                 createdAt: Timestamp.now(),
-                deliveryCount: targetUsers.length
+                deliveryCount: targetUsers.length,
+                emailAlsoSent: sendAlsoEmails
             });
 
             toast({ title: "Sent!", description: `Message sent to ${targetUsers.length} member(s).` });
@@ -207,10 +241,25 @@ export default function AnnouncementsPage() {
                                 <p className="text-xs text-muted-foreground">You can use basic markdown like **bold**, *italics*, lists, and raw URLs (https://...).</p>
                             </div>
 
-                            <Button type="submit" disabled={isSending || usersList.length === 0} className="w-full">
-                                {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Send Message
-                            </Button>
+                            <div className="space-y-4 pt-4 border-t">
+                                <label className="flex items-center gap-3 p-4 border rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={sendAlsoEmails}
+                                        onChange={(e) => setSendAlsoEmails(e.target.checked)}
+                                        className="h-5 w-5 accent-primary rounded"
+                                    />
+                                    <div className="flex flex-col">
+                                        <span className="font-semibold text-sm">Send copy via Email</span>
+                                        <span className="text-xs text-muted-foreground">Each selected member will also receive this message directly in their actual email inbox.</span>
+                                    </div>
+                                </label>
+
+                                <Button type="submit" disabled={isSending || usersList.length === 0} className="w-full">
+                                    {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Send Message
+                                </Button>
+                            </div>
                         </form>
                     </CardContent>
                 </Card>
