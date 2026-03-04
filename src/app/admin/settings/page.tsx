@@ -210,19 +210,25 @@ export default function SettingsPage() {
                 toast({ title: "Wipe Complete", description: "Financial records have been cleanly reset." });
             } else if (wipeDialogState.type === "complete") {
                 toast({ title: "Starting Wipe", description: "Deleting entire database (excluding admins)..." });
-                const collectionsToWipe = ["projects", "stories", "testimonials", "payments", "expenses", "stats", "donation_requests", "registration_requests", "recycle_bin", "team"];
+                const collectionsToWipe = [
+                    "projects", "stories", "testimonials", "payments", "expenses", "stats",
+                    "donation_requests", "registration_requests", "recycle_bin", "team",
+                    "notifications", "activity_logs", "banned_emails"
+                ];
                 for (const c of collectionsToWipe) {
                     const snap = await getDocs(collection(db, c));
                     const promises = snap.docs.map(d => deleteDoc(doc(db, c, d.id)));
                     await Promise.all(promises);
                 }
 
-                // Handle Users special case
+                // Handle Users special case - DO NOT delete admins
                 const usersSnap = await getDocs(collection(db, "users"));
                 const userDeletePromises: any[] = [];
                 usersSnap.forEach(d => {
                     const data = d.data();
-                    if (!data.roles?.includes("admin")) {
+                    const roles: string[] = Array.isArray(data.roles) ? data.roles : (data.role ? [data.role] : []);
+
+                    if (!roles.includes("admin")) {
                         userDeletePromises.push(deleteDoc(doc(db, "users", d.id)));
                     }
                 });
