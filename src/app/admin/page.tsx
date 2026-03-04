@@ -7,7 +7,7 @@ import { useFinance } from "@/lib/finance-context";
 import { useSettings } from "@/lib/settings-context";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { FolderOpen, DollarSign, Users, TrendingUp, CreditCard, AlertCircle, Heart } from "lucide-react";
+import { FolderOpen, DollarSign, Users, TrendingUp, CreditCard, AlertCircle, Heart, UserCheck } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -230,6 +230,17 @@ export default function AdminDashboard() {
                         <p className="text-[10px] text-muted-foreground mt-1">Pending payments</p>
                     </CardContent>
                 </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+                        <UserCheck className="h-4 w-4 text-emerald-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-emerald-600">{loadingUsers ? "..." : users.length}</div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Registered members</p>
+                    </CardContent>
+                </Card>
+
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

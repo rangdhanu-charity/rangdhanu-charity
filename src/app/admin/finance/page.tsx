@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
 import { useFinance, Expense } from "@/lib/finance-context";
 import { useSettings } from "@/lib/settings-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,9 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, TrendingUp, TrendingDown, DollarSign, Trash2, Edit } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, DollarSign, Trash2, Edit, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { collection, getDocs, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 
 export default function FinancePage() {
     const {
@@ -29,6 +33,20 @@ export default function FinancePage() {
     const [selectedYear, setSelectedYear] = useState<number | "all">(new Date().getFullYear());
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+    const [totalMembersCount, setTotalMembersCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        const fetchMembersCount = async () => {
+            try {
+                const snap = await getDocs(query(collection(db, "users")));
+                setTotalMembersCount(snap.size);
+            } catch (e) {
+                console.error("Failed to fetch members count", e);
+            }
+        };
+        fetchMembersCount();
+    }, []);
+
 
     const [formData, setFormData] = useState({
         title: "",
@@ -192,7 +210,7 @@ export default function FinancePage() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Collection</CardTitle>
@@ -223,7 +241,20 @@ export default function FinancePage() {
                         <p className="text-xs text-muted-foreground">Available funds</p>
                     </CardContent>
                 </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+                        <UserCheck className="h-4 w-4 text-emerald-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-emerald-600">
+                            {totalMembersCount === null ? "..." : totalMembersCount}
+                        </div>
+                        <p className="text-xs text-muted-foreground">Registered members</p>
+                    </CardContent>
+                </Card>
             </div>
+
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                 {/* Chart Section */}

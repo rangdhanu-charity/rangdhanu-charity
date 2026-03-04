@@ -602,6 +602,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updateProfile = async (data: Partial<User>): Promise<{ success: boolean; error?: string }> => {
         if (!user) return { success: false, error: "Not authenticated" };
         try {
+            // Check username uniqueness if username is being changed
+            if (data.username && data.username !== user.username) {
+                const usersRef = collection(db, "users");
+                const q = query(usersRef, where("username", "==", data.username));
+                const snap = await getDocs(q);
+                // Make sure the found doc (if any) is not the current user
+                const takenByOther = snap.docs.some(d => d.id !== user.id);
+                if (takenByOther) {
+                    return { success: false, error: "Username already taken. Please choose a different username." };
+                }
+            }
+
             // Update 'users' collection
             await updateDoc(doc(db, "users", user.id), data);
 
@@ -730,7 +742,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             }
 
-            // Send Profile Update Notification
+            // Send In-App Profile Update Notification
             await addDoc(collection(db, "notifications"), {
                 userId: userId,
                 message: "Your profile details or role have been updated by an administrator.",
@@ -738,6 +750,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 read: false,
                 createdAt: Timestamp.now()
             });
+
+            // Always send an email notification to the member about their profile update
+            const emailToNotify = data.email || currentUserData.email;
+            if (emailToNotify) {
+                try {
+                    await fetch('/api/email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: emailToNotify,
+                            subject: 'Your Rangdhanu Profile Has Been Updated',
+                            html: `
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                                    <h2>Hello ${data.name || currentUserData.name || 'Member'},</h2>
+                                    <p>An administrator has recently updated your profile information on the <strong>Rangdhanu Charity</strong> portal.</p>
+                                    <p>If you did not expect this change or have questions, please contact an administrator at <a href="mailto:info@rangdhanu.org">info@rangdhanu.org</a>.</p>
+                                    <p style="margin-top: 24px;">Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                </div>
+                            `
+                        })
+                    });
+                } catch (emailErr) {
+                    console.error("Failed to send profile update email:", emailErr);
+                    // Don't fail the whole operation if only email fails
+                }
+            }
 
             return { success: true };
         } catch (error) {
