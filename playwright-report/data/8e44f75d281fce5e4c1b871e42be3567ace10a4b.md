@@ -1,0 +1,130 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "Rangdhanu" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+        - generic [ref=e8]: Rangdhanu
+      - navigation [ref=e9]:
+        - link "Home" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "About Us" [ref=e11] [cursor=pointer]:
+          - /url: /about
+        - link "Stories" [ref=e12] [cursor=pointer]:
+          - /url: /stories
+        - link "Projects" [ref=e13] [cursor=pointer]:
+          - /url: /projects
+        - link "Public Track" [ref=e14] [cursor=pointer]:
+          - /url: /public-track
+        - link "Contact" [ref=e15] [cursor=pointer]:
+          - /url: /contact
+        - button "Toggle theme" [ref=e16]:
+          - img [ref=e17]
+          - generic [ref=e23]: Toggle theme
+        - link "Login" [ref=e24] [cursor=pointer]:
+          - /url: /login
+          - img [ref=e25]
+          - text: Login
+  - main [ref=e28]:
+    - generic [ref=e31]:
+      - link "Rangdhanu" [ref=e32] [cursor=pointer]:
+        - /url: /
+        - img [ref=e34]
+        - generic [ref=e36]: Rangdhanu
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - heading "Sign in" [level=3] [ref=e39]
+          - paragraph [ref=e40]: Choose how you would like to sign in
+        - generic [ref=e41]:
+          - generic [ref=e43]:
+            - generic [ref=e44]:
+              - text: Email or Username
+              - textbox "Email or Username" [ref=e45]:
+                - /placeholder: m@example.com or username
+            - generic [ref=e46]:
+              - text: Password
+              - generic [ref=e47]:
+                - textbox "Password" [ref=e48]
+                - button [ref=e49]:
+                  - img [ref=e50]
+              - link "Forgot password?" [ref=e54] [cursor=pointer]:
+                - /url: /forgot-password
+            - generic [ref=e55]:
+              - checkbox "Login as Admin" [ref=e56]
+              - generic [ref=e57]: Login as Admin
+            - button "Sign In" [ref=e58]
+          - generic [ref=e63]: Or continue with
+          - button "Google" [ref=e64]:
+            - img [ref=e65]
+            - text: Google
+        - paragraph [ref=e68]:
+          - text: Don't have an account?
+          - link "Sign up" [active] [ref=e69] [cursor=pointer]:
+            - /url: /register
+  - contentinfo [ref=e70]:
+    - generic [ref=e71]:
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - link "Rangdhanu" [ref=e74] [cursor=pointer]:
+            - /url: /
+            - img [ref=e76]
+            - generic [ref=e78]: Rangdhanu
+          - paragraph [ref=e79]: Empowering underprivileged children through education and support. Join us in making a difference.
+        - generic [ref=e80]:
+          - heading "Quick Links" [level=3] [ref=e81]
+          - link "About Us" [ref=e82] [cursor=pointer]:
+            - /url: /about
+          - link "Stories" [ref=e83] [cursor=pointer]:
+            - /url: /stories
+          - link "Projects" [ref=e84] [cursor=pointer]:
+            - /url: /projects
+          - link "Public Track" [ref=e85] [cursor=pointer]:
+            - /url: /public-track
+        - generic [ref=e86]:
+          - heading "Contact" [level=3] [ref=e87]
+          - generic [ref=e88]:
+            - img [ref=e89]
+            - generic [ref=e92]: Meghna - 3515, Cumilla, Bangladesh
+          - generic [ref=e93]:
+            - img [ref=e94]
+            - generic [ref=e96]: +880 1829-965153
+          - generic [ref=e97]:
+            - img [ref=e98]
+            - generic [ref=e101]: info@rangdhanu.org
+        - generic [ref=e102]:
+          - heading "Follow Us" [level=3] [ref=e103]
+          - generic [ref=e104]:
+            - link [ref=e105] [cursor=pointer]:
+              - /url: "#"
+              - img [ref=e106]
+            - link [ref=e108] [cursor=pointer]:
+              - /url: "#"
+              - img [ref=e109]
+            - link [ref=e112] [cursor=pointer]:
+              - /url: "#"
+              - img [ref=e113]
+          - generic [ref=e115]:
+            - paragraph [ref=e116]: Subscribe to our newsletter
+            - generic [ref=e117]:
+              - textbox "Email" [ref=e118]
+              - button "Join" [ref=e119]
+      - generic [ref=e120]: © 2026 Rangdhanu Charity Foundation. All rights reserved.
+  - generic [ref=e121]:
+    - paragraph [ref=e123]:
+      - text: We use cookies to improve your experience on our site. By using our site, you consent to cookies.
+      - link "Learn more" [ref=e124] [cursor=pointer]:
+        - /url: /privacy
+      - text: .
+    - generic [ref=e125]:
+      - button "Accept" [ref=e126]
+      - button "Close" [ref=e127]:
+        - img [ref=e128]
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e136] [cursor=pointer]:
+    - img [ref=e137]
+  - alert [ref=e140]
+```
