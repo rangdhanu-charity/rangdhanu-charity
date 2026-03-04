@@ -27,7 +27,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Rangdhanu Charity Foundation",
   description: "Supporting underprivileged children, especially helping them continue their education.",
+  icons: {
+    icon: [
+      { url: "/api/favicon", type: "image/png" },
+    ],
+  },
 };
+
 
 export default function RootLayout({
   children,

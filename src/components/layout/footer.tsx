@@ -1,19 +1,34 @@
+"use client";
+
 import Link from "next/link";
 import { Facebook, Instagram, Twitter, Mail, MapPin, Phone, Heart } from "lucide-react";
+import { useSettings } from "@/lib/settings-context";
 
 export function Footer() {
+    const { settings } = useSettings();
+    const orgLogoURL = settings?.orgLogoURL || "";
+
     return (
         <footer className="w-full border-t bg-background">
             <div className="container px-4 py-12 md:py-24 lg:py-32">
                 <div className="grid gap-8 lg:grid-cols-4 md:grid-cols-2">
                     <div className="flex flex-col gap-4">
                         <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary">
-                            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white">
-                                <Heart className="h-5 w-5 fill-current" />
+                            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white overflow-hidden shrink-0">
+                                {orgLogoURL ? (
+                                    <img src={orgLogoURL} alt="Rangdhanu Logo" className="h-full w-full object-cover" />
+                                ) : (
+                                    <Heart className="h-5 w-5 fill-current" />
+                                )}
                             </div>
-                            <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent">
-                                Rangdhanu
-                            </span>
+                            <div className="flex flex-col leading-tight">
+                                <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent text-xl font-bold">
+                                    Rangdhanu
+                                </span>
+                                <span className="text-[10px] font-medium tracking-wide text-muted-foreground whitespace-nowrap">
+                                    Charity Foundation
+                                </span>
+                            </div>
                         </Link>
                         <p className="text-sm text-muted-foreground">
                             Empowering underprivileged children through education and support.

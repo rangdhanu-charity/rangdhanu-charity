@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Heart, LayoutDashboard, FolderOpen, Users, LogOut, BarChart3, MessageSquareQuote, Trash2, Settings, Megaphone, BookOpen, ChevronDown, ChevronRight } from "lucide-react";
+import { Heart, LayoutDashboard, FolderOpen, Users, LogOut, BarChart3, MessageSquareQuote, Trash2, Settings, Megaphone, BookOpen, ChevronDown, ChevronRight, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -13,6 +13,7 @@ import { db } from "@/lib/firebase";
 import { FinanceProvider } from "@/lib/finance-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { Coins, PiggyBank, FileText, Library } from "lucide-react";
+
 
 export default function AdminLayout({
     children,
@@ -77,7 +78,9 @@ export default function AdminLayout({
                 { href: "/admin/banner", label: "Public Banner", icon: Megaphone },
                 { href: "/admin/stories", label: "Stories", icon: BookOpen },
                 { href: "/admin/projects", label: "Projects", icon: FolderOpen },
+                { href: "/admin/logo", label: "Organisation Logo", icon: ImageIcon },
             ]
+
         },
         { href: "/admin/collections", label: "Collections", icon: Coins },
         { href: "/admin/finance", label: "Finance", icon: PiggyBank },
