@@ -12,6 +12,8 @@ import { MessageProvider } from "@/lib/message-context";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionTimeout } from "@/components/common/session-timeout";
 import { SettingsProvider } from "@/lib/settings-context";
+import { FaviconUpdater } from "@/components/common/favicon-updater";
+
 
 
 const geistSans = Geist({
@@ -27,12 +29,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Rangdhanu Charity Foundation",
   description: "Supporting underprivileged children, especially helping them continue their education.",
-  icons: {
-    icon: [
-      { url: "/api/favicon", type: "image/png" },
-    ],
-  },
 };
+
 
 
 export default function RootLayout({
@@ -47,6 +45,8 @@ export default function RootLayout({
       >
         <AuthProvider>
           <SettingsProvider>
+            <FaviconUpdater />
+
             <NotificationProvider>
               <MessageProvider>
                 <DataProvider>
