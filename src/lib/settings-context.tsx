@@ -8,13 +8,17 @@ export type SystemSettings = {
     collectionYears: number[];
     collectionMonths?: Record<number, number[]>; // Maps year -> array of months (1-12)
     currencySymbol: string;
+    orgLogoURL?: string; // URL of the organisation logo (stored via ImgBB)
 };
+
 
 export const DEFAULT_SETTINGS: SystemSettings = {
     collectionYears: [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1],
     collectionMonths: {},
-    currencySymbol: "৳"
+    currencySymbol: "৳",
+    orgLogoURL: ""
 };
+
 
 const SETTINGS_COLLECTION = "system_settings";
 const GENERAL_DOC_ID = "general";

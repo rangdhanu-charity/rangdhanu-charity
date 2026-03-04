@@ -7,7 +7,7 @@ import {
     Menu, X, Heart, User as UserIcon, LogOut,
     LayoutDashboard, ChevronRight, ChevronDown, Home, Info,
     FolderOpen, HandHelping, BarChart3, Mail, ShieldCheck,
-    Coins, PiggyBank, FileText, Users, MessageSquareQuote, Settings, Megaphone, BookOpen, Library
+    Coins, PiggyBank, FileText, Users, MessageSquareQuote, Settings, Megaphone, BookOpen, Library, ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NAV_LINKS } from "@/lib/data";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useSettings } from "@/lib/settings-context";
+
 
 type NavLink = {
     href: string;
@@ -56,8 +58,10 @@ const ADMIN_NAV_LINKS: NavLink[] = [
             { href: "/admin/stories", label: "Stories", icon: BookOpen },
             { href: "/admin/projects", label: "Projects", icon: FolderOpen },
             { href: "/admin/banner", label: "Public Banner", icon: Megaphone },
+            { href: "/admin/logo", label: "Organisation Logo", icon: ImageIcon },
         ]
     },
+
     { href: "/admin/collections", label: "Collections", icon: Coins },
     { href: "/admin/finance", label: "Finance", icon: PiggyBank },
     { href: "/admin/reports", label: "Reports", icon: FileText },
@@ -72,8 +76,11 @@ function NavbarContent() {
     const [isMobileContentOpen, setIsMobileContentOpen] = React.useState(false);
     const pathname = usePathname();
     const { user, logout } = useAuth();
+    const { settings } = useSettings();
+    const orgLogoURL = settings?.orgLogoURL || "";
     const router = useRouter();
     const searchParams = useSearchParams();
+
 
     const isAdminOrMod = user?.roles?.includes("admin") || user?.roles?.includes("moderator");
     const [requestCount, setRequestCount] = React.useState(0);
@@ -123,14 +130,25 @@ function NavbarContent() {
         <>
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div className="container flex h-16 items-center justify-between px-4">
+                    {/* Brand Logo */}
                     <Link href={user ? "/profile" : "/"} className="flex items-center gap-2 font-bold text-xl text-primary">
-                        <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white">
-                            <Heart className="h-5 w-5 fill-current" />
+                        <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white overflow-hidden shrink-0">
+                            {orgLogoURL ? (
+                                <img src={orgLogoURL} alt="Rangdhanu Logo" className="h-full w-full object-cover" />
+                            ) : (
+                                <Heart className="h-5 w-5 fill-current" />
+                            )}
                         </div>
-                        <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent">
-                            Rangdhanu
-                        </span>
+                        <div className="flex flex-col leading-tight">
+                            <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent text-xl font-bold">
+                                Rangdhanu
+                            </span>
+                            <span className="text-[10px] font-medium tracking-wide text-muted-foreground whitespace-nowrap" style={{ maxWidth: '100%' }}>
+                                Charity Foundation
+                            </span>
+                        </div>
                     </Link>
+
 
                     {/* Desktop Nav - Hide public links if logged in according to user request */}
                     <nav className="hidden md:flex items-center gap-6">
@@ -242,12 +260,20 @@ function NavbarContent() {
                                     </>
                                 ) : (
                                     <div className="flex items-center gap-2">
-                                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white">
-                                            <Heart className="h-4 w-4 fill-current" />
+                                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white overflow-hidden shrink-0">
+                                            {orgLogoURL ? (
+                                                <img src={orgLogoURL} alt="Rangdhanu Logo" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <Heart className="h-4 w-4 fill-current" />
+                                            )}
                                         </div>
-                                        <span className="font-bold text-primary">Rangdhanu</span>
+                                        <div className="flex flex-col leading-tight">
+                                            <span className="font-bold text-primary text-sm">Rangdhanu</span>
+                                            <span className="text-[9px] text-muted-foreground whitespace-nowrap">Charity Foundation</span>
+                                        </div>
                                     </div>
                                 )}
+
                             </div>
                             <button
                                 className="p-1.5 rounded-md hover:bg-muted"

@@ -1,8 +1,9 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FolderOpen, Megaphone, BookOpen } from "lucide-react";
+import { FolderOpen, Megaphone, BookOpen, ImageIcon } from "lucide-react";
 import Link from "next/link";
+
 
 export default function ContentHubPage() {
     const sections = [
@@ -37,8 +38,17 @@ export default function ContentHubPage() {
             href: "/admin/projects",
             color: "text-purple-500",
             bg: "bg-purple-500/10"
+        },
+        {
+            title: "Organisation Logo",
+            description: "Upload and manage the organisation logo shown in the navbar.",
+            icon: ImageIcon,
+            href: "/admin/logo",
+            color: "text-orange-500",
+            bg: "bg-orange-500/10"
         }
     ];
+
 
     return (
         <div className="space-y-6">

@@ -8,13 +8,17 @@ export type SystemSettings = {
     collectionYears: number[];
     collectionMonths?: Record<number, number[]>; // Maps year -> array of months (1-12)
     currencySymbol: string;
+    orgLogoURL?: string;
 };
+
 
 export const DEFAULT_SETTINGS: SystemSettings = {
     collectionYears: [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1],
     collectionMonths: {},
-    currencySymbol: "৳"
+    currencySymbol: "৳",
+    orgLogoURL: ""
 };
+
 
 export const SettingsService = {
     async getSettings(): Promise<SystemSettings> {
