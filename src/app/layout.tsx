@@ -11,6 +11,8 @@ import { NotificationProvider } from "@/lib/notification-context";
 import { MessageProvider } from "@/lib/message-context";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionTimeout } from "@/components/common/session-timeout";
+import { SettingsProvider } from "@/lib/settings-context";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,28 +40,31 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col font-sans`}
       >
         <AuthProvider>
-          <NotificationProvider>
-            <MessageProvider>
-              <DataProvider>
-                <SessionTimeout />
-                <ThemeProvider
-                  attribute="class"
-                  defaultTheme="system"
-                  enableSystem
-                  disableTransitionOnChange
-                >
-                  <Navbar />
-                  <main className="flex-1">
-                    {children}
-                  </main>
-                  <Footer />
-                  <CookieConsent />
-                  <Toaster />
-                </ThemeProvider>
-              </DataProvider>
-            </MessageProvider>
-          </NotificationProvider>
+          <SettingsProvider>
+            <NotificationProvider>
+              <MessageProvider>
+                <DataProvider>
+                  <SessionTimeout />
+                  <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                    disableTransitionOnChange
+                  >
+                    <Navbar />
+                    <main className="flex-1">
+                      {children}
+                    </main>
+                    <Footer />
+                    <CookieConsent />
+                    <Toaster />
+                  </ThemeProvider>
+                </DataProvider>
+              </MessageProvider>
+            </NotificationProvider>
+          </SettingsProvider>
         </AuthProvider>
+
       </body>
     </html>
   );
