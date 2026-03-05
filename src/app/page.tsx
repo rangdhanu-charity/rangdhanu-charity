@@ -5,7 +5,8 @@ import { HomeTestimonials } from "@/components/sections/home-testimonials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, CheckCircle, Heart, CreditCard, CalendarCheck, Landmark } from "lucide-react";
 import Link from "next/link";
-import { HomeDonateModal } from "@/components/features/donations/home-donate-modal";
+import { Suspense } from "react";
+import { AutoOpenDonateModal } from "@/components/features/donations/auto-open-donate-modal";
 import { HomeHeroGallery } from "@/components/sections/home-hero-gallery";
 import { PublicBanner } from "@/components/sections/public-banner";
 
@@ -27,11 +28,13 @@ export default function Home() {
             </p>
           </div>
           <div className="mx-auto mt-8 flex max-w-sm flex-col gap-4 sm:flex-row sm:justify-center">
-            <HomeDonateModal>
-              <Button size="lg" className="group bg-gradient-to-r from-blue-600 to-pink-500 hover:scale-105 hover:shadow-[0_0_25px_rgba(37,99,235,0.6)] transition-all duration-300 ease-out border border-white/10">
-                Donate Now <Heart className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:scale-125 group-hover:text-pink-200" />
-              </Button>
-            </HomeDonateModal>
+            <Suspense fallback={null}>
+              <AutoOpenDonateModal>
+                <Button size="lg" className="group bg-gradient-to-r from-blue-600 to-pink-500 hover:scale-105 hover:shadow-[0_0_25px_rgba(37,99,235,0.6)] transition-all duration-300 ease-out border border-white/10">
+                  Donate Now <Heart className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:scale-125 group-hover:text-pink-200" />
+                </Button>
+              </AutoOpenDonateModal>
+            </Suspense>
             <Button asChild variant="outline" size="lg" className="hover:scale-105 transition-all duration-300">
               <Link href="/register">
                 Become a member <ArrowRight className="ml-2 h-4 w-4" />

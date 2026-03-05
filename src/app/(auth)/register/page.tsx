@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 import { Heart } from "lucide-react";
+import { useSettings } from "@/lib/settings-context";
 
 export default function RegisterPage() {
     const [name, setName] = useState("");
@@ -15,6 +16,8 @@ export default function RegisterPage() {
     const [reason, setReason] = useState("");
     const [phone, setPhone] = useState("");
     const { submitRegistrationRequest } = useAuth();
+    const { settings } = useSettings();
+    const orgLogoURL = settings?.orgLogoURL || "";
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState("");
@@ -37,12 +40,17 @@ export default function RegisterPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
                 <Link href="/" className="mb-8 flex items-center gap-2 font-bold text-2xl text-primary">
-                    <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white">
-                        <Heart className="h-6 w-6 fill-current" />
+                    <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white overflow-hidden shrink-0">
+                        {orgLogoURL ? (
+                            <img src={orgLogoURL} alt="Rangdhanu Logo" className="h-full w-full object-cover" />
+                        ) : (
+                            <Heart className="h-6 w-6 fill-current" />
+                        )}
                     </div>
-                    <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent">
-                        Rangdhanu
-                    </span>
+                    <div className="flex flex-col leading-tight">
+                        <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent text-xl font-bold">Rangdhanu</span>
+                        <span className="text-[10px] font-medium tracking-wide text-muted-foreground whitespace-nowrap">Charity Foundation</span>
+                    </div>
                 </Link>
                 <Card className="w-full max-w-md">
                     <CardHeader>

@@ -10,10 +10,13 @@ import { Heart, ArrowLeft, Mail, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { collection, query, where, getDocs, addDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useSettings } from "@/lib/settings-context";
 
 export default function ForgotPasswordPage() {
     const [identifier, setIdentifier] = useState("");
     const { requestPasswordReset } = useAuth();
+    const { settings } = useSettings();
+    const orgLogoURL = settings?.orgLogoURL || "";
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [submittedType, setSubmittedType] = useState<"email" | "username">("email");
@@ -150,12 +153,17 @@ export default function ForgotPasswordPage() {
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
             <Link href="/" className="mb-8 flex items-center gap-2 font-bold text-2xl text-primary">
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white">
-                    <Heart className="h-6 w-6 fill-current" />
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white overflow-hidden shrink-0">
+                    {orgLogoURL ? (
+                        <img src={orgLogoURL} alt="Rangdhanu Logo" className="h-full w-full object-cover" />
+                    ) : (
+                        <Heart className="h-6 w-6 fill-current" />
+                    )}
                 </div>
-                <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent">
-                    Rangdhanu
-                </span>
+                <div className="flex flex-col leading-tight">
+                    <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent text-xl font-bold">Rangdhanu</span>
+                    <span className="text-[10px] font-medium tracking-wide text-muted-foreground whitespace-nowrap">Charity Foundation</span>
+                </div>
             </Link>
 
             <Card className="w-full max-w-md">

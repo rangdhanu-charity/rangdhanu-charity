@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,17 +10,25 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Save, AlertTriangle, Info, CheckCircle2, Megaphone, Trash2, Plus, Edit, Type, EyeOff, Eye } from "lucide-react";
+import { Save, AlertTriangle, Info, CheckCircle2, Megaphone, Trash2, Plus, Edit, Type, ImageIcon, EyeOff, Eye, X, ExternalLink } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface BannerData {
     id?: string;
     isActive: boolean;
+    bannerType: "text" | "image";
+    // Text banner fields
     message: string;
     linkUrl: string;
     linkText: string;
     theme: "info" | "warning" | "success";
+    // Image banner fields
+    imageUrl?: string;
+    imageLinkUrl?: string;
+    imageLinkTarget?: "url" | "donate" | "login" | "register" | "projects" | "stories" | "about" | "contact";
+    // Common
     targetPage: "all" | "home" | "profile" | "donate" | "projects" | "stories" | "about";
     expiresAt?: string;
     createdAt?: any;
@@ -28,11 +36,15 @@ interface BannerData {
 
 const DEFAULT_BANNER: Omit<BannerData, "id" | "createdAt"> = {
     isActive: true,
+    bannerType: "text",
     message: "",
     linkUrl: "",
     linkText: "",
     theme: "info",
-    targetPage: "all",
+    imageUrl: "",
+    imageLinkUrl: "",
+    imageLinkTarget: "donate",
+    targetPage: "home",
     expiresAt: ""
 };
 
@@ -46,15 +58,36 @@ const PAGE_OPTIONS = [
     { value: "about", label: "About Us (/about)" },
 ];
 
+const LINK_TARGET_OPTIONS = [
+    { value: "url", label: "Custom URL" },
+    { value: "donate", label: "Donate Now (/donate)" },
+    { value: "login", label: "Login (/login)" },
+    { value: "register", label: "Register (/register)" },
+    { value: "projects", label: "Projects (/projects)" },
+    { value: "stories", label: "Stories (/stories)" },
+    { value: "about", label: "About Us (/about)" },
+    { value: "contact", label: "Contact (/contact)" },
+];
+
+const LINK_TARGET_MAP: Record<string, string> = {
+    donate: "/?donate=true",
+    login: "/login",
+    register: "/register",
+    projects: "/projects",
+    stories: "/stories",
+    about: "/about",
+    contact: "/contact",
+};
+
 export default function AdminBannerPage() {
     const [banners, setBanners] = useState<BannerData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    // Form State
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState<Omit<BannerData, "id" | "createdAt">>(DEFAULT_BANNER);
     const [isSaving, setIsSaving] = useState(false);
+    const [isUploadingImg, setIsUploadingImg] = useState(false);
+    const imgInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -64,7 +97,6 @@ export default function AdminBannerPage() {
                 ...doc.data()
             })) as BannerData[];
 
-            // Sort by createdAt descending
             fetchedBanners.sort((a, b) => {
                 const dateA = a.createdAt?.toDate?.() || new Date(0);
                 const dateB = b.createdAt?.toDate?.() || new Date(0);
@@ -91,10 +123,14 @@ export default function AdminBannerPage() {
     const handleOpenEditForm = (banner: BannerData) => {
         setFormData({
             isActive: banner.isActive,
-            message: banner.message,
+            bannerType: banner.bannerType || "text",
+            message: banner.message || "",
             linkUrl: banner.linkUrl || "",
             linkText: banner.linkText || "",
             theme: banner.theme || "info",
+            imageUrl: banner.imageUrl || "",
+            imageLinkUrl: banner.imageLinkUrl || "",
+            imageLinkTarget: banner.imageLinkTarget || "donate",
             targetPage: banner.targetPage || "all",
             expiresAt: banner.expiresAt || ""
         });
@@ -102,20 +138,73 @@ export default function AdminBannerPage() {
         setIsFormOpen(true);
     };
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = "";
+
+        setIsUploadingImg(true);
+        try {
+            const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+            if (!apiKey) {
+                toast({ title: "Configuration Error", description: "ImgBB API key is missing.", variant: "destructive" });
+                return;
+            }
+            const formDataUpload = new FormData();
+            formDataUpload.append("image", file);
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+                method: "POST",
+                body: formDataUpload,
+            });
+            const data = await response.json();
+            if (data.success) {
+                setFormData(prev => ({ ...prev, imageUrl: data.data.url as string }));
+                toast({ title: "Image Uploaded", description: "Poster image uploaded successfully." });
+            } else {
+                toast({ title: "Upload Failed", description: data.error?.message || "ImgBB upload failed.", variant: "destructive" });
+            }
+        } catch (err) {
+            console.error("Image upload error:", err);
+            toast({ title: "Error", description: "Failed to upload image.", variant: "destructive" });
+        } finally {
+            setIsUploadingImg(false);
+        }
+    };
+
+    const getEffectiveLinkUrl = () => {
+        if (formData.bannerType === "image") {
+            if (formData.imageLinkTarget === "url") return formData.imageLinkUrl || "";
+            return LINK_TARGET_MAP[formData.imageLinkTarget || ""] || "";
+        }
+        return formData.linkUrl;
+    };
+
     const handleSave = async () => {
-        if (!formData.message.trim()) {
+        if (formData.bannerType === "text" && !formData.message.trim()) {
             toast({ title: "Validation Error", description: "Message cannot be empty.", variant: "destructive" });
             return;
         }
+        if (formData.bannerType === "image" && !formData.imageUrl) {
+            toast({ title: "Validation Error", description: "Please upload a poster image.", variant: "destructive" });
+            return;
+        }
+
+        const dataToSave = {
+            ...formData,
+            // For image banners, compute the final link URL
+            ...(formData.bannerType === "image" && {
+                linkUrl: getEffectiveLinkUrl(),
+            }),
+        };
 
         setIsSaving(true);
         try {
             if (editingId) {
-                await updateDoc(doc(db, "banners", editingId), formData);
+                await updateDoc(doc(db, "banners", editingId), dataToSave);
                 toast({ title: "Banner Updated", description: "Your banner details were successfully updated." });
             } else {
                 await addDoc(collection(db, "banners"), {
-                    ...formData,
+                    ...dataToSave,
                     createdAt: Timestamp.now()
                 });
                 toast({ title: "Banner Created", description: "New banner successfully deployed." });
@@ -132,7 +221,7 @@ export default function AdminBannerPage() {
     const handleToggleActive = async (id: string, currentStatus: boolean) => {
         try {
             await updateDoc(doc(db, "banners", id), { isActive: !currentStatus });
-        } catch (error) {
+        } catch {
             toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
         }
     };
@@ -158,23 +247,21 @@ export default function AdminBannerPage() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">{editingId ? "Edit Banner" : "Create New Banner"}</h1>
-                        <p className="text-muted-foreground mt-1">Configure announcement targeting and visuals.</p>
+                        <p className="text-muted-foreground mt-1">Configure your announcement banner.</p>
                     </div>
                     <Button variant="outline" onClick={() => setIsFormOpen(false)}>Back to List</Button>
                 </div>
 
-                <Card className="border-2 border-primary/10 shadow-sm relative overflow-hidden">
+                <Card className="border-2 border-primary/10 shadow-sm">
                     <CardHeader className="bg-muted/30 pb-4 border-b">
                         <div className="flex justify-between items-center">
-                            <div>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Megaphone className="h-5 w-5 text-primary" />
-                                    Banner Settings
-                                </CardTitle>
-                            </div>
+                            <CardTitle className="flex items-center gap-2">
+                                <Megaphone className="h-5 w-5 text-primary" />
+                                Banner Settings
+                            </CardTitle>
                             <div className="flex items-center space-x-3 bg-white dark:bg-slate-900 border px-4 py-2 rounded-full shadow-sm">
                                 <Label htmlFor="banner-active" className="font-semibold cursor-pointer">
-                                    {formData.isActive ? <span className="text-green-600">Active Status</span> : <span className="text-slate-400">Suspended Status</span>}
+                                    {formData.isActive ? <span className="text-green-600">Active</span> : <span className="text-slate-400">Suspended</span>}
                                 </Label>
                                 <Switch
                                     id="banner-active"
@@ -187,139 +274,297 @@ export default function AdminBannerPage() {
                     </CardHeader>
                     <CardContent className="space-y-6 pt-6">
 
-                        {/* Live Preview */}
+                        {/* Banner Type Selector */}
                         <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Live Preview</Label>
-                            <div className={`p-4 rounded-md border flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors ${formData.theme === 'warning' ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-red-900 dark:text-red-200' :
-                                formData.theme === 'success' ? 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900 text-green-900 dark:text-green-200' :
-                                    'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900 text-blue-900 dark:text-blue-200'
-                                }`}>
-                                <div className="flex items-center gap-3 w-full">
-                                    <div className="shrink-0">
-                                        {formData.theme === 'warning' && <AlertTriangle className="h-5 w-5 opacity-80" />}
-                                        {formData.theme === 'success' && <CheckCircle2 className="h-5 w-5 opacity-80" />}
-                                        {formData.theme === 'info' && <Info className="h-5 w-5 opacity-80" />}
-                                    </div>
-                                    <div className="text-sm font-medium leading-normal flex-1">
-                                        {formData.message || "Your announcement message will appear here."}
-                                    </div>
-                                    {formData.linkUrl && formData.linkText && (
-                                        <div className="shrink-0">
-                                            <div className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap border bg-white/50 dark:bg-black/20 ${formData.theme === 'warning' ? 'border-red-300 text-red-800 dark:text-red-300' :
-                                                formData.theme === 'success' ? 'border-green-300 text-green-800 dark:text-green-300' :
-                                                    'border-blue-300 text-blue-800 dark:text-blue-300'
-                                                }`}>
-                                                {formData.linkText}
+                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Banner Type</Label>
+                            <RadioGroup
+                                value={formData.bannerType}
+                                onValueChange={(val: any) => setFormData({ ...formData, bannerType: val })}
+                                className="flex gap-4"
+                            >
+                                <div className={`flex items-center gap-3 border-2 rounded-xl px-5 py-3 cursor-pointer transition-all ${formData.bannerType === "text" ? "border-primary bg-primary/5" : "border-muted"}`}>
+                                    <RadioGroupItem value="text" id="type-text" />
+                                    <Label htmlFor="type-text" className="flex items-center gap-2 cursor-pointer font-semibold">
+                                        <Type className="h-4 w-4" /> Text Announcement
+                                    </Label>
+                                </div>
+                                <div className={`flex items-center gap-3 border-2 rounded-xl px-5 py-3 cursor-pointer transition-all ${formData.bannerType === "image" ? "border-primary bg-primary/5" : "border-muted"}`}>
+                                    <RadioGroupItem value="image" id="type-image" />
+                                    <Label htmlFor="type-image" className="flex items-center gap-2 cursor-pointer font-semibold">
+                                        <ImageIcon className="h-4 w-4" /> Poster / Event Image
+                                    </Label>
+                                </div>
+                            </RadioGroup>
+                        </div>
+
+                        {/* ── TEXT BANNER ─────────────────────────────────── */}
+                        {formData.bannerType === "text" && (
+                            <>
+                                {/* Live Preview */}
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Live Preview</Label>
+                                    <div className={`p-4 rounded-md border flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors ${formData.theme === 'warning' ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-red-900 dark:text-red-200' :
+                                        formData.theme === 'success' ? 'bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-900 text-green-900 dark:text-green-200' :
+                                            'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900 text-blue-900 dark:text-blue-200'
+                                        }`}>
+                                        <div className="flex items-center gap-3 w-full">
+                                            <div className="shrink-0">
+                                                {formData.theme === 'warning' && <AlertTriangle className="h-5 w-5 opacity-80" />}
+                                                {formData.theme === 'success' && <CheckCircle2 className="h-5 w-5 opacity-80" />}
+                                                {formData.theme === 'info' && <Info className="h-5 w-5 opacity-80" />}
                                             </div>
+                                            <div className="text-sm font-medium leading-normal flex-1">
+                                                {formData.message || "Your announcement message will appear here."}
+                                            </div>
+                                            {formData.linkUrl && formData.linkText && (
+                                                <div className="shrink-0">
+                                                    <div className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap border bg-white/50 dark:bg-black/20 ${formData.theme === 'warning' ? 'border-red-300 text-red-800 dark:text-red-300' :
+                                                        formData.theme === 'success' ? 'border-green-300 text-green-800 dark:text-green-300' :
+                                                            'border-blue-300 text-blue-800 dark:text-blue-300'
+                                                        }`}>
+                                                        {formData.linkText}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="message">Announcement Message *</Label>
+                                            <Textarea
+                                                id="message"
+                                                placeholder="Type the main banner text..."
+                                                value={formData.message}
+                                                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                                                className="resize-none h-32"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Placement (Target Page)</Label>
+                                            <RadioGroup
+                                                value={formData.targetPage}
+                                                onValueChange={(val: any) => setFormData({ ...formData, targetPage: val })}
+                                                className="flex flex-col gap-2 mt-2"
+                                            >
+                                                {PAGE_OPTIONS.map((opt) => (
+                                                    <div key={opt.value} className="flex items-center space-x-2 rounded-md hover:bg-muted/50 cursor-pointer">
+                                                        <RadioGroupItem value={opt.value} id={`r-target-${opt.value}`} />
+                                                        <Label htmlFor={`r-target-${opt.value}`} className="flex-1 cursor-pointer text-sm">
+                                                            {opt.label}
+                                                        </Label>
+                                                    </div>
+                                                ))}
+                                            </RadioGroup>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
+                                        <div className="space-y-2">
+                                            <Label>Design Theme</Label>
+                                            <RadioGroup
+                                                value={formData.theme}
+                                                onValueChange={(val: any) => setFormData({ ...formData, theme: val })}
+                                                className="flex flex-row gap-4 mt-2"
+                                            >
+                                                <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer flex-1 justify-center">
+                                                    <RadioGroupItem value="info" id="r-info" />
+                                                    <Label htmlFor="r-info" className="flex items-center gap-2 cursor-pointer">
+                                                        <div className="h-4 w-4 rounded-full bg-blue-500"></div>Blue
+                                                    </Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer flex-1 justify-center">
+                                                    <RadioGroupItem value="warning" id="r-warning" />
+                                                    <Label htmlFor="r-warning" className="flex items-center gap-2 cursor-pointer">
+                                                        <div className="h-4 w-4 rounded-full bg-red-500"></div>Red
+                                                    </Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer flex-1 justify-center">
+                                                    <RadioGroupItem value="success" id="r-success" />
+                                                    <Label htmlFor="r-success" className="flex items-center gap-2 cursor-pointer">
+                                                        <div className="h-4 w-4 rounded-full bg-green-500"></div>Green
+                                                    </Label>
+                                                </div>
+                                            </RadioGroup>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="expiresAt">Auto-Expire Date &amp; Time (Optional)</Label>
+                                            <Input
+                                                id="expiresAt"
+                                                type="datetime-local"
+                                                value={formData.expiresAt || ""}
+                                                onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+                                                className="w-full"
+                                            />
+                                            <p className="text-[10px] text-muted-foreground leading-tight">Banner will automatically vanish after this time.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-b pb-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="linkUrl">Call to Action URL (Optional)</Label>
+                                            <Input
+                                                id="linkUrl"
+                                                placeholder="e.g. /projects or https://example.com"
+                                                value={formData.linkUrl}
+                                                onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="linkText">Button Text</Label>
+                                            <Input
+                                                id="linkText"
+                                                placeholder="e.g. Donate Now"
+                                                value={formData.linkText}
+                                                onChange={(e) => setFormData({ ...formData, linkText: e.target.value })}
+                                                disabled={!formData.linkUrl}
+                                                className="disabled:opacity-50"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* ── IMAGE BANNER ─────────────────────────────────── */}
+                        {formData.bannerType === "image" && (
+                            <div className="grid gap-6">
+                                {/* Image Upload */}
+                                <div className="space-y-3">
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Poster / Event Image *</Label>
+                                    <div className="flex flex-col sm:flex-row gap-6 items-center">
+                                        {/* Single clickable upload area — no side buttons */}
+                                        <div
+                                            className="relative w-full max-w-sm mx-auto rounded-xl overflow-hidden border-2 border-dashed border-primary/30 hover:border-primary/60 cursor-pointer bg-muted/30 transition-all group"
+                                            style={{ aspectRatio: "16/9" }}
+                                            onClick={() => !isUploadingImg && imgInputRef.current?.click()}
+                                            title="Click to upload poster image"
+                                        >
+                                            {formData.imageUrl ? (
+                                                <>
+                                                    <img
+                                                        src={formData.imageUrl}
+                                                        alt="Poster preview"
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    {/* Hover overlay */}
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                                                        <span className="opacity-0 group-hover:opacity-100 text-white text-sm font-semibold bg-black/50 px-3 py-1.5 rounded-full">
+                                                            {isUploadingImg ? "Uploading…" : "Click to change"}
+                                                        </span>
+                                                    </div>
+                                                    {/* Remove × button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); setFormData(prev => ({ ...prev, imageUrl: "" })); }}
+                                                        className="absolute top-2 right-2 flex items-center justify-center h-7 w-7 rounded-full bg-black/60 text-white hover:bg-red-600 transition-colors shadow"
+                                                        aria-label="Remove image"
+                                                    >
+                                                        <X className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground p-4">
+                                                    {isUploadingImg ? (
+                                                        <>
+                                                            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                            <span className="text-xs">Uploading…</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <ImageIcon className="h-10 w-10 opacity-40" />
+                                                            <span className="text-xs text-center font-medium">Click to upload poster image</span>
+                                                            <span className="text-[10px] text-muted-foreground">JPG, PNG, WebP · Recommended 16:9</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <input
+                                        ref={imgInputRef}
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        className="hidden"
+                                        onChange={handleImageUpload}
+                                    />
+                                </div>
+
+                                {/* Link / CTA */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
+                                    <div className="space-y-2">
+                                        <Label>Click Action (Optional)</Label>
+                                        <Select
+                                            value={formData.imageLinkTarget || "donate"}
+                                            onValueChange={(val: any) => setFormData({ ...formData, imageLinkTarget: val })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select destination..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {LINK_TARGET_OPTIONS.map(opt => (
+                                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-[10px] text-muted-foreground">Where users go when they click the image.</p>
+                                    </div>
+                                    {formData.imageLinkTarget === "url" && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="imageLinkUrl">Custom URL</Label>
+                                            <Input
+                                                id="imageLinkUrl"
+                                                placeholder="https://example.com"
+                                                value={formData.imageLinkUrl || ""}
+                                                onChange={(e) => setFormData({ ...formData, imageLinkUrl: e.target.value })}
+                                            />
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        </div>
 
-                        <div className="grid gap-6 py-4">
-                            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="message">Announcement Message *</Label>
-                                    <Textarea
-                                        id="message"
-                                        placeholder="Type the main banner text..."
-                                        value={formData.message}
-                                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                                        className="resize-none h-32"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Placement (Target Page)</Label>
-                                    <RadioGroup
-                                        value={formData.targetPage}
-                                        onValueChange={(val: any) => setFormData({ ...formData, targetPage: val })}
-                                        className="flex flex-col gap-2 mt-2"
-                                    >
-                                        {PAGE_OPTIONS.map((opt) => (
-                                            <div key={opt.value} className="flex items-center space-x-2 rounded-md hover:bg-muted/50 cursor-pointer">
-                                                <RadioGroupItem value={opt.value} id={`r-target-${opt.value}`} />
-                                                <Label htmlFor={`r-target-${opt.value}`} className="flex-1 cursor-pointer text-sm">
-                                                    {opt.label}
-                                                </Label>
-                                            </div>
-                                        ))}
-                                    </RadioGroup>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
-                                <div className="space-y-2">
-                                    <Label>Design Theme</Label>
-                                    <RadioGroup
-                                        value={formData.theme}
-                                        onValueChange={(val: any) => setFormData({ ...formData, theme: val })}
-                                        className="flex flex-row gap-4 mt-2"
-                                    >
-                                        <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer flex-1 justify-center">
-                                            <RadioGroupItem value="info" id="r-info" />
-                                            <Label htmlFor="r-info" className="flex items-center gap-2 cursor-pointer">
-                                                <div className="h-4 w-4 rounded-full bg-blue-500"></div>Blue
-                                            </Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer flex-1 justify-center">
-                                            <RadioGroupItem value="warning" id="r-warning" />
-                                            <Label htmlFor="r-warning" className="flex items-center gap-2 cursor-pointer">
-                                                <div className="h-4 w-4 rounded-full bg-red-500"></div>Red
-                                            </Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2 border p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer flex-1 justify-center">
-                                            <RadioGroupItem value="success" id="r-success" />
-                                            <Label htmlFor="r-success" className="flex items-center gap-2 cursor-pointer">
-                                                <div className="h-4 w-4 rounded-full bg-green-500"></div>Green
-                                            </Label>
-                                        </div>
-                                    </RadioGroup>
-                                </div>
-
-                                <div className="space-y-4">
+                                {/* Target Page + Expiry */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
                                     <div className="space-y-2">
-                                        <Label htmlFor="expiresAt">Auto-Expire Date & Time (Optional)</Label>
+                                        <Label>Placement (Target Page)</Label>
+                                        <RadioGroup
+                                            value={formData.targetPage}
+                                            onValueChange={(val: any) => setFormData({ ...formData, targetPage: val })}
+                                            className="flex flex-col gap-2 mt-2"
+                                        >
+                                            {PAGE_OPTIONS.map((opt) => (
+                                                <div key={opt.value} className="flex items-center space-x-2 rounded-md hover:bg-muted/50 cursor-pointer">
+                                                    <RadioGroupItem value={opt.value} id={`r-img-target-${opt.value}`} />
+                                                    <Label htmlFor={`r-img-target-${opt.value}`} className="flex-1 cursor-pointer text-sm">
+                                                        {opt.label}
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </RadioGroup>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="imgExpiresAt">Auto-Expire Date &amp; Time (Optional)</Label>
                                         <Input
-                                            id="expiresAt"
+                                            id="imgExpiresAt"
                                             type="datetime-local"
                                             value={formData.expiresAt || ""}
                                             onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
                                             className="w-full"
                                         />
-                                        <p className="text-[10px] text-muted-foreground leading-tight">Banner will automatically vanish after this exact time.</p>
+                                        <p className="text-[10px] text-muted-foreground leading-tight">Poster will automatically vanish after this time.</p>
                                     </div>
                                 </div>
                             </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-b pb-4 mt-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="linkUrl">Call to Action URL (Optional)</Label>
-                                    <Input
-                                        id="linkUrl"
-                                        placeholder="e.g. /projects or https://example.com"
-                                        value={formData.linkUrl}
-                                        onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
-                                    />
-                                    <p className="text-[10px] text-muted-foreground leading-tight">Leave blank to show a text-only banner without a button.</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="linkText">Button Text</Label>
-                                    <Input
-                                        id="linkText"
-                                        placeholder="e.g. Donate Now"
-                                        value={formData.linkText}
-                                        onChange={(e) => setFormData({ ...formData, linkText: e.target.value })}
-                                        disabled={!formData.linkUrl}
-                                        className="disabled:opacity-50"
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                        )}
 
                         <div className="pt-2 flex justify-end gap-3 flex-wrap">
                             <Button variant="outline" onClick={() => setIsFormOpen(false)} disabled={isSaving}>Cancel</Button>
-                            <Button onClick={handleSave} disabled={isSaving || !formData.message.trim()} className="px-8 bg-black hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 dark:text-black">
+                            <Button
+                                onClick={handleSave}
+                                disabled={isSaving || (formData.bannerType === "text" && !formData.message.trim()) || (formData.bannerType === "image" && !formData.imageUrl)}
+                                className="px-8 bg-black hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 dark:text-black"
+                            >
                                 {isSaving ? "Saving..." : (
                                     <>
                                         <Save className="mr-2 h-4 w-4" />
@@ -339,7 +584,7 @@ export default function AdminBannerPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Banner Management</h1>
-                    <p className="text-muted-foreground mt-1">Manage multiple announcement banners assigned to different pages.</p>
+                    <p className="text-muted-foreground mt-1">Manage text announcements and image poster banners.</p>
                 </div>
                 <Button onClick={handleOpenCreateForm}>
                     <Plus className="mr-2 h-4 w-4" /> New Banner
@@ -350,7 +595,7 @@ export default function AdminBannerPage() {
                 <CardHeader className="bg-muted/30 pb-4 border-b">
                     <CardTitle className="flex items-center gap-2 text-lg">
                         <Megaphone className="h-5 w-5 text-primary" />
-                        Active & Inactive Banners
+                        Active &amp; Inactive Banners
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -364,6 +609,7 @@ export default function AdminBannerPage() {
                             {banners.map(b => {
                                 const isExpired = b.expiresAt && new Date(b.expiresAt) < new Date();
                                 const pageLabel = PAGE_OPTIONS.find(o => o.value === b.targetPage)?.label || b.targetPage;
+                                const isImageBanner = b.bannerType === "image";
 
                                 return (
                                     <div key={b.id} className="p-4 sm:p-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-muted/20 transition-colors">
@@ -377,25 +623,37 @@ export default function AdminBannerPage() {
                                             />
                                         </div>
 
+                                        {/* Image thumbnail (for image banners) */}
+                                        {isImageBanner && b.imageUrl && (
+                                            <div className="shrink-0 w-20 h-12 rounded-md overflow-hidden border">
+                                                <img src={b.imageUrl} alt="Poster" className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+
                                         {/* Content Preview */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                <Badge variant="outline" className={`shrink-0 capitalize ${b.theme === 'warning' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                <Badge variant="outline" className={`shrink-0 ${isImageBanner ? "bg-purple-50 text-purple-700 border-purple-200" :
+                                                    b.theme === 'warning' ? 'bg-red-50 text-red-700 border-red-200' :
                                                         b.theme === 'success' ? 'bg-green-50 text-green-700 border-green-200' :
                                                             'bg-blue-50 text-blue-700 border-blue-200'
                                                     }`}>
-                                                    {b.theme}
+                                                    {isImageBanner ? "image" : b.theme}
                                                 </Badge>
                                                 <span className="text-xs font-semibold text-muted-foreground">• Target: {pageLabel}</span>
                                                 {isExpired && <Badge variant="destructive" className="text-[10px]">Expired</Badge>}
                                                 {!b.isActive && !isExpired && <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-sm font-semibold flex items-center gap-1"><EyeOff className="h-3 w-3" /> Hidden</span>}
                                                 {b.isActive && !isExpired && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-sm font-semibold flex items-center gap-1"><Eye className="h-3 w-3" /> Public</span>}
                                             </div>
-                                            <p className="text-sm font-medium line-clamp-2 leading-relaxed">{b.message}</p>
-
+                                            <p className="text-sm font-medium line-clamp-2 leading-relaxed">
+                                                {isImageBanner ? (b.imageUrl ? "📷 Poster image" : "No image uploaded") : b.message}
+                                            </p>
                                             <div className="flex items-center gap-4 mt-2">
-                                                {b.linkUrl && (
-                                                    <span className="text-xs text-muted-foreground truncate">🔗 {b.linkText || "Link"}</span>
+                                                {(b.linkUrl || (isImageBanner && b.imageLinkTarget)) && (
+                                                    <span className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                                        <ExternalLink className="h-3 w-3" />
+                                                        {isImageBanner ? (LINK_TARGET_OPTIONS.find(o => o.value === b.imageLinkTarget)?.label || b.linkUrl) : (b.linkText || "Link")}
+                                                    </span>
                                                 )}
                                                 {b.expiresAt && (
                                                     <span className="text-xs text-muted-foreground opacity-80 border-l pl-4">⏳ Expires: {new Date(b.expiresAt).toLocaleString()}</span>

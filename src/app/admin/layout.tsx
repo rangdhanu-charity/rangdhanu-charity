@@ -5,22 +5,24 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Heart, LayoutDashboard, FolderOpen, Users, LogOut, BarChart3, MessageSquareQuote, Trash2, Settings, Megaphone, BookOpen, ChevronDown, ChevronRight, ImageIcon } from "lucide-react";
+import { Heart, LayoutDashboard, FolderOpen, Users, LogOut, BarChart3, MessageSquareQuote, Settings, Megaphone, BookOpen, ChevronDown, ChevronRight, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { FinanceProvider } from "@/lib/finance-context";
-import { SettingsProvider } from "@/lib/settings-context";
+import { SettingsProvider, useSettings } from "@/lib/settings-context";
 import { Coins, PiggyBank, FileText, Library } from "lucide-react";
 
 
-export default function AdminLayout({
+function AdminLayoutInner({
     children,
 }: {
     children: React.ReactNode;
 }) {
     const { user, isLoading, logout } = useAuth();
+    const { settings } = useSettings();
+    const orgLogoURL = settings?.orgLogoURL || "";
     const router = useRouter();
     const pathname = usePathname();
 
@@ -95,8 +97,17 @@ export default function AdminLayout({
             <aside className="hidden border-r bg-muted/40 md:flex flex-col md:w-64 md:min-h-screen">
                 <div className="flex h-16 items-center border-b px-6">
                     <Link href="/" className="flex items-center gap-2 font-bold text-lg text-primary">
-                        <Heart className="h-5 w-5 fill-current" />
-                        <span>Rangdhanu Admin</span>
+                        <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white overflow-hidden shrink-0">
+                            {orgLogoURL ? (
+                                <img src={orgLogoURL} alt="Rangdhanu Logo" className="h-full w-full object-cover" />
+                            ) : (
+                                <Heart className="h-4 w-4 fill-current" />
+                            )}
+                        </div>
+                        <div className="flex flex-col leading-tight">
+                            <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent text-sm font-bold">Rangdhanu</span>
+                            <span className="text-[9px] text-muted-foreground">Admin Panel</span>
+                        </div>
                     </Link>
                 </div>
                 <nav className="flex flex-col gap-2 p-4">
@@ -168,12 +179,22 @@ export default function AdminLayout({
                 </nav>
             </aside>
             <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-                <SettingsProvider>
-                    <FinanceProvider>
-                        {children}
-                    </FinanceProvider>
-                </SettingsProvider>
+                <FinanceProvider>
+                    {children}
+                </FinanceProvider>
             </main>
         </div>
+    );
+}
+
+export default function AdminLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <SettingsProvider>
+            <AdminLayoutInner>{children}</AdminLayoutInner>
+        </SettingsProvider>
     );
 }
