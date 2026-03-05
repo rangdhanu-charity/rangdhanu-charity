@@ -96,7 +96,7 @@ function AdminLayoutInner({
         <div className="flex min-h-screen flex-col md:flex-row">
             <aside className="hidden border-r bg-muted/40 md:flex flex-col md:w-64 md:min-h-screen">
                 <div className="flex h-16 items-center border-b px-6">
-                    <Link href="/" className="flex items-center gap-2 font-bold text-lg text-primary">
+                    <div className="flex items-center gap-2 font-bold text-lg text-primary select-none cursor-default">
                         <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-purple-500 to-pink-500 text-white overflow-hidden shrink-0">
                             {orgLogoURL ? (
                                 <img src={orgLogoURL} alt="Rangdhanu Logo" className="h-full w-full object-cover" />
@@ -108,7 +108,7 @@ function AdminLayoutInner({
                             <span className="bg-gradient-to-r from-blue-700 to-blue-500 bg-clip-text text-transparent text-sm font-bold">Rangdhanu</span>
                             <span className="text-[9px] text-muted-foreground">Admin Panel</span>
                         </div>
-                    </Link>
+                    </div>
                 </div>
                 <nav className="flex flex-col gap-2 p-4">
                     {sidebarItems.map((item) => (
