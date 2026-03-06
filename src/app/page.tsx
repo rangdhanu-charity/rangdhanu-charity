@@ -19,24 +19,14 @@ export default function Home() {
       <section className="relative flex flex-col items-center justify-center overflow-hidden py-24 md:py-36 lg:py-56">
         <HomeHeroGallery />
         <div className="container relative z-20 px-4 text-center md:px-6">
-          <div className="mx-auto max-w-3xl space-y-6">
+          <div className="mx-auto max-w-3xl space-y-6 bg-white/5 dark:bg-black/5 backdrop-blur-md p-6 sm:p-10 rounded-3xl border border-white/10 shadow-xl transition-all duration-500 hover:bg-white/10">
             <h1
-              className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-blue-500 pb-1"
-              style={{
-                WebkitTextStroke: '0.4px rgba(59,130,246,0.2)',
-                textShadow: [
-                  '0 2px 6px rgba(10,15,40,0.5)',
-                  '0 -1px 2px rgba(10,15,40,0.3)'
-                ].join(', ')
-              }}
+              className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-blue-500 pb-1 drop-shadow-sm"
             >
               Empowering Future Generations
             </h1>
             <p
-              className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl text-blue-900"
-              style={{
-                color: 'rgba(30,58,138,0.95)',
-              }}
+              className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl text-blue-900 dark:text-blue-100 drop-shadow-sm"
             >
               Rangdhanu Charity Foundation supports underprivileged children to continue their education and build a brighter future.
             </p>
