@@ -8,7 +8,7 @@ import { useSettings } from "@/lib/settings-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, UserCheck } from "lucide-react";
+import { Search, UserCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 
 export default function ReportsPage() {
@@ -18,6 +18,18 @@ export default function ReportsPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [view, setView] = useState<"summary" | "paid" | "due">("summary");
+    type SortField = "name" | "totalPaid" | "oneTimeTotal" | "totalPassedMonths" | "totalMonthsPaidCount" | "monthsDueCount" | "status";
+    const [sortField, setSortField] = useState<SortField>("name");
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+        } else {
+            setSortField(field);
+            setSortDirection("asc");
+        }
+    };
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -104,6 +116,23 @@ export default function ReportsPage() {
         return true;
     });
 
+    const sortedUsers = [...displayedUsers].sort((a, b) => {
+        let aValue = a[sortField as keyof typeof a];
+        let bValue = b[sortField as keyof typeof b];
+
+        if (sortField === "name") {
+            aValue = (a.name || a.username || "").toLowerCase();
+            bValue = (b.name || b.username || "").toLowerCase();
+        } else if (sortField === "status") {
+            aValue = a.isPaidCurrentMonth ? 1 : 0;
+            bValue = b.isPaidCurrentMonth ? 1 : 0;
+        }
+
+        if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
@@ -175,13 +204,27 @@ export default function ReportsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead className="text-right">Total Paid (৳)</TableHead>
-                                    <TableHead className="text-right">One-time (৳)</TableHead>
-                                    <TableHead className="text-center">Passed Months</TableHead>
-                                    <TableHead className="text-center">Paid Months</TableHead>
-                                    <TableHead className="text-center">Due Months</TableHead>
-                                    <TableHead className="text-center">Status (Current Month)</TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none" onClick={() => handleSort("name")}>
+                                        <div className="flex items-center gap-1">Name {sortField === "name" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-right" onClick={() => handleSort("totalPaid")}>
+                                        <div className="flex items-center justify-end gap-1">Total Paid (৳) {sortField === "totalPaid" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-right" onClick={() => handleSort("oneTimeTotal")}>
+                                        <div className="flex items-center justify-end gap-1">One-time (৳) {sortField === "oneTimeTotal" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-center" onClick={() => handleSort("totalPassedMonths")}>
+                                        <div className="flex items-center justify-center gap-1">Passed {sortField === "totalPassedMonths" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-center" onClick={() => handleSort("totalMonthsPaidCount")}>
+                                        <div className="flex items-center justify-center gap-1">Paid {sortField === "totalMonthsPaidCount" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-center" onClick={() => handleSort("monthsDueCount")}>
+                                        <div className="flex items-center justify-center gap-1">Due {sortField === "monthsDueCount" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-center" onClick={() => handleSort("status")}>
+                                        <div className="flex items-center justify-center gap-1">Status {sortField === "status" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -194,7 +237,7 @@ export default function ReportsPage() {
                                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No members found.</TableCell>
                                     </TableRow>
                                 ) : (
-                                    displayedUsers.map(user => {
+                                    sortedUsers.map(user => {
                                         const isTopContributor = topContributors.includes(user.id);
                                         const rank = isTopContributor ? topContributors.indexOf(user.id) + 1 : undefined;
                                         return (
