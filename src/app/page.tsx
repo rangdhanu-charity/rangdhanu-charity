@@ -23,7 +23,7 @@ export default function Home() {
             <h1
               className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
               style={{
-                color: 'white',
+                color: '#dbeeff',
                 WebkitTextStroke: '0.5px rgba(99,179,237,0.7)',
                 textShadow: [
                   '0 0 30px rgba(59,130,246,0.8)',
@@ -38,7 +38,7 @@ export default function Home() {
             <p
               className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl"
               style={{
-                color: 'rgba(255,255,255,0.95)',
+                color: 'rgba(219,238,255,0.97)',
                 textShadow: [
                   '0 1px 3px rgba(10,15,40,0.95)',
                   '0 0 20px rgba(30,58,138,0.6)',

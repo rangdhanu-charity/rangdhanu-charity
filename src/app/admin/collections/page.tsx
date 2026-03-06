@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { collection, query, getDocs, doc, deleteDoc, writeBatch, Timestamp } from "firebase/firestore";
@@ -594,7 +594,7 @@ export default function CollectionsPage() {
                                 html: `
                                     <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#1f2937;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                                         <div style="background:linear-gradient(135deg,#1e3a8a,#0f766e);padding:28px 32px">
-                                            <h2 style="margin:0;color:#fff;font-size:22px">� Monthly Donation Receipt</h2>
+                                            <h2 style="margin:0;color:#fff;font-size:22px">ðŸŒŸ Monthly Donation Receipt</h2>
                                             <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px">Rangdhanu Charity Foundation — Thank you for your generosity!</p>
                                         </div>
                                         <div style="padding:28px 32px">
@@ -627,23 +627,52 @@ export default function CollectionsPage() {
                                             </table>
 
                                             <div style="margin:20px 0;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb">
-                                                <div style="background:#f3f4f6;padding:12px 16px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#374151">
-                                                    📊 Global Account Status
+                                                <div style="background:linear-gradient(135deg,#1e3a8a,#0f766e);padding:12px 16px">
+                                                    <span style="color:#fff;font-weight:700;font-size:15px">📊 Your Global Donation Account Status</span>
                                                 </div>
-                                                <table style="width:100%;border-collapse:collapse;font-size:14px">
-                                                    <tr>
-                                                        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#6b7280">Total Months Passed (Since Start)</td>
-                                                        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#374151">${totalPassedMonths}</td>
-                                                    </tr>
-                                                    <tr style="background:#f0fdf4">
-                                                        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#15803d;font-weight:600">Total Months Paid</td>
-                                                        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:#15803d">${totalPaidMonthsCount}</td>
-                                                    </tr>
-                                                    <tr style="background:#fff7ed">
-                                                        <td style="padding:12px 16px;color:#b45309;font-weight:600">Total Months Due</td>
-                                                        <td style="padding:12px 16px;text-align:right;font-weight:700;color:#b45309">${monthsDue}</td>
-                                                    </tr>
-                                                </table>
+                                                <div style="padding:12px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
+                                                    <table style="width:100%;border-collapse:collapse;font-size:13px">
+                                                        <tr>
+                                                            <td style="padding:4px 0;color:#6b7280">Total Months Passed (Since Foundation Start)</td>
+                                                            <td style="padding:4px 0;text-align:right;font-weight:700;color:#374151">${totalPassedMonths}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style="padding:4px 0;color:#15803d;font-weight:600">Total Months Donated</td>
+                                                            <td style="padding:4px 0;text-align:right;font-weight:700;color:#15803d">${totalPaidMonthsCount}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style="padding:4px 0;color:#b45309;font-weight:600">Total Months Due</td>
+                                                            <td style="padding:4px 0;text-align:right;font-weight:700;color:#b45309">${monthsDue}</td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                                ${(() => {
+                                        // Build a detailed year-by-year, month-by-month grid
+                                        const currentMonthLocal = new Date().getMonth() + 1;
+                                        const currentYearLocal = new Date().getFullYear();
+                                        if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) return '';
+                                        return settings.collectionYears.map((yr: number) => {
+                                            const activeMonths: number[] = settings.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                            // Only show months that have passed (or are in a past year)
+                                            const relevantMonths = yr < currentYearLocal
+                                                ? activeMonths
+                                                : yr === currentYearLocal
+                                                    ? activeMonths.filter((m: number) => m <= currentMonthLocal)
+                                                    : [];
+                                            if (relevantMonths.length === 0) return '';
+                                            const monthCells = relevantMonths.map((m: number) => {
+                                                const isPaid = paidMonthsSet.has(`${m}-${yr}`);
+                                                const mName = new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' });
+                                                return `<td style="padding:5px 8px;text-align:center;border:1px solid #e5e7eb;background:${isPaid ? '#f0fdf4' : '#fff7ed'};color:${isPaid ? '#15803d' : '#b45309'};font-size:11px;white-space:nowrap">
+                                                                ${isPaid ? '✅' : '🔴'} ${mName}
+                                                            </td>`;
+                                            }).join('');
+                                            return `<div style="padding:10px 16px;border-bottom:1px solid #e5e7eb">
+                                                            <div style="font-weight:700;font-size:12px;color:#374151;margin-bottom:6px">${yr}</div>
+                                                            <table style="border-collapse:collapse;width:100%"><tr>${monthCells}</tr></table>
+                                                        </div>`;
+                                        }).join('');
+                                    })()}
                                             </div>
 
                                             <p style="margin-top:16px;font-size:13px;color:#6b7280">Your generous contributions make a real difference in the lives of children who depend on our support. Log in to your profile anytime to view your full donation history.</p>
