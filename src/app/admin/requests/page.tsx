@@ -407,11 +407,23 @@ export default function RequestsPage() {
                                 });
                             }
                             const totalPaidCount = paidSet.size;
+                            let periodString = 'Months Passed';
+                            if (sData && sData.collectionYears && sData.collectionYears.length > 0) {
+                                const sortedYears = [...sData.collectionYears].sort();
+                                const firstYear = sortedYears[0];
+                                const firstMonthArr = sData.collectionMonths?.[firstYear] || [1];
+                                const firstMonth = Math.min(...firstMonthArr);
+                                const firstMonthName = new Date(2000, firstMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
+                                periodString = `From ${firstMonthName} ${firstYear} to Present`;
+                            }
                             const totalDue = Math.max(0, totalPassed - totalPaidCount);
                             // Build year grid
                             const yearGridRows = (sData.collectionYears || []).map((yr: number) => {
                                 const mons: number[] = sData.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                                const relevant = yr < cYear ? mons : yr === cYear ? mons.filter((m: number) => m <= cMonth) : [];
+                                const relevant = mons.filter((m: number) => {
+                                    const isPast = (yr < cYear) || (yr === cYear && m <= cMonth);
+                                    return isPast || paidSet.has(`${m}-${yr}`);
+                                });
                                 if (relevant.length === 0) return '';
 
                                 const pL2 = relevant.filter((m: number) => paidSet.has(`${m}-${yr}`)).map((m: number) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
@@ -433,7 +445,7 @@ export default function RequestsPage() {
                                     </div>
                                     <div style="background:#f8fafc;padding:14px 18px;border-bottom:1px solid #e2e8f0">
                                         <table style="width:100%;border-collapse:collapse"><tr>
-                                            <td style="width:33%;padding:0 5px 0 0"><div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 6px"><div style="font-size:22px;font-weight:800;color:#334155">${totalPassed}</div><div style="font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Months Passed</div></div></td>
+                                            <td style="width:33%;padding:0 5px 0 0"><div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 6px"><div style="font-size:22px;font-weight:800;color:#334155">${totalPassed}</div><div style="font-size:9px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.2px">${periodString}</div></div></td>
                                             <td style="width:33%;padding:0 5px"><div style="text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 6px"><div style="font-size:22px;font-weight:800;color:#15803d">${totalPaidCount}</div><div style="font-size:10px;color:#16a34a;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Donated</div></div></td>
                                             <td style="width:33%;padding:0 0 0 5px"><div style="text-align:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 6px"><div style="font-size:22px;font-weight:800;color:#c2410c">${totalDue}</div><div style="font-size:10px;color:#ea580c;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Due</div></div></td>
                                         </tr></table>

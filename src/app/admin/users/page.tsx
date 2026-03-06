@@ -343,7 +343,7 @@ function UsersContent() {
 
         // Prepare data for update
         const { id, ...data } = editForm as any;
-        const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
+        const cleanData: Record<string, any> = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
 
         const res = await adminUpdateUser(editingUser.id, cleanData);
 
