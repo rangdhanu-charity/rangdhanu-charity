@@ -23,12 +23,12 @@ export default function Home() {
             <h1
               className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
               style={{
-                color: '#dbeeff',
-                WebkitTextStroke: '0.5px rgba(99,179,237,0.7)',
+                color: '#fde68a',
+                WebkitTextStroke: '0.4px rgba(217,119,6,0.6)',
                 textShadow: [
-                  '0 0 30px rgba(59,130,246,0.8)',
-                  '0 0 60px rgba(20,184,166,0.5)',
-                  '0 2px 4px rgba(10,15,40,0.9)',
+                  '0 0 40px rgba(251,191,36,0.7)',
+                  '0 0 80px rgba(249,115,22,0.4)',
+                  '0 2px 6px rgba(10,15,40,0.95)',
                   '0 -1px 2px rgba(10,15,40,0.7)'
                 ].join(', ')
               }}
@@ -38,10 +38,10 @@ export default function Home() {
             <p
               className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl"
               style={{
-                color: 'rgba(219,238,255,0.97)',
+                color: 'rgba(253,230,138,0.97)',
                 textShadow: [
-                  '0 1px 3px rgba(10,15,40,0.95)',
-                  '0 0 20px rgba(30,58,138,0.6)',
+                  '0 1px 4px rgba(10,15,40,0.97)',
+                  '0 0 20px rgba(180,83,9,0.5)',
                   '0 0 8px rgba(10,15,40,0.8)'
                 ].join(', ')
               }}

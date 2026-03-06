@@ -413,24 +413,30 @@ export default function RequestsPage() {
                                 const mons: number[] = sData.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                                 const relevant = yr < cYear ? mons : yr === cYear ? mons.filter((m: number) => m <= cMonth) : [];
                                 if (relevant.length === 0) return '';
-                                const cells = relevant.map((m: number) => {
-                                    const paid = paidSet.has(`${m}-${yr}`);
-                                    const mName = new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' });
-                                    return `<td style="padding:5px 8px;text-align:center;border:1px solid #e5e7eb;background:${paid ? '#f0fdf4' : '#fff7ed'};color:${paid ? '#15803d' : '#b45309'};font-size:11px;white-space:nowrap">${paid ? '✅' : '🔴'} ${mName}</td>`;
-                                }).join('');
-                                return `<div style="padding:8px 16px;border-bottom:1px solid #e5e7eb"><div style="font-weight:700;font-size:12px;color:#374151;margin-bottom:5px">${yr}</div><table style="border-collapse:collapse;width:100%"><tr>${cells}</tr></table></div>`;
+
+                                const pL2 = relevant.filter((m: number) => paidSet.has(`${m}-${yr}`)).map((m: number) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
+                                const dL2 = relevant.filter((m: number) => !paidSet.has(`${m}-${yr}`)).map((m: number) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
+                                const hasDue2 = relevant.some((m: number) => !paidSet.has(`${m}-${yr}`));
+
+                                return `<div style="padding:10px 18px;border-bottom:1px solid #f1f5f9">
+                                    <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px">${yr}</div>
+                                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                                        <tr><td style="padding:2px 0;color:#15803d;width:70px;font-weight:600">&#10003; Donated</td><td style="padding:2px 0;color:#166534">${pL2}</td></tr>
+                                        ${hasDue2 ? `<tr><td style="padding:2px 0;color:#c2410c;width:70px;font-weight:600">&#9679; Due</td><td style="padding:2px 0;color:#9a3412">${dL2}</td></tr>` : ''}
+                                    </table>
+                                </div>`;
                             }).join('');
                             memberFinanceSummaryHtml = `
-                                <div style="margin:20px 0;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb">
-                                    <div style="background:linear-gradient(135deg,#1e3a8a,#0f766e);padding:12px 16px">
-                                        <span style="color:#fff;font-weight:700;font-size:15px">📊 Your Global Donation Account Status</span>
+                                <div style="margin:24px 0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+                                    <div style="background:linear-gradient(135deg,#1e3a8a 0%,#0f766e 100%);padding:11px 18px">
+                                        <span style="color:#fff;font-weight:700;font-size:14px;letter-spacing:0.3px">Account Summary</span>
                                     </div>
-                                    <div style="padding:12px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
-                                        <table style="width:100%;border-collapse:collapse;font-size:13px">
-                                            <tr><td style="padding:4px 0;color:#6b7280">Total Months Passed (Since Foundation Start)</td><td style="padding:4px 0;text-align:right;font-weight:700;color:#374151">${totalPassed}</td></tr>
-                                            <tr><td style="padding:4px 0;color:#15803d;font-weight:600">Total Months Donated</td><td style="padding:4px 0;text-align:right;font-weight:700;color:#15803d">${totalPaidCount}</td></tr>
-                                            <tr><td style="padding:4px 0;color:#b45309;font-weight:600">Total Months Due</td><td style="padding:4px 0;text-align:right;font-weight:700;color:#b45309">${totalDue}</td></tr>
-                                        </table>
+                                    <div style="background:#f8fafc;padding:14px 18px;border-bottom:1px solid #e2e8f0">
+                                        <table style="width:100%;border-collapse:collapse"><tr>
+                                            <td style="width:33%;padding:0 5px 0 0"><div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 6px"><div style="font-size:22px;font-weight:800;color:#334155">${totalPassed}</div><div style="font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Months Passed</div></div></td>
+                                            <td style="width:33%;padding:0 5px"><div style="text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 6px"><div style="font-size:22px;font-weight:800;color:#15803d">${totalPaidCount}</div><div style="font-size:10px;color:#16a34a;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Donated</div></div></td>
+                                            <td style="width:33%;padding:0 0 0 5px"><div style="text-align:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 6px"><div style="font-size:22px;font-weight:800;color:#c2410c">${totalDue}</div><div style="font-size:10px;color:#ea580c;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Due</div></div></td>
+                                        </tr></table>
                                     </div>
                                     ${yearGridRows}
                                 </div>`;
