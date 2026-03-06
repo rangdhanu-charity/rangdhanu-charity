@@ -347,25 +347,75 @@ export default function RequestsPage() {
                 });
             }
 
-            // Attempt to send Thank You Email
+            // Attempt to send detailed Thank You / Receipt Email
             const contactEmail = request.userEmail || (viewingUser ? viewingUser.email : null);
             if (contactEmail && contactEmail.includes('@')) {
                 try {
+                    const isMonthlyReq = request.type === 'monthly';
+                    const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
+                    const uniqueId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+                    // Build month breakdown rows for monthly donations
+                    let monthBreakdownHtml = '';
+                    if (isMonthlyReq && monthsToProcess.length > 0) {
+                        const rows = monthsToProcess.map((m: number) => {
+                            const monthName = new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'long' });
+                            const amt = finalAllocations[m] ? `৳${Number(finalAllocations[m]).toLocaleString()}` : `৳${Number(request.amount).toLocaleString()}`;
+                            return `<tr>
+                                <td style="padding:8px 12px;border-bottom:1px solid #eee">${monthName} ${paymentYear}</td>
+                                <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;color:#16a34a;font-weight:600">${amt}</td>
+                            </tr>`;
+                        }).join('');
+                        monthBreakdownHtml = `
+                            <h4 style="margin:16px 0 8px;color:#374151">📅 Month Breakdown</h4>
+                            <table style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">
+                                <thead><tr style="background:#f3f4f6">
+                                    <th style="padding:8px 12px;text-align:left;font-weight:600">Month</th>
+                                    <th style="padding:8px 12px;text-align:right;font-weight:600">Amount</th>
+                                </tr></thead>
+                                <tbody>${rows}</tbody>
+                            </table>`;
+                    }
+
                     await fetch('/api/email', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             to: contactEmail,
-                            subject: 'Thank You for Your Donation - Rangdhanu Charity',
+                            subject: `✅ Donation Approved — ৳${request.amount} | Rangdhanu Charity`,
                             html: `
-                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                                    <h2>Thank You, ${request.userName || 'Generous Donor'}!</h2>
-                                    <p>Your donation of <strong>৳${request.amount}</strong> has been successfully verified and applied to our records.</p>
-                                    <p>Date: ${new Date().toLocaleDateString()}</p>
-                                    <p>Method: ${request.method}</p>
-                                    <p>Transaction ID: ${request.transactionId || 'N/A'}</p>
-                                    <p>Your contribution directly helps us continue our mission. We deeply appreciate your support!</p>
-                                    <p><br/>Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#1f2937;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                                    <div style="background:linear-gradient(135deg,#1e3a8a,#0f766e);padding:28px 32px;">
+                                        <h2 style="margin:0;color:#fff;font-size:22px">✅ Payment Confirmed!</h2>
+                                        <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:14px">Rangdhanu Charity Foundation</p>
+                                    </div>
+                                    <div style="padding:28px 32px">
+                                        <p style="font-size:15px">Dear <strong>${request.userName || 'Member'}</strong>,</p>
+                                        <p>Your donation has been <strong style="color:#16a34a">verified and approved</strong> by our team. The funds have been applied to your account. Thank you for your generous support! 🙏</p>
+
+                                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
+                                            <h3 style="margin:0 0 12px;color:#15803d;font-size:16px">💳 Payment Summary</h3>
+                                            <table style="width:100%;border-collapse:collapse;font-size:14px">
+                                                <tr><td style="padding:5px 0;color:#6b7280">Receipt ID</td><td style="padding:5px 0;text-align:right;font-family:monospace">${uniqueId}</td></tr>
+                                                <tr><td style="padding:5px 0;color:#6b7280">Date Approved</td><td style="padding:5px 0;text-align:right">${receiptDate}</td></tr>
+                                                <tr><td style="padding:5px 0;color:#6b7280">Type</td><td style="padding:5px 0;text-align:right;text-transform:capitalize">${request.type}</td></tr>
+                                                <tr><td style="padding:5px 0;color:#6b7280">Method</td><td style="padding:5px 0;text-align:right;text-transform:capitalize">${request.method || 'N/A'}</td></tr>
+                                                ${request.transactionId ? `<tr><td style="padding:5px 0;color:#6b7280">Transaction ID</td><td style="padding:5px 0;text-align:right;font-family:monospace">${request.transactionId}</td></tr>` : ''}
+                                                <tr style="border-top:2px solid #bbf7d0">
+                                                    <td style="padding:10px 0 5px;font-weight:700;font-size:16px">Total Approved</td>
+                                                    <td style="padding:10px 0 5px;text-align:right;font-weight:700;font-size:18px;color:#16a34a">৳${Number(request.amount).toLocaleString()}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+
+                                        ${monthBreakdownHtml}
+
+                                        <p style="margin-top:24px;font-size:13px;color:#6b7280">You can log in to your profile at any time to view your complete payment history, check which months are paid, and see any outstanding dues.</p>
+                                        <p style="margin:24px 0 0">With gratitude,<br/><strong>Team Rangdhanu</strong></p>
+                                    </div>
+                                    <div style="background:#f9fafb;padding:14px 32px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb">
+                                        This is an automated receipt. Ref: ${uniqueId}
+                                    </div>
                                 </div>
                             `
                         })
@@ -468,7 +518,7 @@ export default function RequestsPage() {
                 );
             }
 
-            // FIX 4: Send rejection email to donor if they have an email
+            // Send rejection email to donor if they have an email
             try {
                 const contactEmail = (donationRejection as any).userEmail;
                 if (contactEmail && contactEmail.includes('@')) {
@@ -477,15 +527,24 @@ export default function RequestsPage() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             to: contactEmail,
-                            subject: 'Donation Request Update - Rangdhanu Charity',
+                            subject: `❌ Donation Request Not Approved — Rangdhanu Charity`,
                             html: `
-                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                                    <h2>Donation Request Status Update</h2>
-                                    <p>Dear ${donationRejection.userName || 'Donor'},</p>
-                                    <p>Thank you for your generous intention to support Rangdhanu Charity. After reviewing your donation request of <strong>BDT ${donationRejection.amount}</strong>, we were unable to process it at this time.</p>
-                                    ${rejectionReason.trim() ? `<div style="background:#fff3cd;border:1px solid #ffc107;padding:12px;border-radius:6px;margin:16px 0;"><strong>Reason:</strong> ${rejectionReason.trim()}</div>` : ''}
-                                    <p>If you believe this is a mistake or would like to resubmit, please contact us or try again through our portal.</p>
-                                    <p>Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#1f2937;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                                    <div style="background:linear-gradient(135deg,#7f1d1d,#991b1b);padding:28px 32px">
+                                        <h2 style="margin:0;color:#fff;font-size:20px">Donation Request Update</h2>
+                                        <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px">Rangdhanu Charity Foundation</p>
+                                    </div>
+                                    <div style="padding:28px 32px">
+                                        <p>Dear <strong>${donationRejection.userName || 'Donor'}</strong>,</p>
+                                        <p>Thank you for your intention to support Rangdhanu Charity. Unfortunately, we were <strong style="color:#dc2626">unable to verify</strong> your donation request of <strong>৳${Number(donationRejection.amount).toLocaleString()}</strong> at this time.</p>
+                                        ${rejectionReason.trim() ? `
+                                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin:20px 0">
+                                            <strong style="color:#991b1b">Reason:</strong>
+                                            <p style="margin:8px 0 0;color:#7f1d1d">${rejectionReason.trim()}</p>
+                                        </div>` : ''}
+                                        <p>If you believe this is a mistake or wish to resubmit, please contact us or try again through the portal. Make sure your transaction ID and payment details are correct.</p>
+                                        <p style="margin-top:24px">Best regards,<br/><strong>Team Rangdhanu</strong></p>
+                                    </div>
                                 </div>
                             `
                         })

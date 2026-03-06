@@ -470,9 +470,15 @@ export default function CollectionsPage() {
         try {
             const { addDoc, collection } = await import("firebase/firestore");
 
+            // Track what happened per month for the single combined notification
+            const addedMonths: string[] = [];
+            const updatedMonths: string[] = [];
+
             for (const month of multiMonthFormData.months) {
                 const monthAmount = Number(allocationsToSave[month]) || 0;
                 if (monthAmount <= 0) continue;
+
+                const monthLabel = format(new Date(2000, month - 1, 1), 'MMM');
 
                 // Check for existing monthly payment for this user, year, and month
                 const monthPayments = payments.filter(p =>
@@ -496,14 +502,7 @@ export default function CollectionsPage() {
                         await deletePayment(monthPayments[i].id, `Duplicate cleanup`);
                     }
 
-                    await addDoc(collection(db, "notifications"), {
-                        userId: selectedMemberSummary.id,
-                        title: "Payment Updated",
-                        message: `An admin has added ৳${monthAmount} to your existing payment for ${format(new Date(2000, month - 1, 1), 'MMM')} ${multiMonthFormData.year}.`,
-                        type: "info",
-                        read: false,
-                        createdAt: Timestamp.now()
-                    });
+                    updatedMonths.push(`${monthLabel} (৳${monthAmount} added)`);
                 } else {
                     await addPayment({
                         userId: selectedMemberSummary.id,
@@ -517,50 +516,142 @@ export default function CollectionsPage() {
                         hiddenFromProfile: false
                     } as any);
 
-                    await addDoc(collection(db, "notifications"), {
-                        userId: selectedMemberSummary.id,
-                        title: "Payment Added",
-                        message: `An admin has recorded a payment of ৳${monthAmount} for ${format(new Date(2000, month - 1, 1), 'MMM')} ${multiMonthFormData.year}.`,
-                        type: "success",
-                        read: false,
-                        createdAt: Timestamp.now()
-                    });
+                    addedMonths.push(`${monthLabel} (৳${monthAmount})`);
                 }
             }
+
+            // Send ONE combined in-app notification summarising all months
+            const summaryParts: string[] = [];
+            if (addedMonths.length > 0) summaryParts.push(`Recorded: ${addedMonths.join(', ')}`);
+            if (updatedMonths.length > 0) summaryParts.push(`Updated: ${updatedMonths.join(', ')}`);
+            const notificationMessage = `An admin has registered your payment(s) for ${multiMonthFormData.year}. ${summaryParts.join(' | ')}`;
+
+            await addDoc(collection(db, "notifications"), {
+                userId: selectedMemberSummary.id,
+                title: "Payment(s) Recorded",
+                message: notificationMessage,
+                type: "success",
+                read: false,
+                createdAt: Timestamp.now()
+            });
 
             toast({ title: "Payments Recorded", description: `Successfully recorded payments for ${multiMonthFormData.months.length} months.` });
 
             if (sendReceiptEmail && selectedMemberSummary?.id && finalAllocatedSum > 0) {
-                // Simplified: use the already loaded email rather than re-fetching from Firestore
                 const userEmail = selectedMemberSummary.email;
 
                 if (userEmail) {
                     try {
-                        const uniqueId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                        const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka' });
+                        const uniqueId = `DON-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                        const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
+
+                        // Build per-month breakdown rows
+                        const paidMonthNumbers = multiMonthFormData.months.filter(m => (Number(allocationsToSave[m]) || 0) > 0);
+                        const monthRows = paidMonthNumbers.map(m => {
+                            const mLabel = format(new Date(2000, m - 1, 1), 'MMMM');
+                            const amt = Number(allocationsToSave[m]) || 0;
+                            return `<tr>
+                                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${mLabel} ${multiMonthFormData.year}</td>
+                                <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;color:#16a34a;font-weight:600">৳${amt.toLocaleString()}</td>
+                            </tr>`;
+                        }).join('');
+
+                        // --- Real-data paid/due calculation (mirrors the site's own global logic) ---
+                        const currentMonth = new Date().getMonth() + 1;
+                        const currentYear = new Date().getFullYear();
+
+                        let totalPassedMonths = 0;
+                        if (settings && settings.collectionYears) {
+                            settings.collectionYears.forEach((year: number) => {
+                                const activeMonthsInYear = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                if (year < currentYear) {
+                                    totalPassedMonths += activeMonthsInYear.length;
+                                } else if (year === currentYear) {
+                                    totalPassedMonths += activeMonthsInYear.filter((m: number) => m <= currentMonth).length;
+                                }
+                            });
+                        }
+
+                        // Get all existing paid months for this user
+                        const userPayments = payments.filter(p => p.userId === selectedMemberSummary.id && p.type === 'monthly');
+                        const paidMonthsSet = new Set(userPayments.map(p => `${p.month}-${p.year}`));
+
+                        // Add the newly recorded months to the set
+                        paidMonthNumbers.forEach(m => {
+                            paidMonthsSet.add(`${m}-${multiMonthFormData.year}`);
+                        });
+
+                        const totalPaidMonthsCount = paidMonthsSet.size;
+                        const monthsDue = Math.max(0, totalPassedMonths - totalPaidMonthsCount);
+                        // -----------------------------------------------------------------------
 
                         await fetch('/api/email', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 to: userEmail,
-                                subject: 'Donation Receipt - Rangdhanu Charity',
+                                subject: `✅ Donation Receipt — ৳${finalAllocatedSum.toLocaleString()} | Rangdhanu Charity`,
                                 html: `
-                                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                                        <h2>Monthly Donation Receipt</h2>
-                                        <p>Dear ${selectedMemberSummary.name || 'Member'},</p>
-                                        <p>Thank you for your generous contribution to Rangdhanu Charity. An administrator has recorded your monthly payment.</p>
-                                        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin: 20px 0;">
-                                            <h3 style="margin-top: 0; color: #008774;">Payment Details</h3>
-                                            <p style="margin: 5px 0;"><strong>Receipt ID:</strong> ${uniqueId}</p>
-                                            <p style="margin: 5px 0;"><strong>Date Recorded:</strong> ${receiptDate}</p>
-                                            <p style="margin: 5px 0;"><strong>Total Amount:</strong> ৳${finalAllocatedSum}</p>
-                                            <p style="margin: 5px 0;"><strong>Months Covered:</strong> ${multiMonthFormData.months.map(m => format(new Date(2000, m - 1, 1), 'MMM')).join(', ')} ${multiMonthFormData.year}</p>
+                                    <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#1f2937;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                                        <div style="background:linear-gradient(135deg,#1e3a8a,#0f766e);padding:28px 32px">
+                                            <h2 style="margin:0;color:#fff;font-size:22px">� Monthly Donation Receipt</h2>
+                                            <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px">Rangdhanu Charity Foundation — Thank you for your generosity!</p>
                                         </div>
-                                        <p>Your support makes a real difference! You can log in to your profile at any time to verify your contribution history.</p>
-                                        <p style="font-size: 10px; color: #999; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;">
-                                            This is an automated receipt generated by the Rangdhanu Charity system. Ref: ${uniqueId}
-                                        </p>
+                                        <div style="padding:28px 32px">
+                                            <p>Dear <strong>${selectedMemberSummary.name || 'Member'}</strong>,</p>
+                                            <p>An administrator has recorded your monthly subscription <strong>donation(s)</strong> for ${multiMonthFormData.year}. Here is your detailed receipt:</p>
+
+                                            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
+                                                <h3 style="margin:0 0 12px;color:#15803d;font-size:15px">🌟 Donation Summary</h3>
+                                                <table style="width:100%;border-collapse:collapse;font-size:14px">
+                                                    <tr><td style="padding:4px 0;color:#6b7280">Receipt ID</td><td style="padding:4px 0;text-align:right;font-family:monospace;font-size:12px">${uniqueId}</td></tr>
+                                                    <tr><td style="padding:4px 0;color:#6b7280">Date Recorded</td><td style="padding:4px 0;text-align:right">${receiptDate}</td></tr>
+                                                    <tr style="border-top:2px solid #bbf7d0">
+                                                        <td style="padding:10px 0 4px;font-weight:700;font-size:15px">Total Donated</td>
+                                                        <td style="padding:10px 0 4px;text-align:right;font-weight:700;font-size:18px;color:#16a34a">৳${finalAllocatedSum.toLocaleString()}</td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+
+                                            <h4 style="margin:0 0 8px;color:#374151">📅 Month-by-Month Donation Breakdown</h4>
+                                            <table style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">
+                                                <thead><tr style="background:#f3f4f6">
+                                                    <th style="padding:8px 12px;text-align:left;font-weight:600">Month</th>
+                                                    <th style="padding:8px 12px;text-align:right;font-weight:600">Donated</th>
+                                                </tr></thead>
+                                                <tbody>${monthRows}</tbody>
+                                                <tfoot><tr style="background:#f9fafb;font-weight:700">
+                                                    <td style="padding:10px 12px">Total</td>
+                                                    <td style="padding:10px 12px;text-align:right;color:#16a34a">৳${finalAllocatedSum.toLocaleString()}</td>
+                                                </tr></tfoot>
+                                            </table>
+
+                                            <div style="margin:20px 0;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb">
+                                                <div style="background:#f3f4f6;padding:12px 16px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#374151">
+                                                    📊 Global Account Status
+                                                </div>
+                                                <table style="width:100%;border-collapse:collapse;font-size:14px">
+                                                    <tr>
+                                                        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#6b7280">Total Months Passed (Since Start)</td>
+                                                        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#374151">${totalPassedMonths}</td>
+                                                    </tr>
+                                                    <tr style="background:#f0fdf4">
+                                                        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#15803d;font-weight:600">Total Months Paid</td>
+                                                        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:#15803d">${totalPaidMonthsCount}</td>
+                                                    </tr>
+                                                    <tr style="background:#fff7ed">
+                                                        <td style="padding:12px 16px;color:#b45309;font-weight:600">Total Months Due</td>
+                                                        <td style="padding:12px 16px;text-align:right;font-weight:700;color:#b45309">${monthsDue}</td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+
+                                            <p style="margin-top:16px;font-size:13px;color:#6b7280">Your generous contributions make a real difference in the lives of children who depend on our support. Log in to your profile anytime to view your full donation history.</p>
+                                            <p style="margin:20px 0 0">With deep gratitude,<br/><strong>Team Rangdhanu</strong></p>
+                                        </div>
+                                        <div style="background:#f9fafb;padding:14px 32px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb">
+                                            Automated receipt — Rangdhanu Charity Foundation. Ref: ${uniqueId}
+                                        </div>
                                     </div>
                                 `
                             })
@@ -634,25 +725,49 @@ export default function CollectionsPage() {
                     const { doc: fDoc, getDoc: fGet } = await import("firebase/firestore");
                     const userSnap = await fGet(fDoc(db, "users", dataToSave.userId));
                     const userEmail = userSnap.exists() ? userSnap.data().email : null;
+                    const memberName = dataToSave.memberName || userSnap.data()?.name || 'Member';
                     if (userEmail) {
                         try {
+                            const uniqueId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                            const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
                             await fetch("/api/email", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                     to: userEmail,
-                                    subject: editingPayment ? "Donation Record Updated - Rangdhanu Charity" : "Donation Receipt - Rangdhanu Charity",
+                                    subject: editingPayment
+                                        ? `📝 Donation Record Updated — Rangdhanu Charity`
+                                        : `✅ One-Time Donation Recorded — ৳${Number(dataToSave.amount).toLocaleString()} | Rangdhanu Charity`,
                                     html: `
-                                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                                            <h2>${editingPayment ? 'Donation Record Updated' : 'Donation Receipt'}</h2>
-                                            <p>Dear ${dataToSave.memberName || "Member"},</p>
-                                            <p>${editingPayment ? 'An administrator has updated your one-time donation record.' : 'Thank you for your generous one-time contribution to Rangdhanu Charity. An administrator has successfully recorded your donation.'}</p>
-                                            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin: 20px 0;">
-                                                <h3 style="margin-top: 0; color: #008774;">Payment Details</h3>
-                                                <p style="margin: 5px 0;"><strong>Amount:</strong> BDT ${dataToSave.amount}</p>
-                                                <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date(dataToSave.date).toLocaleDateString()}</p>
+                                        <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#1f2937;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                                            <div style="background:linear-gradient(135deg,#1e3a8a,#0f766e);padding:28px 32px">
+                                                <h2 style="margin:0;color:#fff;font-size:22px">${editingPayment ? '📝 Donation Record Updated' : '🎉 One-Time Donation Confirmed'}</h2>
+                                                <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px">Rangdhanu Charity Foundation</p>
                                             </div>
-                                            <p>You can log in to your profile at any time to verify your contribution history.</p>
+                                            <div style="padding:28px 32px">
+                                                <p>Dear <strong>${memberName}</strong>,</p>
+                                                <p>${editingPayment
+                                            ? 'An administrator has updated your one-time donation record in our system.'
+                                            : 'An administrator has recorded your one-time donation. Thank you for your generous contribution! 🙏'}
+                                                </p>
+                                                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
+                                                    <h3 style="margin:0 0 12px;color:#15803d;font-size:15px">💳 Donation Details</h3>
+                                                    <table style="width:100%;border-collapse:collapse;font-size:14px">
+                                                        <tr><td style="padding:5px 0;color:#6b7280">Receipt ID</td><td style="padding:5px 0;text-align:right;font-family:monospace;font-size:12px">${uniqueId}</td></tr>
+                                                        <tr><td style="padding:5px 0;color:#6b7280">Date</td><td style="padding:5px 0;text-align:right">${receiptDate}</td></tr>
+                                                        <tr><td style="padding:5px 0;color:#6b7280">Type</td><td style="padding:5px 0;text-align:right">One-Time Donation</td></tr>
+                                                        <tr style="border-top:2px solid #bbf7d0">
+                                                            <td style="padding:10px 0 4px;font-weight:700;font-size:15px">Amount</td>
+                                                            <td style="padding:10px 0 4px;text-align:right;font-weight:700;font-size:18px;color:#16a34a">৳${Number(dataToSave.amount).toLocaleString()}</td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                                <p style="font-size:13px;color:#6b7280">You can log in to your profile anytime to view your complete contribution history and account summary.</p>
+                                                <p style="margin-top:20px">With gratitude,<br/><strong>Team Rangdhanu</strong></p>
+                                            </div>
+                                            <div style="background:#f9fafb;padding:14px 32px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb">
+                                                Automated receipt — Rangdhanu Charity System. Ref: ${uniqueId}
+                                            </div>
                                         </div>
                                     `
                                 })

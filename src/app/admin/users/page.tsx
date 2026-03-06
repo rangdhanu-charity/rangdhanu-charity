@@ -332,8 +332,17 @@ function UsersContent() {
         if (!editingUser) return;
         setIsSaving(true);
 
+        // Snapshot old values for the diff email before saving
+        const oldValues: Record<string, string> = {
+            name: editingUser.name || "",
+            email: editingUser.email || "",
+            username: editingUser.username || "",
+            phone: editingUser.phone || "",
+            roles: (editingUser.roles || []).join(", ") || "member",
+        };
+
         // Prepare data for update
-        const { id, ...data } = editForm as any; // Cast to avoid strict type issues with Partial
+        const { id, ...data } = editForm as any;
         const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
 
         const res = await adminUpdateUser(editingUser.id, cleanData);
@@ -351,28 +360,68 @@ function UsersContent() {
                     await batch.commit();
                 }
             }
-            await addDoc(collection(db, "notifications"), {
-                userId: editingUser.id,
-                title: "Profile Updated",
-                message: "An administrator has updated your profile information.",
-                type: "info",
-                read: false,
-                createdAt: Timestamp.now()
-            });
+            // NOTE: adminUpdateUser already sends one in-app notification — no duplicate here.
 
             if (notifyUserEdit && editingUser.email) {
+                // Build a change-diff table for the email
+                const newValues: Record<string, string> = {
+                    name: cleanData.name || editingUser.name || "",
+                    email: cleanData.email || editingUser.email || "",
+                    username: cleanData.username || editingUser.username || "",
+                    phone: cleanData.phone || editingUser.phone || "",
+                    roles: (cleanData.roles || editingUser.roles || []).join(", ") || "member",
+                };
+                if (cleanData.password) {
+                    oldValues.password = "••••••••";
+                    newValues.password = "(new password set)";
+                }
+
+                const fieldLabels: Record<string, string> = {
+                    name: "Full Name",
+                    email: "Email",
+                    username: "Username",
+                    phone: "Phone",
+                    roles: "Roles",
+                    password: "Password",
+                };
+
+                const changedRows = Object.keys(newValues)
+                    .filter(k => oldValues[k] !== newValues[k])
+                    .map(k => `
+                        <tr>
+                            <td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:600;color:#555;width:120px">${fieldLabels[k] || k}</td>
+                            <td style="padding:8px 12px;border-bottom:1px solid #eee;color:#c0392b;text-decoration:line-through">${oldValues[k] || "—"}</td>
+                            <td style="padding:8px 12px;border-bottom:1px solid #eee;color:#27ae60;font-weight:600">${newValues[k] || "—"}</td>
+                        </tr>
+                    `).join("");
+
+                const changeTable = changedRows
+                    ? `<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px">
+                            <thead>
+                                <tr style="background:#f5f5f5">
+                                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #ddd">Field</th>
+                                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #ddd">Before</th>
+                                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #ddd">After</th>
+                                </tr>
+                            </thead>
+                            <tbody>${changedRows}</tbody>
+                       </table>`
+                    : "<p>No specific field changes detected.</p>";
+
                 try {
                     await fetch('/api/email', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             to: editingUser.email,
-                            subject: 'Your Profile Has Been Updated',
+                            subject: 'Your Rangdhanu Profile Has Been Updated',
                             html: `
-                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                                    <h2>Hello ${editingUser.name || 'Member'},</h2>
-                                    <p>An administrator has recently updated your profile information on the Rangdhanu Charity portal.</p>
-                                    <p>If you did not request this change, please contact an administrator immediately.</p>
+                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                                    <h2 style="color:#1e3a8a">Hello ${editingUser.name || 'Member'},</h2>
+                                    <p>An administrator has updated your profile on the <strong>Rangdhanu Charity</strong> portal. Here is a summary of what changed:</p>
+                                    ${changeTable}
+                                    <p>If you did not expect these changes or have questions, please contact us at <a href="mailto:info@rangdhanu.org" style="color:#2563eb">info@rangdhanu.org</a>.</p>
+                                    <p style="margin-top:24px">Best regards,<br/><strong>Team Rangdhanu</strong></p>
                                 </div>
                             `
                         })

@@ -750,32 +750,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 read: false,
                 createdAt: Timestamp.now()
             });
-
-            // Always send an email notification to the member about their profile update
-            const emailToNotify = data.email || currentUserData.email;
-            if (emailToNotify) {
-                try {
-                    await fetch('/api/email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            to: emailToNotify,
-                            subject: 'Your Rangdhanu Profile Has Been Updated',
-                            html: `
-                                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                                    <h2>Hello ${data.name || currentUserData.name || 'Member'},</h2>
-                                    <p>An administrator has recently updated your profile information on the <strong>Rangdhanu Charity</strong> portal.</p>
-                                    <p>If you did not expect this change or have questions, please contact an administrator at <a href="mailto:info@rangdhanu.org">info@rangdhanu.org</a>.</p>
-                                    <p style="margin-top: 24px;">Best regards,<br/><strong>Team Rangdhanu</strong></p>
-                                </div>
-                            `
-                        })
-                    });
-                } catch (emailErr) {
-                    console.error("Failed to send profile update email:", emailErr);
-                    // Don't fail the whole operation if only email fails
-                }
-            }
+            // NOTE: Email notification is handled separately by the admin UI (with checkbox)
+            // to avoid sending duplicate emails.
 
             return { success: true };
         } catch (error) {

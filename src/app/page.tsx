@@ -19,11 +19,33 @@ export default function Home() {
       <section className="relative flex flex-col items-center justify-center overflow-hidden py-24 md:py-36 lg:py-56">
         <HomeHeroGallery />
         <div className="container relative z-20 px-4 text-center md:px-6">
-          <div className="mx-auto max-w-3xl space-y-4 bg-white/10 dark:bg-black/10 backdrop-blur-sm p-6 sm:p-10 rounded-3xl border border-white/20 dark:border-white/10 shadow-xl">
-            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl bg-gradient-to-r from-blue-800 via-blue-600 to-teal-600 dark:from-blue-400 dark:via-blue-300 dark:to-teal-300 bg-clip-text text-transparent animate-gradient drop-shadow-sm">
+          <div className="mx-auto max-w-3xl space-y-6">
+            <h1
+              className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+              style={{
+                color: 'white',
+                WebkitTextStroke: '0.5px rgba(99,179,237,0.7)',
+                textShadow: [
+                  '0 0 30px rgba(59,130,246,0.8)',
+                  '0 0 60px rgba(20,184,166,0.5)',
+                  '0 2px 4px rgba(10,15,40,0.9)',
+                  '0 -1px 2px rgba(10,15,40,0.7)'
+                ].join(', ')
+              }}
+            >
               Empowering Future Generations
             </h1>
-            <p className="mx-auto max-w-[700px] text-slate-900 dark:text-slate-100 font-medium md:text-xl/relaxed lg:text-lg/relaxed xl:text-xl/relaxed drop-shadow-sm">
+            <p
+              className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl"
+              style={{
+                color: 'rgba(255,255,255,0.95)',
+                textShadow: [
+                  '0 1px 3px rgba(10,15,40,0.95)',
+                  '0 0 20px rgba(30,58,138,0.6)',
+                  '0 0 8px rgba(10,15,40,0.8)'
+                ].join(', ')
+              }}
+            >
               Rangdhanu Charity Foundation supports underprivileged children to continue their education and build a brighter future.
             </p>
           </div>
