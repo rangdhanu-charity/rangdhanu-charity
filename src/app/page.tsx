@@ -21,28 +21,21 @@ export default function Home() {
         <div className="container relative z-20 px-4 text-center md:px-6">
           <div className="mx-auto max-w-3xl space-y-6">
             <h1
-              className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-transparent bg-clip-text bg-gradient-to-br from-blue-200 via-blue-100 to-cyan-200 pb-1"
+              className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-blue-500 pb-1"
               style={{
-                WebkitTextStroke: '0.4px rgba(59,130,246,0.4)',
+                WebkitTextStroke: '0.4px rgba(59,130,246,0.2)',
                 textShadow: [
-                  '0 0 40px rgba(59,130,246,0.6)',
-                  '0 0 80px rgba(14,165,233,0.4)',
-                  '0 2px 6px rgba(10,15,40,0.95)',
-                  '0 -1px 2px rgba(10,15,40,0.7)'
+                  '0 2px 6px rgba(10,15,40,0.5)',
+                  '0 -1px 2px rgba(10,15,40,0.3)'
                 ].join(', ')
               }}
             >
               Empowering Future Generations
             </h1>
             <p
-              className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl"
+              className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl text-blue-900"
               style={{
-                color: 'rgba(219,238,255,0.98)',
-                textShadow: [
-                  '0 1px 4px rgba(10,15,40,0.97)',
-                  '0 0 20px rgba(59,130,246,0.5)',
-                  '0 0 8px rgba(10,15,40,0.8)'
-                ].join(', ')
+                color: 'rgba(30,58,138,0.95)',
               }}
             >
               Rangdhanu Charity Foundation supports underprivileged children to continue their education and build a brighter future.
