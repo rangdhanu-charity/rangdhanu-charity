@@ -26,7 +26,7 @@ export default function Home() {
               Empowering Future Generations
             </h1>
             <p
-              className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
+              className="mx-auto max-w-[680px] text-lg md:text-xl font-semibold leading-relaxed text-transparent bg-clip-text bg-gradient-to-r from-blue-900 to-violet-900 drop-shadow-[0_0_12px_rgba(255,255,255,0.9)] dark:from-blue-100 dark:to-violet-100 dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
             >
               Rangdhanu Charity Foundation supports underprivileged children to continue their education and build a brighter future.
             </p>
