@@ -46,8 +46,10 @@ export async function POST(request: Request) {
             subject,
             text,
             html,
+            encoding: 'utf-8',
             headers: {
-                'X-Entity-Ref-ID': Date.now().toString()
+                'X-Entity-Ref-ID': Date.now().toString(),
+                'Content-Type': 'text/html; charset=UTF-8'
             }
         };
 

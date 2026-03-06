@@ -594,7 +594,7 @@ export default function CollectionsPage() {
                                 html: `
                                     <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#1f2937;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                                         <div style="background:linear-gradient(135deg,#1e3a8a,#0f766e);padding:28px 32px">
-                                            <h2 style="margin:0;color:#fff;font-size:22px">ðŸŒŸ Monthly Donation Receipt</h2>
+                                            <h2 style="margin:0;color:#fff;font-size:22px">&#127775; Monthly Donation Receipt</h2>
                                             <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px">Rangdhanu Charity Foundation — Thank you for your generosity!</p>
                                         </div>
                                         <div style="padding:28px 32px">
