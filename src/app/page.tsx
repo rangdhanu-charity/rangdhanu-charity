@@ -19,14 +19,14 @@ export default function Home() {
       <section className="relative flex flex-col items-center justify-center overflow-hidden py-24 md:py-36 lg:py-56">
         <HomeHeroGallery />
         <div className="container relative z-20 px-4 text-center md:px-6">
-          <div className="mx-auto max-w-3xl space-y-6 bg-white/5 dark:bg-black/5 backdrop-blur-md p-6 sm:p-10 rounded-3xl border border-white/10 shadow-xl transition-all duration-500 hover:bg-white/10">
+          <div className="mx-auto max-w-3xl space-y-6 bg-white/[0.02] dark:bg-black/[0.02] backdrop-blur-[2px] p-6 sm:p-10 rounded-3xl border border-white/[0.05] shadow-xl transition-all duration-500 hover:bg-white/[0.04]">
             <h1
               className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-blue-500 pb-1 drop-shadow-sm"
             >
               Empowering Future Generations
             </h1>
             <p
-              className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl text-blue-900 dark:text-blue-100 drop-shadow-sm"
+              className="mx-auto max-w-[680px] text-lg font-medium leading-relaxed md:text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]"
             >
               Rangdhanu Charity Foundation supports underprivileged children to continue their education and build a brighter future.
             </p>
