@@ -214,16 +214,16 @@ export default function ReportsPage() {
                                         <div className="flex items-center justify-end gap-1">One-time (৳) {sortField === "oneTimeTotal" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
                                     </TableHead>
                                     <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-center" onClick={() => handleSort("totalPassedMonths")}>
-                                        <div className="flex items-center justify-center gap-1">Passed {sortField === "totalPassedMonths" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                        <div className="flex items-center justify-center gap-1">Passed Months {sortField === "totalPassedMonths" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
                                     </TableHead>
                                     <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-center" onClick={() => handleSort("totalMonthsPaidCount")}>
-                                        <div className="flex items-center justify-center gap-1">Paid {sortField === "totalMonthsPaidCount" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                        <div className="flex items-center justify-center gap-1">Paid Months {sortField === "totalMonthsPaidCount" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
                                     </TableHead>
                                     <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-center" onClick={() => handleSort("monthsDueCount")}>
-                                        <div className="flex items-center justify-center gap-1">Due {sortField === "monthsDueCount" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                        <div className="flex items-center justify-center gap-1">Due Months {sortField === "monthsDueCount" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
                                     </TableHead>
                                     <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none text-center" onClick={() => handleSort("status")}>
-                                        <div className="flex items-center justify-center gap-1">Status {sortField === "status" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
+                                        <div className="flex items-center justify-center gap-1">Status (This Month) {sortField === "status" ? (sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}</div>
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
