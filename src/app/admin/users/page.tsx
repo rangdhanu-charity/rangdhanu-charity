@@ -885,13 +885,12 @@ function UsersContent() {
                                 <Card className="flex-shrink-0 w-full md:w-1/3">
                                     <CardContent className="pt-6 flex flex-col items-center text-center">
                                         <div className="relative group mb-4">
-                                            <ActiveAvatar
-                                                lastActiveAt={viewingUser.lastActiveAt}
-                                                src={viewingUser.photoURL || undefined}
-                                                alt={viewingUser.name}
-                                                fallbackText={<span className="text-3xl md:text-4xl font-bold text-primary">{viewingUser.name?.charAt(0) || "U"}</span>}
-                                                className={`h-24 w-24 md:h-32 md:w-32 border-4 shadow-xl ${topContributors.includes(viewingUser.id) ? 'border-yellow-400' : 'border-primary/20'}`}
-                                            />
+                                            <Avatar className={`h-24 w-24 md:h-32 md:w-32 border-4 shadow-xl ${topContributors.includes(viewingUser.id) ? 'border-yellow-400' : 'border-primary/20'}`}>
+                                                <AvatarImage src={viewingUser.photoURL || undefined} alt={viewingUser.name} />
+                                                <AvatarFallback className="text-3xl md:text-4xl font-bold text-primary">
+                                                    {viewingUser.name?.charAt(0) || "U"}
+                                                </AvatarFallback>
+                                            </Avatar>
                                             {topContributors.includes(viewingUser.id) && (
                                                 <TopContributorBadge
                                                     rank={topContributors.indexOf(viewingUser.id) + 1}
@@ -930,7 +929,15 @@ function UsersContent() {
                                                 </Button>
                                             )}
                                         </div>
-                                        <h2 className="text-xl font-bold">{viewingUser.name}</h2>
+                                        <h2 className="text-xl font-bold flex items-center justify-center space-x-2">
+                                            <span>{viewingUser.name}</span>
+                                            {viewingUser.lastActiveAt && (Date.now() - viewingUser.lastActiveAt) <= 10 * 60 * 1000 && (
+                                                <div className="relative flex h-3 w-3 shrink-0" title="Online now">
+                                                    <span className="animate-ping bg-green-400 absolute inline-flex h-full w-full rounded-full opacity-75"></span>
+                                                    <span className="bg-green-500 relative inline-flex rounded-full h-3 w-3 ring-2 ring-white dark:ring-slate-950"></span>
+                                                </div>
+                                            )}
+                                        </h2>
                                         <p className="text-sm text-muted-foreground mb-4">@{viewingUser.username}</p>
 
                                         <div className="flex flex-wrap justify-center gap-1 mb-6">

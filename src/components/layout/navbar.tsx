@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/common/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ActiveAvatar } from "@/components/ui/active-avatar";
 import { NAV_LINKS } from "@/lib/data";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -241,10 +242,13 @@ function NavbarContent() {
                             <div className="flex items-center gap-2">
                                 {user ? (
                                     <>
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage src={user.photoURL || undefined} />
-                                            <AvatarFallback className="text-xs">{user.name?.charAt(0)}</AvatarFallback>
-                                        </Avatar>
+                                        <ActiveAvatar
+                                            lastActiveAt={user.lastActiveAt}
+                                            src={user.photoURL || undefined}
+                                            fallbackText={user.name?.charAt(0)}
+                                            className="h-8 w-8"
+                                            dotSize="sm"
+                                        />
                                         <div className="flex flex-col">
                                             <span className="text-sm font-semibold leading-tight">{user.name}</span>
                                             {isAdminOrMod ? (

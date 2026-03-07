@@ -54,6 +54,7 @@ import { MemberTestimonialTab } from "./components/member-testimonial-tab";
 function MemberFinanceTab() {
     const { payments, expenses, totalCollection, totalExpenses, currentBalance, loading, topContributors } = useFinance();
     const { settings } = useSettings();
+    const { user: currentUser } = useAuth(); // Needed for '(You)' identification
     // Members List States
     const [members, setMembers] = useState<any[]>([]);
     const [loadingMembers, setLoadingMembers] = useState(true);
@@ -70,7 +71,8 @@ function MemberFinanceTab() {
                     id: d.id,
                     name: data.name || data.username || "Member",
                     photoURL: data.photoURL || null,
-                    roles: data.roles || ["member"]
+                    roles: data.roles || ["member"],
+                    lastActiveAt: data.lastActiveAt,
                 };
             }));
             setLoadingMembers(false);
@@ -405,7 +407,7 @@ function MemberFinanceTab() {
                                                 )}
                                             </div>
                                             <span className="text-sm font-medium text-center leading-tight flex items-center justify-center gap-1">
-                                                {m.name}
+                                                {m.name} {currentUser?.id === m.id && <Badge variant="outline" className="text-[10px] h-4 px-1 font-normal bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">(You)</Badge>}
                                             </span>
                                             <div className="flex flex-wrap gap-1 justify-center">
                                                 {m.roles.map((r: string) => (
@@ -1376,21 +1378,23 @@ function ProfileContent() {
                 {/* Left Sidebar: Avatar & Basic Info */}
                 <div className={`${activeTab !== "overview" ? "hidden md:flex" : "flex"} flex-col items-center md:items-start gap-4 w-full md:w-auto`}>
                     <div className="relative">
-                        <ActiveAvatar
-                            lastActiveAt={user.lastActiveAt}
-                            src={user.photoURL || "/default-avatar.png"}
-                            alt={user.name || "User"}
-                            fallbackText={user.name ? user.name.charAt(0) : <UserIcon className="h-10 w-10 md:h-16 md:w-16" />}
-                            className={`w-24 h-24 md:w-32 md:h-32 border-4 ${isTopContributor ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'border-primary shadow-lg'}`}
-                            dotSize="lg"
-                        />
+                        <Avatar className={`w-24 h-24 md:w-32 md:h-32 border-4 ${isTopContributor ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'border-primary shadow-lg'}`}>
+                            <AvatarImage src={user.photoURL || "/default-avatar.png"} alt={user.name || "User"} />
+                            <AvatarFallback className="text-4xl md:text-5xl font-bold">{user.name ? user.name.charAt(0) : <UserIcon className="h-10 w-10 md:h-16 md:w-16" />}</AvatarFallback>
+                        </Avatar>
                         {isTopContributor && <TopContributorBadge rank={rank} className="absolute bottom-1 right-1 translate-x-1/4 translate-y-1/4 h-[34px] w-[34px]" />}
                     </div>
 
                     <div className="text-center md:text-left w-full">
                         <div className="flex flex-col items-center md:items-start gap-1">
-                            <h2 className="text-2xl font-semibold flex items-center justify-center md:justify-start flex-wrap gap-1">
+                            <h2 className="text-2xl font-semibold flex items-center justify-center md:justify-start flex-wrap gap-2">
                                 {user.name}
+                                {user.lastActiveAt && (Date.now() - user.lastActiveAt) <= 10 * 60 * 1000 && (
+                                    <div className="relative flex h-3 w-3 shrink-0 items-center justify-center" title="Online now">
+                                        <span className="animate-ping bg-green-400 absolute inline-flex h-full w-full rounded-full opacity-75"></span>
+                                        <span className="bg-green-500 relative inline-flex rounded-full h-3 w-3 ring-2 ring-white dark:ring-slate-950"></span>
+                                    </div>
+                                )}
                             </h2>
                             <div className="flex flex-wrap gap-1 justify-center md:justify-start">
                                 {user.roles?.map((role: string) => (
