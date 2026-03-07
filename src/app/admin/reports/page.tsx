@@ -252,6 +252,7 @@ export default function ReportsPage() {
                                                             alt={user.name || user.username}
                                                             fallbackText={(user.name || user.username || '?').charAt(0).toUpperCase()}
                                                             className="h-8 w-8 shrink-0"
+                                                            dotSize="sm"
                                                         />
                                                         <div>
                                                             <div>{user.name || user.username}</div>

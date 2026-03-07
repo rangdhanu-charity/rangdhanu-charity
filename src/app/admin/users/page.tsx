@@ -794,12 +794,14 @@ function UsersContent() {
                                                 <TableRow key={user.id} className={isMe ? "bg-blue-50/40 hover:bg-blue-50/60 dark:bg-blue-950/20 dark:hover:bg-blue-950/30" : ""}>
                                                     <TableCell className="font-medium cursor-pointer text-blue-600 hover:underline" onClick={() => handleViewProfile(user)}>
                                                         <div className="flex items-center gap-2">
-                                                            {isOnline && (
-                                                                <div className="relative flex h-2.5 w-2.5 shrink-0" title="Online now">
-                                                                    <span className="animate-ping bg-green-400 absolute inline-flex h-full w-full rounded-full opacity-75"></span>
-                                                                    <span className="bg-green-500 relative inline-flex rounded-full h-2.5 w-2.5"></span>
-                                                                </div>
-                                                            )}
+                                                            <ActiveAvatar
+                                                                lastActiveAt={user.lastActiveAt}
+                                                                src={user.photoURL || undefined}
+                                                                alt={user.name}
+                                                                fallbackText={user.name?.charAt(0) || "U"}
+                                                                className="h-8 w-8 shrink-0"
+                                                                dotSize="sm"
+                                                            />
                                                             <span>{user.name}</span>
                                                             {isMe && <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 ml-1">(You)</Badge>}
                                                         </div>
