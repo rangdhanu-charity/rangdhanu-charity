@@ -49,6 +49,7 @@ interface User {
     password?: string; // Optional for display
     createdAt?: any;
     photoURL?: string;
+    lastActiveAt?: number;
 }
 
 export default function UsersPage() {
