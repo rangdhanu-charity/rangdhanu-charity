@@ -344,18 +344,25 @@ export default function CollectionsPage() {
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
 
+        // Build a set of specifically which passed months the user has NOT paid
+        const paidMonthsAllSet = new Set(userPayments.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`));
+        const passedMonthsList: { month: number; year: number }[] = [];
+
         if (settings && settings.collectionYears) {
             settings.collectionYears.forEach(year => {
                 const activeMonthsInYear = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                 if (year < currentYear) {
+                    activeMonthsInYear.forEach((m: number) => passedMonthsList.push({ month: m, year }));
                     totalPassedMonths += activeMonthsInYear.length;
                 } else if (year === currentYear) {
-                    totalPassedMonths += activeMonthsInYear.filter(m => m <= currentMonth).length;
+                    const passedInYear = activeMonthsInYear.filter((m: number) => m <= currentMonth);
+                    passedInYear.forEach((m: number) => passedMonthsList.push({ month: m, year }));
+                    totalPassedMonths += passedInYear.length;
                 }
             });
         }
 
-        const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
+        const monthsDue = passedMonthsList.filter(({ month, year }) => !paidMonthsAllSet.has(`${month}-${year}`)).length;
 
         setSelectedMemberSummary({
             ...user,
@@ -556,32 +563,32 @@ export default function CollectionsPage() {
                             </tr>`;
                         }).join('');
 
-                        // --- Real-data paid/due calculation (mirrors the site's own global logic) ---
+                        // Correctly compute due: count missed passed months specifically
                         const currentMonth = new Date().getMonth() + 1;
                         const currentYear = new Date().getFullYear();
-
+                        const passedMonthsForEmail: { month: number; year: number }[] = [];
                         let totalPassedMonths = 0;
                         if (settings && settings.collectionYears) {
                             settings.collectionYears.forEach((year: number) => {
                                 const activeMonthsInYear = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                                 if (year < currentYear) {
+                                    activeMonthsInYear.forEach((m: number) => passedMonthsForEmail.push({ month: m, year }));
                                     totalPassedMonths += activeMonthsInYear.length;
                                 } else if (year === currentYear) {
-                                    totalPassedMonths += activeMonthsInYear.filter((m: number) => m <= currentMonth).length;
+                                    const passed = activeMonthsInYear.filter((m: number) => m <= currentMonth);
+                                    passed.forEach((m: number) => passedMonthsForEmail.push({ month: m, year }));
+                                    totalPassedMonths += passed.length;
                                 }
                             });
                         }
 
-                        // Get all existing paid months for this user
-                        const userPayments = payments.filter(p => p.userId === selectedMemberSummary.id && p.type === 'monthly');
-                        const paidMonthsSet = new Set(userPayments.map(p => `${p.month}-${p.year}`));
+                        // Build paid months set (including newly recorded ones)
+                        const emailUserPayments = payments.filter((p: any) => p.userId === selectedMemberSummary.id && p.type === 'monthly');
+                        const paidMonthsSet = new Set(emailUserPayments.map((p: any) => `${p.month}-${p.year}`));
+                        paidMonthNumbers.forEach((m: number) => paidMonthsSet.add(`${m}-${multiMonthFormData.year}`));
+                        const paidMonthsCount = paidMonthsSet.size;
 
-                        // Add the newly recorded months to the set
-                        paidMonthNumbers.forEach(m => {
-                            paidMonthsSet.add(`${m}-${multiMonthFormData.year}`);
-                        });
-
-                        const totalPaidMonthsCount = paidMonthsSet.size;
+                        const monthsDue = passedMonthsForEmail.filter(({ month, year }) => !paidMonthsSet.has(`${month}-${year}`)).length;
                         let periodString = 'Months Passed';
                         if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
                             const sortedYears = [...settings.collectionYears].sort();
@@ -591,7 +598,6 @@ export default function CollectionsPage() {
                             const firstMonthName = new Date(2000, firstMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
                             periodString = `From ${firstMonthName} ${firstYear} to Present`;
                         }
-                        const monthsDue = Math.max(0, totalPassedMonths - totalPaidMonthsCount);
                         // -----------------------------------------------------------------------
 
                         await fetch('/api/email', {
@@ -643,7 +649,7 @@ export default function CollectionsPage() {
                                                     <div style="font-size:11px;color:#64748b;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.2px;text-align:center">${periodString}</div>
                                                     <table style="width:100%;border-collapse:collapse"><tr>
                                                         <td style="width:33%;padding:0 5px 0 0"><div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#334155">${totalPassedMonths} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.2px">Passed</div></div></td>
-                                                        <td style="width:33%;padding:0 5px"><div style="text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#15803d">${totalPaidMonthsCount} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#16a34a;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Donated</div></div></td>
+                                                        <td style="width:33%;padding:0 5px"><div style="text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#15803d">${paidMonthsCount} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#16a34a;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Donated</div></div></td>
                                                         <td style="width:33%;padding:0 0 0 5px"><div style="text-align:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#c2410c">${monthsDue} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#ea580c;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Due</div></div></td>
                                                     </tr></table>
                                                 </div>

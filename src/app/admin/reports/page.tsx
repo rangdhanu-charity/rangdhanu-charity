@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Search, UserCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ActiveAvatar } from "@/components/ui/active-avatar";
 
 
 export default function ReportsPage() {
@@ -243,8 +245,19 @@ export default function ReportsPage() {
                                         return (
                                             <TableRow key={user.id}>
                                                 <TableCell className="font-medium">
-                                                    <div>{user.name || user.username}</div>
-                                                    <div className="text-xs text-muted-foreground">{user.email}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <ActiveAvatar
+                                                            lastActiveAt={user.lastActiveAt}
+                                                            src={user.photoURL || undefined}
+                                                            alt={user.name || user.username}
+                                                            fallbackText={(user.name || user.username || '?').charAt(0).toUpperCase()}
+                                                            className="h-8 w-8 shrink-0"
+                                                        />
+                                                        <div>
+                                                            <div>{user.name || user.username}</div>
+                                                            <div className="text-xs text-muted-foreground">{user.email}</div>
+                                                        </div>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-right">৳{user.totalPaid}</TableCell>
                                                 <TableCell className="text-right">৳{user.oneTimeTotal}</TableCell>

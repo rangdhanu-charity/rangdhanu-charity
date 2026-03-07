@@ -50,30 +50,36 @@ export async function GET(request: Request) {
             if (!user.email) continue;
 
             const userPayments = payments.filter((p: any) => p.userId === user.id);
-            const paidMonthsCount = new Set(
+            // Build a set of all months this user has paid (as "month-year" strings)
+            const paidMonthsSet = new Set(
                 userPayments.filter((p: any) => p.type === 'monthly').map((p: any) => `${p.month}-${p.year}`)
-            ).size;
+            );
+            const paidMonthsCount = paidMonthsSet.size;
 
+            // Gather all passed months (specific year+month combos) from settings
+            const passedMonthsList: { month: number; year: number }[] = [];
             let totalPassedMonths = 0;
 
             if (settings && settings.collectionYears) {
                 settings.collectionYears.forEach((year: number) => {
                     const activeMonthsInYear = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                     if (year < currentYear) {
+                        activeMonthsInYear.forEach((m: number) => passedMonthsList.push({ month: m, year }));
                         totalPassedMonths += activeMonthsInYear.length;
                     } else if (year === currentYear) {
-                        totalPassedMonths += activeMonthsInYear.filter((m: number) => m <= currentMonth).length;
+                        const passedInYear = activeMonthsInYear.filter((m: number) => m <= currentMonth);
+                        passedInYear.forEach((m: number) => passedMonthsList.push({ month: m, year }));
+                        totalPassedMonths += passedInYear.length;
                     }
                 });
             }
 
-            const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
+            // Correctly count due months: count only passed months that were NOT specifically paid
+            const dueMonthsList = passedMonthsList.filter(({ month, year }) => !paidMonthsSet.has(`${month}-${year}`));
+            const monthsDue = dueMonthsList.length;
 
             if (monthsDue > 0) {
-                // Build per-year due-month grid for the email
-                const paidMonthsSet = new Set(
-                    userPayments.filter((p: any) => p.type === 'monthly').map((p: any) => `${p.month}-${p.year}`)
-                );
+                // Build per-year due-month grid for the email (reuse paidMonthsSet from above)
 
                 const yearGridHtml = (settings.collectionYears || []).map((yr: number) => {
                     const mons: number[] = settings.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];

@@ -12,6 +12,7 @@ import { Section } from "@/components/layout/section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ActiveAvatar } from "@/components/ui/active-avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, User as UserIcon, Mail, Calendar, Heart, Shield, Eye, EyeOff, Bell, ChevronDown, ChevronUp, MessageSquare, TrendingUp, TrendingDown, DollarSign, Users, Search, Medal, Star } from "lucide-react";
 import { doc, updateDoc, collection, query, where, orderBy, onSnapshot, Timestamp, getDocs } from "firebase/firestore";
@@ -392,10 +393,13 @@ function MemberFinanceTab() {
                                     return (
                                         <div key={m.id} className="flex flex-col items-center gap-2 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors relative">
                                             <div className="relative">
-                                                <Avatar className={`h-12 w-12 ${isTopContributor ? 'ring-2 ring-yellow-400 ring-offset-2 dark:ring-offset-background' : ''}`}>
-                                                    <AvatarImage src={m.photoURL || undefined} alt={m.name} />
-                                                    <AvatarFallback>{m.name?.charAt(0)?.toUpperCase() || '?'}</AvatarFallback>
-                                                </Avatar>
+                                                <ActiveAvatar
+                                                    lastActiveAt={m.lastActiveAt}
+                                                    src={m.photoURL || undefined}
+                                                    alt={m.name}
+                                                    fallbackText={m.name?.charAt(0)?.toUpperCase() || '?'}
+                                                    className={`h-12 w-12 ${isTopContributor ? 'ring-2 ring-yellow-400 ring-offset-2 dark:ring-offset-background' : ''}`}
+                                                />
                                                 {isTopContributor && (
                                                     <TopContributorBadge rank={rank} className="absolute -bottom-0.5 -right-0.5 translate-x-1/4 translate-y-1/4 h-5 w-5" />
                                                 )}

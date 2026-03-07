@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ActiveAvatar } from "@/components/ui/active-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Plus, Search, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, Calendar as CalendarIcon, Camera, AlertCircle } from "lucide-react";
 import Link from "next/link";
@@ -882,12 +883,13 @@ function UsersContent() {
                                 <Card className="flex-shrink-0 w-full md:w-1/3">
                                     <CardContent className="pt-6 flex flex-col items-center text-center">
                                         <div className="relative group mb-4">
-                                            <Avatar className={`h-24 w-24 md:h-32 md:w-32 border-4 shadow-xl ${topContributors.includes(viewingUser.id) ? 'border-yellow-400' : 'border-primary/20'}`}>
-                                                <AvatarImage src={viewingUser.photoURL || undefined} alt={viewingUser.name} />
-                                                <AvatarFallback className="text-3xl md:text-4xl bg-primary/10 text-primary">
-                                                    {viewingUser.name?.charAt(0) || "U"}
-                                                </AvatarFallback>
-                                            </Avatar>
+                                            <ActiveAvatar
+                                                lastActiveAt={viewingUser.lastActiveAt}
+                                                src={viewingUser.photoURL || undefined}
+                                                alt={viewingUser.name}
+                                                fallbackText={<span className="text-3xl md:text-4xl font-bold text-primary">{viewingUser.name?.charAt(0) || "U"}</span>}
+                                                className={`h-24 w-24 md:h-32 md:w-32 border-4 shadow-xl ${topContributors.includes(viewingUser.id) ? 'border-yellow-400' : 'border-primary/20'}`}
+                                            />
                                             {topContributors.includes(viewingUser.id) && (
                                                 <TopContributorBadge
                                                     rank={topContributors.indexOf(viewingUser.id) + 1}
