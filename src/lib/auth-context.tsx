@@ -86,15 +86,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             (userData.role ? [userData.role] : (prev.roles || ["member"]))
                     };
 
-                    // Only update session storage if meaningful data changed, ignore lastActiveAt ping
+                    // Update session storage only if meaningful data changed, ignore lastActiveAt ping
                     const prevForCompare = { ...prev, lastActiveAt: undefined };
                     const nextForCompare = { ...updatedUser, lastActiveAt: undefined };
 
                     if (JSON.stringify(prevForCompare) !== JSON.stringify(nextForCompare)) {
                         sessionStorage.setItem("auth_user", JSON.stringify(updatedUser));
-                        return updatedUser;
                     }
-                    return prev;
+
+                    // ALWAYS return updatedUser so React state re-renders and UI shows active indicator
+                    return updatedUser;
                 });
             }
         });

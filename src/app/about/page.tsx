@@ -60,8 +60,7 @@ export default function AboutPage() {
                             Witnessing the eagerness of these children to learn, we shifted our focus to education.
                         </p>
                         <p className="text-muted-foreground">
-                            Today, we support over 1000 children across 3 districts, running 2 permanent schools and
-                            supporting 5 partner schools.
+                            Today, our reach continues to grow as we build lasting pathways to education, ensuring that countless underprivileged children are empowered to dream without limitations and shape a brighter future for themselves and their communities.
                         </p>
                     </div>
                     <div className="flex-1 grid gap-4 sm:grid-cols-2">
