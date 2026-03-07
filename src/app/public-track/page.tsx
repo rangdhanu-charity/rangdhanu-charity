@@ -149,7 +149,7 @@ export default function PublicTrackPage() {
                                         <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300">Payment Info</th>
                                         <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 text-center">Status</th>
                                         <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 text-right">Donation Amount</th>
-                                        <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 text-right hidden sm:table-cell">Date Received</th>
+                                        <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 text-right">Date Received</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -199,7 +199,7 @@ export default function PublicTrackPage() {
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-muted-foreground hidden sm:table-cell text-sm align-top">
+                                            <td className="px-5 py-4 whitespace-nowrap text-right text-muted-foreground text-sm align-top">
                                                 <div className="mt-1.5">
                                                     {donation.date || (donation.createdAt ? format(donation.createdAt.toDate(), "MMM d, yyyy") : "N/A")}
                                                 </div>
