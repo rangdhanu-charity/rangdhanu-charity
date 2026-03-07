@@ -446,19 +446,18 @@ function UsersContent() {
 
         try {
             const usersRef = collection(db, "users");
-            const qEmail = query(usersRef, where("email", "==", newUserForm.email));
-            const qUsername = query(usersRef, where("username", "==", newUserForm.username));
-
-            const [emailSnap, usernameSnap] = await Promise.all([
-                getDocs(qEmail),
-                getDocs(qUsername)
-            ]);
-
-            if (!emailSnap.empty) {
-                toast({ title: "Error", description: "User with this email already exists.", variant: "destructive" });
-                setIsAddingUser(false);
-                return;
+            if (newUserForm.email) {
+                const qEmail = query(usersRef, where("email", "==", newUserForm.email));
+                const emailSnap = await getDocs(qEmail);
+                if (!emailSnap.empty) {
+                    toast({ title: "Error", description: "User with this email already exists.", variant: "destructive" });
+                    setIsAddingUser(false);
+                    return;
+                }
             }
+
+            const qUsername = query(usersRef, where("username", "==", newUserForm.username));
+            const usernameSnap = await getDocs(qUsername);
 
             if (!usernameSnap.empty) {
                 toast({ title: "Error", description: "Username already taken.", variant: "destructive" });
@@ -933,7 +932,7 @@ function UsersContent() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <Label htmlFor="edit-email" className="text-xs text-muted-foreground">Email</Label>
+                                                    <Label htmlFor="edit-email" className="text-xs text-muted-foreground">Email (Optional)</Label>
                                                     <Input
                                                         id="edit-email"
                                                         type="email"
@@ -1217,8 +1216,8 @@ function UsersContent() {
                             </div>
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="new-email">Email</Label>
-                            <Input id="new-email" type="email" value={newUserForm.email} onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })} required placeholder="john@example.com" />
+                            <Label htmlFor="new-email">Email (Optional)</Label>
+                            <Input id="new-email" type="email" value={newUserForm.email} onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })} placeholder="john@example.com" />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="new-phone">Phone</Label>

@@ -216,15 +216,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             }
 
-            // Attempt true Firebase authentication first
+            // Attempt true Firebase authentication first, ONLY IF we have an email
             let firebaseAuthSuccess = false;
-            try {
-                await signInWithEmailAndPassword(auth, emailToUse, password);
-                firebaseAuthSuccess = true;
-                console.log("Firebase Auth Sign-In Successful");
-            } catch (authError: any) {
-                console.warn("Firebase Auth failed (might be legacy user):", authError.message);
-                // We don't fail immediately because they might be a legacy plaintext user not yet migrated to Auth
+            if (emailToUse) {
+                try {
+                    await signInWithEmailAndPassword(auth, emailToUse, password);
+                    firebaseAuthSuccess = true;
+                    console.log("Firebase Auth Sign-In Successful");
+                } catch (authError: any) {
+                    console.warn("Firebase Auth failed (might be legacy user):", authError.message);
+                    // We don't fail immediately because they might be a legacy plaintext user not yet migrated to Auth
+                }
+            } else {
+                console.log("No email provided, falling back directly to Firestore DB authentication");
             }
 
             // Now, regardless of auth provider success, we verify their roles in Firestore
@@ -349,7 +353,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // FIX 1: If user signed in via Firebase Auth successfully, sync the password
                 // they just used into Firestore so the admin Members tab stays up-to-date,
                 // and the legacy plaintext fallback can no longer accept an outdated password.
-                if (firebaseAuthSuccess) {
+                // FIX 1: If user signed in via Firebase Auth successfully OR explicitly via Firestore only (no email),
+                // sync the password they just used into Firestore so the admin Members tab stays up-to-date,
+                // and the legacy plaintext fallback can no longer accept an outdated password.
+                if (firebaseAuthSuccess || !emailToUse) {
                     try {
                         await updateDoc(userDoc.ref, { password });
                     } catch (e) {
@@ -389,8 +396,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const q2 = query(requestsRef, where("email", "==", data.email));
                 const snapshot2 = await getDocs(q2);
 
-                // Fix: Only block if the duplicate request is specifically "pending".
-                // This allows users whose previous requests were rejected/deleted to reapply.
                 const hasPending = snapshot2.docs.some(doc => doc.data().status === "pending");
                 if (hasPending) {
                     setIsLoading(false);
@@ -673,6 +678,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const q = query(usersRef, where("username", "==", userData.username));
                 const snap = await getDocs(q);
                 if (!snap.empty) return { success: false, error: "Username already taken" };
+            }
+
+            // Check email uniqueness if email is being changed
+            if (userData.email && userData.email !== currentUserData.email) {
+                const usersRef = collection(db, "users");
+                const qEmail = query(usersRef, where("email", "==", userData.email));
+                const snapEmail = await getDocs(qEmail);
+                if (!snapEmail.empty) return { success: false, error: "Email is already in use by another user" };
             }
 
             await updateDoc(userDocRef, userData);
