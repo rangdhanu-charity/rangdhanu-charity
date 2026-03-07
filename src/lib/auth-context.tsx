@@ -85,7 +85,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             (userData.role ? [userData.role] : (prev.roles || ["member"]))
                     };
 
-                    if (JSON.stringify(prev) !== JSON.stringify(updatedUser)) {
+                    // Only update session storage if meaningful data changed, ignore lastActiveAt ping
+                    const prevForCompare = { ...prev, lastActiveAt: undefined };
+                    const nextForCompare = { ...updatedUser, lastActiveAt: undefined };
+
+                    if (JSON.stringify(prevForCompare) !== JSON.stringify(nextForCompare)) {
                         sessionStorage.setItem("auth_user", JSON.stringify(updatedUser));
                         return updatedUser;
                     }
@@ -95,6 +99,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         return () => unsubscribe();
+    }, [user?.id]);
+
+    // Track User Online Presence
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const updatePresence = async () => {
+            try {
+                const userDocRef = doc(db, "users", user.id);
+                // Also update the admins collection safely if they are an admin
+                if (user.roles.includes("admin")) {
+                    const adminsRef = collection(db, "admins");
+                    const q = query(adminsRef, where("email", "==", user.email || ""));
+                    const snap = await getDocs(q);
+                    if (!snap.empty) {
+                        await updateDoc(doc(db, "admins", snap.docs[0].id), { lastActiveAt: Date.now() });
+                    }
+                }
+                await updateDoc(userDocRef, { lastActiveAt: Date.now() });
+            } catch (error) {
+                console.error("Failed to update user presence", error);
+            }
+        };
+
+        // Ping immediately on mount/login
+        updatePresence();
+
+        // Ping every 5 minutes (300000 ms) while session is active
+        const intervalId = setInterval(updatePresence, 300000);
+
+        return () => clearInterval(intervalId);
     }, [user?.id]);
 
     // --- GOOGLE AUTHENTICATION ---
