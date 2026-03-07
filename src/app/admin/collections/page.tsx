@@ -582,15 +582,15 @@ export default function CollectionsPage() {
                         });
 
                         const totalPaidMonthsCount = paidMonthsSet.size;
-                                                let periodString = 'Months Passed';
-                                                if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
-                                                    const sortedYears = [...settings.collectionYears].sort();
-                                                    const firstYear = sortedYears[0];
-                                                    const firstMonthArr = settings.collectionMonths?.[firstYear] || [1];
-                                                    const firstMonth = Math.min(...firstMonthArr);
-                                                    const firstMonthName = new Date(2000, firstMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
-                                                    periodString = `From ${firstMonthName} ${firstYear} to Present`;
-                                                }
+                        let periodString = 'Months Passed';
+                        if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
+                            const sortedYears = [...settings.collectionYears].sort();
+                            const firstYear = sortedYears[0];
+                            const firstMonthArr = settings.collectionMonths?.[firstYear] || [1];
+                            const firstMonth = Math.min(...firstMonthArr);
+                            const firstMonthName = new Date(2000, firstMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
+                            periodString = `From ${firstMonthName} ${firstYear} to Present`;
+                        }
                         const monthsDue = Math.max(0, totalPassedMonths - totalPaidMonthsCount);
                         // -----------------------------------------------------------------------
 
@@ -640,26 +640,35 @@ export default function CollectionsPage() {
                                                     <span style="color:#fff;font-weight:700;font-size:14px;letter-spacing:0.3px">Account Summary</span>
                                                 </div>
                                                 <div style="background:#f8fafc;padding:14px 18px;border-bottom:1px solid #e2e8f0">
+                                                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.2px;text-align:center">${periodString}</div>
                                                     <table style="width:100%;border-collapse:collapse"><tr>
-                                                        <td style="width:33%;padding:0 5px 0 0"><div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#334155">${totalPassedMonths} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:9px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.2px">${periodString}</div></div></td>
+                                                        <td style="width:33%;padding:0 5px 0 0"><div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#334155">${totalPassedMonths} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.2px">Passed</div></div></td>
                                                         <td style="width:33%;padding:0 5px"><div style="text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#15803d">${totalPaidMonthsCount} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#16a34a;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Donated</div></div></td>
                                                         <td style="width:33%;padding:0 0 0 5px"><div style="text-align:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#c2410c">${monthsDue} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#ea580c;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Due</div></div></td>
                                                     </tr></table>
                                                 </div>
                                                 ${(() => {
-                                                    const _cm = new Date().getMonth() + 1;
-                                                    const _cy = new Date().getFullYear();
-                                                    if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) return '';
-                                                    return settings.collectionYears.map((yr) => {
-                                                        const am = settings.collectionMonths?.[yr] || [1,2,3,4,5,6,7,8,9,10,11,12];
-                                                        const rel = yr < _cy ? am : yr === _cy ? am.filter((m) => m <= _cm) : [];
-                                                        if (rel.length === 0) return '';
-                                                        const pL = rel.filter((m) => paidMonthsSet.has(`${m}-${yr}`)).map((m) => new Date(2000,m-1,1).toLocaleString('en-US',{month:'short'})).join(', ') || '—';
-                                                        const dL = rel.filter((m) => !paidMonthsSet.has(`${m}-${yr}`)).map((m) => new Date(2000,m-1,1).toLocaleString('en-US',{month:'short'})).join(', ') || '—';
-                                                        const hasDue = rel.some((m) => !paidMonthsSet.has(`${m}-${yr}`));
-                                                        return `<div style="padding:10px 18px;border-bottom:1px solid #f1f5f9"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">${yr}</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tr><td style="padding:2px 0;color:#15803d;width:70px;font-weight:600">&#10003; Donated</td><td style="padding:2px 0;color:#166534">${pL}</td></tr>${hasDue ? `<tr><td style="padding:2px 0;color:#c2410c;width:70px;font-weight:600">&#9679; Due</td><td style="padding:2px 0;color:#9a3412">${dL}</td></tr>` : ''}</table></div>`;
-                                                    }).join('');
-                                                })()}
+                                        const _cm = new Date().getMonth() + 1;
+                                        const _cy = new Date().getFullYear();
+                                        if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) return '';
+                                        return settings.collectionYears.map((yr) => {
+                                            const am = settings.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                            const rel = yr < _cy ? am : yr === _cy ? am.filter((m) => m <= _cm) : [];
+
+                                            // Get future paid months to display in the UI even if they haven't passed
+                                            const futurePaid = yr > _cy ? am.filter((m) => paidMonthsSet.has(`${m}-${yr}`))
+                                                : yr === _cy ? am.filter((m) => m > _cm && paidMonthsSet.has(`${m}-${yr}`)) : [];
+
+                                            const displayMonths = [...new Set([...rel, ...futurePaid])].sort((a, b) => a - b);
+
+                                            if (displayMonths.length === 0) return '';
+
+                                            const pL = displayMonths.filter((m) => paidMonthsSet.has(`${m}-${yr}`)).map((m) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
+                                            const dL = rel.filter((m) => !paidMonthsSet.has(`${m}-${yr}`)).map((m) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
+                                            const hasDue = rel.some((m) => !paidMonthsSet.has(`${m}-${yr}`));
+                                            return `<div style="padding:10px 18px;border-bottom:1px solid #f1f5f9"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">${yr}</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tr><td style="padding:2px 0;color:#15803d;width:70px;font-weight:600">&#10003; Donated</td><td style="padding:2px 0;color:#166534">${pL}</td></tr>${hasDue ? `<tr><td style="padding:2px 0;color:#c2410c;width:70px;font-weight:600">&#9679; Due</td><td style="padding:2px 0;color:#9a3412">${dL}</td></tr>` : ''}</table></div>`;
+                                        }).join('');
+                                    })()}
                                             </div>
 
                                             <p style="margin-top:16px;font-size:13px;color:#6b7280">Your generous contributions make a real difference in the lives of children who depend on our support. Log in to your profile anytime to view your full donation history.</p>
