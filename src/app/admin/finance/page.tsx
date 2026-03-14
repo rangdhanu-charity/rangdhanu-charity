@@ -18,6 +18,8 @@ import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 export default function FinancePage() {
     const {
         expenses,
@@ -34,6 +36,9 @@ export default function FinancePage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const [totalMembersCount, setTotalMembersCount] = useState<number | null>(null);
+
+    // Detail Modal State
+    const [financeModal, setFinanceModal] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchMembersCount = async () => {
@@ -174,6 +179,170 @@ export default function FinancePage() {
         }
     };
 
+    const renderPaymentList = () => {
+        const sortedList = [...payments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        // Group monthly payments by member and date
+        const groupedMap = new Map();
+        const groupedList: any[] = [];
+
+        for (const p of sortedList) {
+            if (p.type === 'monthly' && p.memberName) {
+                const dateKey = format(new Date(p.date), 'yyyy-MM-dd');
+                const groupKey = `${p.memberName}-${dateKey}-monthly`;
+
+                if (!groupedMap.has(groupKey)) {
+                    groupedMap.set(groupKey, []);
+                }
+                groupedMap.get(groupKey).push(p);
+            } else {
+                groupedList.push(p);
+            }
+        }
+
+        groupedMap.forEach((paymentsGroup) => {
+            if (paymentsGroup.length > 1) {
+                const totalGroupedAmount = paymentsGroup.reduce((sum: number, sp: any) => sum + (Number(sp.amount) || 0), 0);
+
+                // Sort by year and month strictly
+                const sortedGroup = [...paymentsGroup].sort((a: any, b: any) => {
+                    if (a.year !== b.year) return (a.year || 0) - (b.year || 0);
+                    return (a.month || 0) - (b.month || 0);
+                });
+
+                let formattedMonths = '';
+                if (sortedGroup.length > 2) {
+                    const first = sortedGroup[0];
+                    const last = sortedGroup[sortedGroup.length - 1];
+                    formattedMonths = `${format(new Date(first.year || 0, (first.month || 1) - 1), 'MMM yyyy')} to ${format(new Date(last.year || 0, (last.month || 1) - 1), 'MMM yyyy')}`;
+                } else {
+                    formattedMonths = sortedGroup.map((sp: any) =>
+                        `${format(new Date(sp.year || 0, (sp.month || 1) - 1), 'MMM yyyy')}`
+                    ).join(', ');
+                }
+
+                groupedList.push({
+                    ...sortedGroup[0],
+                    amount: totalGroupedAmount,
+                    isGrouped: true,
+                    groupedText: formattedMonths,
+                });
+            } else {
+                groupedList.push(paymentsGroup[0]);
+            }
+        });
+
+        // Re-sort the final list by date descending using the first item's date of each group
+        const finalSortedList = groupedList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return (
+            <div className="space-y-4">
+                <div>
+                    <p className="font-semibold mb-1">Total: ৳{totalCollection.toLocaleString()}</p>
+                </div>
+                <ScrollArea className="h-[400px] rounded-md border">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+                            <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Source</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {finalSortedList.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No collections recorded.</TableCell>
+                                </TableRow>
+                            ) : (
+                                finalSortedList.map((p, i) => (
+                                    <TableRow key={p.id || i}>
+                                        <TableCell>{format(new Date(p.date), 'MMM d, yyyy')}</TableCell>
+                                        <TableCell>{p.memberName || "Guest / Direct"}</TableCell>
+                                        <TableCell className="capitalize">
+                                            {p.isGrouped ? (
+                                                <span className="font-medium">{p.groupedText} <span className="text-muted-foreground font-normal">(Monthly)</span></span>
+                                            ) : p.type === 'monthly' && p.month && p.year ? (
+                                                `${format(new Date(p.year, p.month - 1), 'MMMM yyyy')} (Monthly)`
+                                            ) : (
+                                                p.type
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium text-green-600">৳{p.amount?.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </div>
+        )
+    };
+
+    const renderExpenseList = () => {
+        const sortedList = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return (
+            <div className="space-y-4">
+                <div>
+                    <p className="font-semibold mb-1">Total: ৳{totalExpenses.toLocaleString()}</p>
+                </div>
+                <ScrollArea className="h-[400px] rounded-md border">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+                            <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Title</TableHead>
+                                <TableHead>Category</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sortedList.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No expenses recorded.</TableCell>
+                                </TableRow>
+                            ) : (
+                                sortedList.map((e, i) => (
+                                    <TableRow key={e.id || i}>
+                                        <TableCell>{format(new Date(e.date), 'MMM d, yyyy')}</TableCell>
+                                        <TableCell>{e.title}</TableCell>
+                                        <TableCell>{e.category}</TableCell>
+                                        <TableCell className="text-right font-medium text-red-600">৳{e.amount?.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </div>
+        )
+    }
+
+    const renderBalanceSummary = () => {
+        return (
+            <div className="space-y-4">
+                <div>
+                    <p className="font-semibold mb-1 text-lg">Final Balance: ৳{currentBalance.toLocaleString()}</p>
+                </div>
+                <div className="rounded-md border p-4">
+                    <div className="flex justify-between items-center py-2 border-b">
+                        <span className="font-medium text-muted-foreground">Total Inflow (Collections)</span>
+                        <span className="font-bold text-green-600 text-lg">৳{totalCollection.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b">
+                        <span className="font-medium text-muted-foreground">Total Outflow (Expenses)</span>
+                        <span className="font-bold text-red-600 text-lg">৳{totalExpenses.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 pt-4">
+                        <span className="font-bold text-lg">Current Available Balance</span>
+                        <span className="font-bold text-blue-600 text-2xl">৳{currentBalance.toLocaleString()}</span>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -211,7 +380,7 @@ export default function FinancePage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-4">
-                <Card>
+                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setFinanceModal("total-collection")}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Collection</CardTitle>
                         <TrendingUp className="h-4 w-4 text-green-500" />
@@ -221,7 +390,7 @@ export default function FinancePage() {
                         <p className="text-xs text-muted-foreground">All time collected</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setFinanceModal("total-expenses")}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
                         <TrendingDown className="h-4 w-4 text-red-500" />
@@ -231,7 +400,7 @@ export default function FinancePage() {
                         <p className="text-xs text-muted-foreground">All time spending</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setFinanceModal("current-balance")}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Current Balance</CardTitle>
                         <DollarSign className="h-4 w-4 text-blue-500" />
@@ -427,6 +596,30 @@ export default function FinancePage() {
                     </form>
                 </DialogContent>
             </Dialog>
+
+            {/* DETAIL MODALS UI */}
+            <Dialog open={!!financeModal} onOpenChange={(open) => !open && setFinanceModal(null)}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {financeModal === "total-collection" && "Total Collections Breakdown"}
+                            {financeModal === "total-expenses" && "Total Expenses Breakdown"}
+                            {financeModal === "current-balance" && "Balance Summary"}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {financeModal === "total-collection" && "Complete list of all recorded contributions."}
+                            {financeModal === "total-expenses" && "Complete list of all recorded expenses."}
+                            {financeModal === "current-balance" && "Overview of total inflows vs total outflows."}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4">
+                        {financeModal === "total-collection" && renderPaymentList()}
+                        {financeModal === "total-expenses" && renderExpenseList()}
+                        {financeModal === "current-balance" && renderBalanceSummary()}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
+
