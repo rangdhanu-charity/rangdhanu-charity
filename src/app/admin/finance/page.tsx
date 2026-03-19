@@ -484,7 +484,7 @@ export default function FinancePage() {
                                             <TableCell colSpan={4} className="text-center text-muted-foreground">No expenses found.</TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredExpenses.slice(0, 10).map(expense => (
+                                        filteredExpenses.map(expense => (
                                             <TableRow key={expense.id}>
                                                 <TableCell className="font-medium">
                                                     {expense.createdAt
