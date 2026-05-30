@@ -7,7 +7,7 @@ import { useFinance } from "@/lib/finance-context";
 import { useSettings } from "@/lib/settings-context";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { FolderOpen, DollarSign, Users, TrendingUp, CreditCard, AlertCircle, Heart, UserCheck } from "lucide-react";
+import { FolderOpen, DollarSign, Users, TrendingUp, CreditCard, AlertCircle, Heart, UserCheck, Download } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
+import { ReceiptService } from "@/lib/receipt-service";
 
 export default function AdminDashboard() {
     const { projects } = useData();
@@ -237,12 +238,13 @@ export default function AdminDashboard() {
                                 <TableHead>Member</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right w-[80px]">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {finalSortedList.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No records found.</TableCell>
+                                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No records found.</TableCell>
                                 </TableRow>
                             ) : (
                                 finalSortedList.map((p, i) => (
@@ -259,6 +261,17 @@ export default function AdminDashboard() {
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right font-medium text-green-600">৳{p.amount?.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-8 w-8 text-muted-foreground hover:text-blue-600" 
+                                                title="Download PDF Receipt"
+                                                onClick={() => ReceiptService.exportDonationReceipt(p, settings?.orgLogoURL)}
+                                            >
+                                                <Download className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}

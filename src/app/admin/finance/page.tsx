@@ -11,11 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, TrendingUp, TrendingDown, DollarSign, Trash2, Edit, UserCheck } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, DollarSign, Trash2, Edit, UserCheck, Download } from "lucide-react";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { ReceiptService } from "@/lib/receipt-service";
 
 
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -248,12 +249,13 @@ export default function FinancePage() {
                                 <TableHead>Source</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right w-[80px]">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {finalSortedList.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No collections recorded.</TableCell>
+                                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No collections recorded.</TableCell>
                                 </TableRow>
                             ) : (
                                 finalSortedList.map((p, i) => (
@@ -270,6 +272,17 @@ export default function FinancePage() {
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right font-medium text-green-600">৳{p.amount?.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-8 w-8 text-muted-foreground hover:text-blue-600" 
+                                                title="Download PDF Receipt"
+                                                onClick={() => ReceiptService.exportDonationReceipt(p)}
+                                            >
+                                                <Download className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}
@@ -295,12 +308,13 @@ export default function FinancePage() {
                                 <TableHead>Title</TableHead>
                                 <TableHead>Category</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right w-[80px]">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {sortedList.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No expenses recorded.</TableCell>
+                                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No expenses recorded.</TableCell>
                                 </TableRow>
                             ) : (
                                 sortedList.map((e, i) => (
@@ -309,6 +323,17 @@ export default function FinancePage() {
                                         <TableCell>{e.title}</TableCell>
                                         <TableCell>{e.category}</TableCell>
                                         <TableCell className="text-right font-medium text-red-600">৳{e.amount?.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-8 w-8 text-muted-foreground hover:text-red-600" 
+                                                title="Download Payment Slip"
+                                                onClick={() => ReceiptService.exportExpenseSlip(e)}
+                                            >
+                                                <Download className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}
@@ -500,6 +525,9 @@ export default function FinancePage() {
                                                 <TableCell className="text-right text-red-600 font-medium">-{expense.amount}</TableCell>
                                                 <TableCell>
                                                     <div className="flex justify-end gap-1">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-slate-900 dark:hover:text-white" title="Download Slip" onClick={() => ReceiptService.exportExpenseSlip(expense)}>
+                                                            <Download className="h-4 w-4" />
+                                                        </Button>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(expense)}>
                                                             <Edit className="h-4 w-4" />
                                                         </Button>

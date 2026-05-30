@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { collection, query, orderBy, getDocs, onSnapshot, addDoc, updateDoc, doc, Timestamp, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ActivityLogService } from "@/lib/activity-log-service";
+import { ReceiptService } from "@/lib/receipt-service";
 
 export default function RequestsPage() {
     const { user, getRegistrationRequests, approveRegistrationRequest, rejectRegistrationRequest } = useAuth();
@@ -260,6 +261,8 @@ export default function RequestsPage() {
                 }
             }
 
+            const createdPayments: any[] = [];
+
             for (const m of monthsToProcess) {
                 const amountToAdd = isMonthly ? Number(finalAllocations[m]) : Number(request.amount);
                 const paymentMonth = Number(m);
@@ -280,10 +283,18 @@ export default function RequestsPage() {
                     if (!snap.empty) {
                         const existingDoc = snap.docs[0];
                         const existingAmount = Number(existingDoc.data().amount) || 0;
-                        await updateDoc(doc(db, "payments", existingDoc.id), {
+                        const updateData = {
                             amount: existingAmount + amountToAdd,
                             updatedAt: Timestamp.now(),
                             hiddenFromProfile: false
+                        };
+                        await updateDoc(doc(db, "payments", existingDoc.id), updateData);
+                        
+                        createdPayments.push({
+                            id: existingDoc.id,
+                            ...existingDoc.data(),
+                            ...updateData,
+                            date: paymentDate.toDate ? paymentDate.toDate() : paymentDate
                         });
 
                         // Clean up any duplicates
@@ -294,36 +305,60 @@ export default function RequestsPage() {
                             }
                         }
                     } else {
-                        await addDoc(collection(db, "payments"), {
+                        const paymentData = {
                             amount: amountToAdd,
                             date: paymentDate,
                             month: paymentMonth,
                             year: paymentYearValue,
                             memberName: request.userName,
-                            type: "monthly",
+                            type: "monthly" as const,
                             userId: request.userId,
                             method: request.method,
                             notes: request.notes,
                             transactionId: request.transactionId || "",
                             createdAt: Timestamp.now(),
                             hiddenFromProfile: false
+                        };
+                        const docRef = await addDoc(collection(db, "payments"), paymentData);
+                        createdPayments.push({
+                            id: docRef.id,
+                            ...paymentData,
+                            date: paymentDate.toDate ? paymentDate.toDate() : paymentDate
                         });
                     }
                 } else {
                     // For one-time: always create a new payment record
-                    await addDoc(collection(db, "payments"), {
+                    const paymentData = {
                         amount: amountToAdd,
                         date: paymentDate,
                         memberName: request.userName,
-                        type: "one-time",
+                        type: "one-time" as const,
                         userId: request.userId,
                         method: request.method,
                         notes: request.notes,
                         transactionId: request.transactionId || "",
                         createdAt: Timestamp.now(),
                         hiddenFromProfile: false
+                    };
+                    const docRef = await addDoc(collection(db, "payments"), paymentData);
+                    createdPayments.push({
+                        id: docRef.id,
+                        ...paymentData,
+                        date: paymentDate.toDate ? paymentDate.toDate() : paymentDate
                     });
                 }
+            }
+
+            // Trigger beautiful PDF receipt download for the admin
+            if (createdPayments.length > 0) {
+                const combinedPayment = {
+                    ...createdPayments[0],
+                    amount: request.amount, // Total amount approved
+                    type: request.type,
+                    months: request.months,
+                    year: request.year
+                };
+                ReceiptService.exportDonationReceipt(combinedPayment).catch(e => console.error("PDF receipt generation failed:", e));
             }
 
             // Update status

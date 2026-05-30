@@ -38,9 +38,10 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2 } from "lucide-react";
+import { Trash2, Download } from "lucide-react";
 import { useSettings, SettingsProvider } from "@/lib/settings-context";
 import { useFinance, FinanceProvider } from "@/lib/finance-context";
+import { ReceiptService } from "@/lib/receipt-service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -1799,8 +1800,17 @@ function ProfileContent() {
                                                                             })()}
                                                                         </p>
                                                                     </div>
-                                                                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 sm:w-auto w-full">
-                                                                        <span className="font-bold text-primary truncate">৳ {donation.amount}</span>
+                                                                    <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 sm:w-auto w-full">
+                                                                        <span className="font-bold text-primary truncate mr-2">৳ {donation.amount}</span>
+                                                                        <Button 
+                                                                            variant="ghost" 
+                                                                            size="sm" 
+                                                                            className="h-8 w-8 p-0 shrink-0 text-muted-foreground hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:text-blue-600" 
+                                                                            title="Download PDF Receipt"
+                                                                            onClick={() => ReceiptService.exportDonationReceipt(donation)}
+                                                                        >
+                                                                            <Download className="h-4 w-4" />
+                                                                        </Button>
                                                                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={(e) => handleHidePayment(donation.id, e)}>
                                                                             <Trash2 className="h-4 w-4" />
                                                                         </Button>
