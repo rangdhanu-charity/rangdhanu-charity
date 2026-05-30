@@ -98,11 +98,7 @@ export default function CollectionsPage() {
         amount: "",
         year: new Date().getFullYear().toString(),
         months: [] as number[],
-        allocations: {} as Record<number, string>,
-        method: "bkash",
-        transactionId: "",
-        notes: "",
-        date: format(new Date(), "yyyy-MM-dd"),
+        allocations: {} as Record<number, string>
     });
 
     const [selectedMemberSummary, setSelectedMemberSummary] = useState<any>(null);
@@ -116,8 +112,6 @@ export default function CollectionsPage() {
         date: format(new Date(), "yyyy-MM-dd"),
         notes: "",
         type: "one-time" as const,
-        method: "bkash",
-        transactionId: "",
     });
     const [userSearchTerm, setUserSearchTerm] = useState("");
     const [showUserSuggestions, setShowUserSuggestions] = useState(false);
@@ -383,10 +377,6 @@ export default function CollectionsPage() {
             year: (settings.collectionYears && settings.collectionYears.length > 0 ? Math.max(...settings.collectionYears) : new Date().getFullYear()).toString(),
             months: [],
             allocations: {},
-            method: "bkash",
-            transactionId: "",
-            notes: "",
-            date: format(new Date(), "yyyy-MM-dd"),
         });
         setIsRecordMonthlyOpen(false);
         setIsSummaryOpen(true);
@@ -504,11 +494,7 @@ export default function CollectionsPage() {
                     await updatePayment(monthPayments[0].id, {
                         amount: currentTotal + monthAmount,
                         hiddenFromProfile: false,
-                        notes: multiMonthFormData.notes
-                            ? `${monthPayments[0].notes || ""} | ${multiMonthFormData.notes}`.trim()
-                            : (monthPayments[0].notes || "Admin added directly"),
-                        method: multiMonthFormData.method || "Cash",
-                        transactionId: multiMonthFormData.transactionId || "",
+                        notes: "Admin added directly",
                         batchId: batchId
                     } as any);
 
@@ -522,13 +508,11 @@ export default function CollectionsPage() {
                         userId: selectedMemberSummary.id,
                         memberName: selectedMemberSummary.name || selectedMemberSummary.username || "Unknown",
                         amount: monthAmount,
-                        date: multiMonthFormData.date ? new Date(multiMonthFormData.date) : new Date(),
+                        date: new Date(),
                         type: "monthly",
                         month: month,
                         year: Number(multiMonthFormData.year),
-                        notes: multiMonthFormData.notes || "Admin added directly",
-                        method: multiMonthFormData.method || "Cash",
-                        transactionId: multiMonthFormData.transactionId || "",
+                        notes: "Admin added directly",
                         hiddenFromProfile: false,
                         batchId: batchId
                     } as any);
@@ -615,13 +599,10 @@ export default function CollectionsPage() {
                             userId: selectedMemberSummary.id,
                             memberName: selectedMemberSummary.name || selectedMemberSummary.username || "Unknown",
                             amount: finalAllocatedSum,
-                            date: multiMonthFormData.date ? new Date(multiMonthFormData.date) : new Date(),
+                            date: new Date(),
                             type: "monthly",
                             months: paidMonthNumbers,
                             year: Number(multiMonthFormData.year),
-                            method: multiMonthFormData.method || "Cash",
-                            transactionId: multiMonthFormData.transactionId || "",
-                            notes: multiMonthFormData.notes || "",
                             batchId: batchId
                         });
                         const pdfBase64 = pdfDoc.output('base64' as any);
@@ -768,8 +749,8 @@ export default function CollectionsPage() {
                                 amount: Number(dataToSave.amount),
                                 date: new Date(dataToSave.date),
                                 type: "one-time",
-                                method: dataToSave.method || "Cash",
-                                transactionId: dataToSave.transactionId || "",
+                                method: "Cash",
+                                transactionId: "",
                                 notes: dataToSave.notes || ""
                             });
 
@@ -1028,8 +1009,6 @@ export default function CollectionsPage() {
                                 date: format(new Date(), "yyyy-MM-dd"),
                                 notes: "",
                                 type: "one-time",
-                                method: "bkash",
-                                transactionId: ""
                             });
                             setIsOneTimeDialogOpen(true);
                         }} className="bg-blue-600 hover:bg-blue-700">
@@ -1126,8 +1105,6 @@ export default function CollectionsPage() {
                                                             date: format(new Date(payment.date), "yyyy-MM-dd"),
                                                             notes: payment.notes || "",
                                                             type: "one-time",
-                                                            method: payment.method || "bkash",
-                                                            transactionId: payment.transactionId || ""
                                                         });
                                                         setIsOneTimeDialogOpen(true);
                                                     }}><Edit className="h-4 w-4" /></Button>
@@ -1207,34 +1184,7 @@ export default function CollectionsPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Payment Method</Label>
-                                <Select
-                                    value={formData.method}
-                                    onValueChange={(v) => setFormData({ ...formData, method: v })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Method" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="bkash">bKash</SelectItem>
-                                        <SelectItem value="nagad">Nagad</SelectItem>
-                                        <SelectItem value="dbbl">DBBL / Rocket</SelectItem>
-                                        <SelectItem value="cash">Cash</SelectItem>
-                                        <SelectItem value="bank">Bank Transfer</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Transaction ID (Optional)</Label>
-                                <Input
-                                    placeholder="Trx ID"
-                                    value={formData.transactionId}
-                                    onChange={e => setFormData({ ...formData, transactionId: e.target.value })}
-                                />
-                            </div>
-                        </div>
+
 
                         <div className="space-y-2">
                             <Label>Notes</Label>
@@ -1416,56 +1366,6 @@ export default function CollectionsPage() {
                                                 )}
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-muted">
-                                                <div>
-                                                    <Label className="text-xs font-semibold">Payment Method</Label>
-                                                    <Select
-                                                        value={multiMonthFormData.method}
-                                                        onValueChange={(v) => setMultiMonthFormData(prev => ({ ...prev, method: v }))}
-                                                    >
-                                                        <SelectTrigger className="h-8 text-xs">
-                                                            <SelectValue placeholder="Method" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="bkash">bKash</SelectItem>
-                                                            <SelectItem value="nagad">Nagad</SelectItem>
-                                                            <SelectItem value="dbbl">DBBL / Rocket</SelectItem>
-                                                            <SelectItem value="cash">Cash</SelectItem>
-                                                            <SelectItem value="bank">Bank Transfer</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs font-semibold">Transaction ID (Optional)</Label>
-                                                    <Input
-                                                        className="h-8 text-xs font-mono"
-                                                        placeholder="Trx ID"
-                                                        value={multiMonthFormData.transactionId}
-                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, transactionId: e.target.value }))}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <Label className="text-xs font-semibold">Payment Date</Label>
-                                                    <Input
-                                                        type="date"
-                                                        className="h-8 text-xs"
-                                                        value={multiMonthFormData.date}
-                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, date: e.target.value }))}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs font-semibold">Notes (Optional)</Label>
-                                                    <Input
-                                                        className="h-8 text-xs"
-                                                        placeholder="e.g. Manual entry"
-                                                        value={multiMonthFormData.notes}
-                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, notes: e.target.value }))}
-                                                    />
-                                                </div>
-                                            </div>
 
                                             <div className="flex justify-between items-center py-3 px-4 bg-muted/40 rounded-md border text-sm">
                                                 <Label className="font-bold cursor-default">Total Expected Payment</Label>

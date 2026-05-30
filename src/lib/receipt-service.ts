@@ -314,14 +314,14 @@ export const ReceiptService = {
         };
 
         const formatMethod = (m: string) => {
-            if (!m) return 'CASH / MANUAL';
+            if (!m || m.trim() === '' || m.toLowerCase() === 'manual admin entry') return 'Cash / Not Applicable';
             const lower = m.toLowerCase();
             if (lower === 'bkash') return 'bKash';
             if (lower === 'nagad') return 'Nagad';
             if (lower === 'dbbl') return 'DBBL / Rocket';
             if (lower === 'cash') return 'Cash';
             if (lower === 'bank') return 'Bank Transfer';
-            return m.toUpperCase();
+            return m.charAt(0).toUpperCase() + m.slice(1);
         };
 
         drawDetailRow('Receipt No', receiptCode);
@@ -337,7 +337,53 @@ export const ReceiptService = {
         let amountBreakdown: { [month: number]: number } = {};
         let isMultiMonth = false;
 
-        if (Array.isArray(payment.months) && payment.months.length > 0) {
+        // Try to fetch related batch/session payments from Firestore first to get exact allocations
+        let paymentsInBatch: any[] = [];
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { collection: fsCol, query: fsQuery, where: fsWhere, getDocs: fsGetDocs } = await import('firebase/firestore');
+            
+            let q;
+            if (payment.batchId) {
+                q = fsQuery(fsCol(db, 'payments'), fsWhere('batchId', '==', payment.batchId));
+            } else if (payment.transactionId && payment.transactionId !== "Manual Admin Entry" && payment.transactionId !== "") {
+                q = fsQuery(fsCol(db, 'payments'), fsWhere('transactionId', '==', payment.transactionId), fsWhere('userId', '==', payment.userId));
+            } else if (payment.userId) {
+                // Group by proximity in time (same user, monthly, same year)
+                q = fsQuery(
+                    fsCol(db, 'payments'),
+                    fsWhere('userId', '==', payment.userId),
+                    fsWhere('type', '==', 'monthly'),
+                    fsWhere('year', '==', Number(paymentYear))
+                );
+            }
+            
+            if (q) {
+                const snap = await fsGetDocs(q);
+                const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+                if (payment.batchId || (payment.transactionId && payment.transactionId !== "Manual Admin Entry" && payment.transactionId !== "")) {
+                    paymentsInBatch = fetched;
+                } else {
+                    const targetTime = parseDate(payment.createdAt || payment.date).getTime();
+                    paymentsInBatch = fetched.filter(p => {
+                        const pTime = parseDate(p.createdAt || p.date).getTime();
+                        return Math.abs(pTime - targetTime) <= 5000; // 5 seconds
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch related payments in batch:", err);
+        }
+
+        if (paymentsInBatch.length > 1) {
+            isMultiMonth = true;
+            paidMonths = paymentsInBatch.map(p => p.month).filter(m => m !== undefined).sort((a, b) => a - b);
+            paymentsInBatch.forEach(p => {
+                amountBreakdown[p.month] = Number(p.amount);
+            });
+            payment.amount = paymentsInBatch.reduce((sum, p) => sum + Number(p.amount), 0);
+        } else if (Array.isArray(payment.months) && payment.months.length > 0) {
+            // Fallback: use passed months list and split amount equally
             paidMonths = [...payment.months].sort((a, b) => a - b);
             isMultiMonth = paidMonths.length > 1;
             const amountPerMonth = Number(payment.amount) / paidMonths.length;
@@ -345,39 +391,11 @@ export const ReceiptService = {
                 amountBreakdown[m] = amountPerMonth;
             });
         } else {
-            // Check for batch payments in Firestore
-            let paymentsInBatch: any[] = [];
-            try {
-                const { db } = await import('@/lib/firebase');
-                const { collection: fsCol, query: fsQuery, where: fsWhere, getDocs: fsGetDocs } = await import('firebase/firestore');
-                
-                let q;
-                if (payment.batchId) {
-                    q = fsQuery(fsCol(db, 'payments'), fsWhere('batchId', '==', payment.batchId));
-                } else if (payment.transactionId && payment.transactionId !== "Manual Admin Entry" && payment.transactionId !== "") {
-                    q = fsQuery(fsCol(db, 'payments'), fsWhere('transactionId', '==', payment.transactionId), fsWhere('userId', '==', payment.userId));
-                }
-                
-                if (q) {
-                    const snap = await fsGetDocs(q);
-                    paymentsInBatch = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                }
-            } catch (err) {
-                console.error("Failed to fetch related payments in batch:", err);
-            }
-
-            if (paymentsInBatch.length > 1) {
-                isMultiMonth = true;
-                paidMonths = paymentsInBatch.map(p => p.month).filter(m => m !== undefined).sort((a, b) => a - b);
-                paymentsInBatch.forEach(p => {
-                    amountBreakdown[p.month] = Number(p.amount);
-                });
-                payment.amount = paymentsInBatch.reduce((sum, p) => sum + Number(p.amount), 0);
-            } else {
-                paidMonths = [payment.month || new Date().getMonth() + 1];
-                amountBreakdown[paidMonths[0]] = Number(payment.amount);
-            }
+            // Single month default
+            paidMonths = [payment.month || new Date().getMonth() + 1];
+            amountBreakdown[paidMonths[0]] = Number(payment.amount);
         }
+
 
         // Subscription type details
         let typeStr = '';
