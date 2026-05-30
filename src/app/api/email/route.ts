@@ -43,9 +43,13 @@ export async function POST(request: Request) {
         // to prevent corruption, missing attachment files, and MIME header parsing bugs in mail clients.
         const formattedAttachments = attachments ? attachments.map((att: any) => {
             if (att.encoding === 'base64' && typeof att.content === 'string') {
+                let base64Data = att.content;
+                if (base64Data.includes(';base64,')) {
+                    base64Data = base64Data.split(';base64,').pop() || '';
+                }
                 return {
                     filename: att.filename,
-                    content: Buffer.from(att.content, 'base64'),
+                    content: Buffer.from(base64Data, 'base64'),
                     contentType: att.contentType || 'application/pdf'
                 };
             }
