@@ -503,7 +503,7 @@ export const ReceiptService = {
                     periodText = `${startMonthName} to ${endMonthName} ${paymentYear}`;
                     
                     const count = range.endMonth - range.startMonth + 1;
-                    amountText = `TK ${range.amountPerMonth.toLocaleString()} * ${count}`;
+                    amountText = `TK ${range.amountPerMonth.toLocaleString()} x ${count}`;
                 }
 
                 doc.setFont('helvetica', 'normal');

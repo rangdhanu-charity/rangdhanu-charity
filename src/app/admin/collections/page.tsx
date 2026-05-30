@@ -605,7 +605,7 @@ export default function CollectionsPage() {
                             year: Number(multiMonthFormData.year),
                             batchId: batchId
                         });
-                        const pdfBase64 = pdfDoc.output('base64' as any);
+                        const pdfBase64 = pdfDoc.output('datauristring');
 
                         await fetch('/api/email', {
                             method: 'POST',
@@ -622,6 +622,15 @@ export default function CollectionsPage() {
                                         <div style="padding:28px 32px">
                                             <p>Dear <strong>${selectedMemberSummary.name || 'Member'}</strong>,</p>
                                             <p>An administrator has recorded your monthly subscription <strong>donation(s)</strong> for ${multiMonthFormData.year}. Your official PDF receipt is attached to this email.</p>
+
+                                            <!-- Restored Beautiful Compact Status Cards Table -->
+                                            <table style="width:100%;border-collapse:collapse;margin:20px 0">
+                                                <tr>
+                                                    <td style="width:33%;padding:0 5px 0 0"><div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#334155">${totalPassedMonths} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:9px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.2px">${periodString}</div></div></td>
+                                                    <td style="width:33%;padding:0 5px"><div style="text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#15803d">${paidMonthsCount} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#16a34a;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Donated</div></div></td>
+                                                    <td style="width:33%;padding:0 0 0 5px"><div style="text-align:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#c2410c">${monthsDue} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#ea580c;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Due</div></div></td>
+                                                </tr>
+                                            </table>
 
                                             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
                                                 <h3 style="margin:0 0 12px;color:#15803d;font-size:15px">🌟 Donation Summary</h3>
@@ -754,7 +763,7 @@ export default function CollectionsPage() {
                                 notes: dataToSave.notes || ""
                             });
 
-                            const pdfBase64 = pdfDoc.output('base64' as any);
+                             const pdfBase64 = pdfDoc.output('datauristring');
 
                             await fetch("/api/email", {
                                 method: "POST",
