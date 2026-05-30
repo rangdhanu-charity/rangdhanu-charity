@@ -9,34 +9,180 @@ const parseDate = (d: any): Date => {
     return isNaN(parsed.getTime()) ? new Date() : parsed;
 };
 
-// Safely loads a remote image URL to a transparent Data URL using Canvas, resolving CORS on-the-fly
-const loadLogoImage = (url: string): Promise<string> => {
-    return new Promise((resolve) => {
-        if (!url) {
-            resolve('');
-            return;
-        }
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/png'));
-                    return;
+// Safely loads a remote image URL to a transparent Data URL using fetch and FileReader, resolving CORS and caching issues
+const loadLogoImage = async (url: string): Promise<string> => {
+    if (!url) return '';
+    if (url.startsWith('data:')) return url;
+    
+    try {
+        // Add cache-buster to prevent browser CORS cache issues
+        const cleanUrl = url.includes('?') ? `${url}&_cb=${Date.now()}` : `${url}?_cb=${Date.now()}`;
+        const res = await fetch(cleanUrl, { mode: 'cors' });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const blob = await res.blob();
+        
+        return new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                resolve(reader.result as string);
+            };
+            reader.onerror = () => {
+                resolve('');
+            };
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error("Failed to load logo via fetch/FileReader, trying canvas fallback:", e);
+        // Robust fallback using traditional HTMLImageElement + Canvas
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                        return;
+                    }
+                } catch (err) {
+                    console.error("Canvas fallback conversion failed:", err);
                 }
-            } catch (e) {
-                console.error("CORS or canvas error conversion:", e);
+                resolve('');
+            };
+            img.onerror = (err) => {
+                console.error("Canvas image fallback load failed:", err);
+                resolve('');
+            };
+            // Add cache-buster to avoid browser CORS caching bugs in fallback
+            img.src = url.includes('?') ? `${url}&_cb=${Date.now()}` : `${url}?_cb=${Date.now()}`;
+        });
+    }
+};
+
+/**
+ * Renders text on jsPDF. If it contains non-ASCII characters (like Bangla script),
+ * it dynamically rasterizes it onto a high-DPI canvas using system fonts and embeds
+ * it cleanly as a crisp PNG, ensuring perfect Unicode support and zero layout overlap.
+ * 
+ * Returns the height in millimeters consumed by the text block.
+ */
+const renderUnicodeText = (
+    doc: jsPDF, 
+    text: string, 
+    x: number, 
+    y: number, 
+    fontSize: number, 
+    isBold: boolean, 
+    textColor: string, 
+    maxPageWidthMm: number = 180
+): number => {
+    if (!text) return 0;
+    
+    // If text only contains standard ASCII characters, use native jsPDF text (crisp vector)
+    const isASCII = !/[^\x00-\x7F]/.test(text);
+    if (isASCII) {
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        doc.setFontSize(fontSize);
+        const hexColor = textColor.startsWith('#') ? textColor : '#000000';
+        // Parse hex to RGB
+        const r = parseInt(hexColor.slice(1, 3), 16) || 0;
+        const g = parseInt(hexColor.slice(3, 5), 16) || 0;
+        const b = parseInt(hexColor.slice(5, 7), 16) || 0;
+        doc.setTextColor(r, g, b);
+        
+        const split = doc.splitTextToSize(text, maxPageWidthMm);
+        doc.text(split, x, y + fontSize * 0.25); // Minor alignment adjustment
+        return split.length * (fontSize * 0.3527 * 1.25); // height in mm
+    }
+
+    // Otherwise, render dynamically via Canvas to support Unicode (e.g. Bangla) perfectly!
+    try {
+        const canvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+        if (!canvas) throw new Error("Document/Canvas is not available");
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error("Failed to get 2D context");
+
+        const scale = 5; // Very high DPI scale for super-crisp rendering when printed
+        const canvasFont = `${isBold ? 'bold ' : ''}${fontSize * scale}px "Segoe UI", Arial, "SolaimanLipi", "Nikosh", sans-serif`;
+        ctx.font = canvasFont;
+
+        // Newline-aware word wrapping algorithm inside canvas
+        const rawLines = text.split(/\r?\n/);
+        const lines: string[] = [];
+        
+        // Max width in pixels (1 mm = 3.7795 px)
+        const maxPx = Math.ceil(maxPageWidthMm * 3.7795 * scale);
+
+        for (const rawLine of rawLines) {
+            const words = rawLine.split(' ');
+            let currentLine = '';
+            for (let i = 0; i < words.length; i++) {
+                const testLine = currentLine ? `${currentLine} ${words[i]}` : words[i];
+                const testWidth = ctx.measureText(testLine).width;
+                if (testWidth > maxPx && i > 0) {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                } else {
+                    currentLine = testLine;
+                }
             }
-            resolve('');
-        };
-        img.onerror = () => resolve('');
-        img.src = url;
-    });
+            if (currentLine) {
+                lines.push(currentLine);
+            } else if (rawLine === '') {
+                lines.push('');
+            }
+        }
+
+        // Height of each line in pixels (line height = 1.35)
+        const lineHeightPx = fontSize * 1.35 * scale;
+        const padding = Math.ceil(15 * (fontSize / 10)); // Scale padding based on font size
+
+        // Set canvas dimensions with integer values
+        canvas.width = Math.ceil(maxPx + padding * 2);
+        canvas.height = Math.ceil(lines.length * lineHeightPx + padding * 2);
+
+        // Re-apply font context after resizing canvas
+        ctx.font = canvasFont;
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = textColor;
+
+        // Premium anti-aliasing settings
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        // Draw text lines
+        lines.forEach((line, index) => {
+            ctx.fillText(line, padding, padding + index * lineHeightPx);
+        });
+
+        // Map dimensions back to mm
+        const wMm = maxPageWidthMm + (padding * 2) / (3.7795 * scale);
+        const hMm = canvas.height / (3.7795 * scale);
+
+        // Render canvas element directly onto PDF document
+        doc.addImage(canvas, 'PNG', x - (padding) / (3.7795 * scale), y - 2, wMm, hMm);
+
+        return hMm - 2; // Return actual height consumed in mm
+    } catch (e) {
+        console.error("Failed to render Unicode text via Canvas, falling back to doc.text:", e);
+        // Safe fallback using Helvetica
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        doc.setFontSize(fontSize);
+        const hexColor = textColor.startsWith('#') ? textColor : '#000000';
+        const r = parseInt(hexColor.slice(1, 3), 16) || 0;
+        const g = parseInt(hexColor.slice(3, 5), 16) || 0;
+        const b = parseInt(hexColor.slice(5, 7), 16) || 0;
+        doc.setTextColor(r, g, b);
+        
+        const split = doc.splitTextToSize(text, maxPageWidthMm);
+        doc.text(split, x, y + fontSize * 0.25);
+        return split.length * (fontSize * 0.3527 * 1.25);
+    }
 };
 
 export const ReceiptService = {
@@ -61,7 +207,7 @@ export const ReceiptService = {
     /**
      * Generates a beautifully styled Donation Receipt PDF with a QR code for verification.
      */
-    exportDonationReceipt: async (payment: any, orgLogoURL?: string) => {
+    exportDonationReceipt: async (payment: any) => {
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -88,7 +234,19 @@ export const ReceiptService = {
             console.error('Failed to generate QR Code:', err);
         }
 
-        // Fetch dynamic organization logo if provided
+        // Fetch dynamic organization logo fresh from Firestore
+        let orgLogoURL = '';
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { doc: fsDoc, getDoc: fsGetDoc } = await import('firebase/firestore');
+            const settingsSnap = await fsGetDoc(fsDoc(db, 'system_settings', 'general'));
+            if (settingsSnap.exists()) {
+                orgLogoURL = settingsSnap.data().orgLogoURL || '';
+            }
+        } catch (err) {
+            console.error("Failed to fetch settings logo from Firestore:", err);
+        }
+
         const logoDataUrl = orgLogoURL ? await loadLogoImage(orgLogoURL) : '';
 
         // --- BRAND STYLING ---
@@ -133,7 +291,7 @@ export const ReceiptService = {
         // --- TWO-COLUMN DETAILS SECTION ---
         doc.setTextColor(15, 23, 42);
 
-        // Column 1: Receipt & Payment Details
+        // Column 1: Receipt Details
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(11);
         doc.text('RECEIPT DETAILS', 15, 55);
@@ -142,13 +300,13 @@ export const ReceiptService = {
         doc.setFontSize(9.5);
         doc.setTextColor(71, 85, 105);
         
-        let y = 62;
+        let detailY = 62;
         const drawDetailRow = (label: string, value: string) => {
             doc.setFont('helvetica', 'bold');
-            doc.text(`${label}:`, 15, y);
+            doc.text(`${label}:`, 15, detailY);
             doc.setFont('helvetica', 'normal');
-            doc.text(value, 55, y);
-            y += 7;
+            doc.text(value, 55, detailY);
+            detailY += 7;
         };
 
         drawDetailRow('Receipt No', receiptCode);
@@ -162,7 +320,11 @@ export const ReceiptService = {
         const typeStr = payment.type === 'monthly' 
             ? `Monthly Subscription (${format(new Date(2000, (payment.month || 1) - 1, 1), 'MMMM')} ${payment.year || new Date().getFullYear()})`
             : 'One-time General Contribution';
-        drawDetailRow('Donation Type', typeStr);
+        
+        // Donation Type text draw using renderUnicodeText for safety
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Donation Type:`, 15, detailY);
+        renderUnicodeText(doc, typeStr, 55, detailY - 3, 9.5, false, '#475569', 55);
 
         // Column 2: Donor Info
         let yCol2 = 55;
@@ -174,8 +336,16 @@ export const ReceiptService = {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9.5);
         doc.setTextColor(71, 85, 105);
-        doc.text(`Name: ${payment.memberName || 'Guest Donor'}`, 115, yCol2 + 7);
-        doc.text(`Status: Verified & Approved`, 115, yCol2 + 14);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Name:`, 115, yCol2 + 7);
+        // Donor Name render using renderUnicodeText to perfectly support Unicode (Bangla)
+        renderUnicodeText(doc, payment.memberName || 'Guest Donor', 130, yCol2 + 4, 9.5, false, '#475569', 65);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Status:`, 115, yCol2 + 14);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Verified & Approved`, 130, yCol2 + 14);
 
         // Draw QR Code
         if (qrDataUrl) {
@@ -253,7 +423,7 @@ export const ReceiptService = {
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
         doc.text('Rangdhanu Charity Foundation. Registered Welfare Trust.', 65, 277);
-        doc.text('Email: info@rangdhanu.org | Web: www.rangdhanu.org', 66, 282);
+        doc.text('Email: info@rangdhanu.org | Web: www.rangdhanu.org', 68, 282);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(10, 37, 64);
         doc.text('This is a computer generated, authenticated document.', 67, 289);
@@ -265,7 +435,7 @@ export const ReceiptService = {
     /**
      * Generates a beautifully styled Expenditure Payment Slip PDF with a QR code for verification.
      */
-    exportExpenseSlip: async (expense: any, orgLogoURL?: string) => {
+    exportExpenseSlip: async (expense: any) => {
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -292,7 +462,19 @@ export const ReceiptService = {
             console.error('Failed to generate QR Code:', err);
         }
 
-        // Fetch dynamic organization logo if provided
+        // Fetch dynamic organization logo fresh from Firestore
+        let orgLogoURL = '';
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { doc: fsDoc, getDoc: fsGetDoc } = await import('firebase/firestore');
+            const settingsSnap = await fsGetDoc(fsDoc(db, 'system_settings', 'general'));
+            if (settingsSnap.exists()) {
+                orgLogoURL = settingsSnap.data().orgLogoURL || '';
+            }
+        } catch (err) {
+            console.error("Failed to fetch settings logo from Firestore:", err);
+        }
+
         const logoDataUrl = orgLogoURL ? await loadLogoImage(orgLogoURL) : '';
 
         // --- BRAND STYLING ---
@@ -378,35 +560,42 @@ export const ReceiptService = {
         doc.setFontSize(11);
         doc.text('DISBURSEMENT PURPOSE & DESCRIPTION', 15, 107);
 
-        // Disbursement Title
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
-        doc.setTextColor(30, 41, 59);
-        const splitTitle = doc.splitTextToSize(expense.title || 'Untitled Expense', 180);
-        doc.text(splitTitle, 15, 114);
+        // Disbursement Title rendered using renderUnicodeText to perfectly support Unicode (Bangla)
+        const titleHeight = renderUnicodeText(
+            doc, 
+            expense.title || 'Untitled Expense', 
+            15, 
+            114, 
+            12, 
+            true, 
+            '#1E293B', 
+            180
+        );
 
-        // Calculate offset based on split lines to prevent overlap with amount box
-        const titleLines = splitTitle.length;
-        const titleOffset = titleLines * 5.5;
-
-        // Notes / Memo Section (Centered Full Width)
+        // Notes / Remarks Section rendered dynamically below Title
         let memoHeight = 0;
         if (expense.notes) {
+            const memoStartY = 115 + titleHeight;
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9.5);
             doc.setTextColor(15, 23, 42);
-            doc.text('MEMO / REMARKS:', 15, 115 + titleOffset);
+            doc.text('MEMO / REMARKS:', 15, memoStartY);
             
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(71, 85, 105);
-            const splitNotes = doc.splitTextToSize(expense.notes, 180);
-            doc.text(splitNotes, 15, 121 + titleOffset);
-            memoHeight = splitNotes.length * 4.8 + 8;
+            const notesHeight = renderUnicodeText(
+                doc, 
+                expense.notes, 
+                15, 
+                memoStartY + 5, 
+                9, 
+                false, 
+                '#475569', 
+                180
+            );
+            memoHeight = notesHeight + 10;
         }
 
         // Adjust starting Y of Amount box dynamically based on content heights
-        const amountBoxY = Math.max(136, 122 + titleOffset + memoHeight);
+        const amountBoxY = Math.max(136, 116 + titleHeight + memoHeight);
 
         // --- AMOUNT CONTENT BOX ---
         doc.setFillColor(254, 242, 242); // Soft red background

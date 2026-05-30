@@ -267,7 +267,7 @@ export default function AdminDashboard() {
                                                 size="icon" 
                                                 className="h-8 w-8 text-muted-foreground hover:text-blue-600" 
                                                 title="Download PDF Receipt"
-                                                onClick={() => ReceiptService.exportDonationReceipt(p, settings?.orgLogoURL)}
+                                                onClick={() => ReceiptService.exportDonationReceipt(p)}
                                             >
                                                 <Download className="h-4 w-4" />
                                             </Button>
