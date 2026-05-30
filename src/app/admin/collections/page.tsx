@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { collection, query, getDocs, doc, deleteDoc, writeBatch, Timestamp } from "firebase/firestore";
@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { ReceiptService } from "@/lib/receipt-service";
 
 // Types for our flexible column system
 type ColumnConfig = {
@@ -115,6 +116,8 @@ export default function CollectionsPage() {
         date: format(new Date(), "yyyy-MM-dd"),
         notes: "",
         type: "one-time" as const,
+        method: "bkash",
+        transactionId: "",
     });
     const [userSearchTerm, setUserSearchTerm] = useState("");
     const [showUserSuggestions, setShowUserSuggestions] = useState(false);
@@ -476,6 +479,7 @@ export default function CollectionsPage() {
 
         try {
             const { addDoc, collection } = await import("firebase/firestore");
+            const batchId = `BATCH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
             // Track what happened per month for the single combined notification
             const addedMonths: string[] = [];
@@ -500,9 +504,12 @@ export default function CollectionsPage() {
                     await updatePayment(monthPayments[0].id, {
                         amount: currentTotal + monthAmount,
                         hiddenFromProfile: false,
-                        notes: monthPayments[0].notes
-                            ? `${monthPayments[0].notes} | Admin added directly`
-                            : `Admin added directly`
+                        notes: multiMonthFormData.notes
+                            ? `${monthPayments[0].notes || ""} | ${multiMonthFormData.notes}`.trim()
+                            : (monthPayments[0].notes || "Admin added directly"),
+                        method: multiMonthFormData.method || "Cash",
+                        transactionId: multiMonthFormData.transactionId || "",
+                        batchId: batchId
                     } as any);
 
                     for (let i = 1; i < monthPayments.length; i++) {
@@ -515,12 +522,15 @@ export default function CollectionsPage() {
                         userId: selectedMemberSummary.id,
                         memberName: selectedMemberSummary.name || selectedMemberSummary.username || "Unknown",
                         amount: monthAmount,
-                        date: new Date(),
+                        date: multiMonthFormData.date ? new Date(multiMonthFormData.date) : new Date(),
                         type: "monthly",
                         month: month,
                         year: Number(multiMonthFormData.year),
-                        notes: "Admin added directly",
-                        hiddenFromProfile: false
+                        notes: multiMonthFormData.notes || "Admin added directly",
+                        method: multiMonthFormData.method || "Cash",
+                        transactionId: multiMonthFormData.transactionId || "",
+                        hiddenFromProfile: false,
+                        batchId: batchId
                     } as any);
 
                     addedMonths.push(`${monthLabel} (৳${monthAmount})`);
@@ -598,7 +608,23 @@ export default function CollectionsPage() {
                             const firstMonthName = new Date(2000, firstMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
                             periodString = `From ${firstMonthName} ${firstYear} to Present`;
                         }
-                        // -----------------------------------------------------------------------
+
+                        // Generate the jsPDF instance for this payment batch to send as email attachment!
+                        const pdfDoc = await ReceiptService.generateDonationReceipt({
+                            id: uniqueId,
+                            userId: selectedMemberSummary.id,
+                            memberName: selectedMemberSummary.name || selectedMemberSummary.username || "Unknown",
+                            amount: finalAllocatedSum,
+                            date: multiMonthFormData.date ? new Date(multiMonthFormData.date) : new Date(),
+                            type: "monthly",
+                            months: paidMonthNumbers,
+                            year: Number(multiMonthFormData.year),
+                            method: multiMonthFormData.method || "Cash",
+                            transactionId: multiMonthFormData.transactionId || "",
+                            notes: multiMonthFormData.notes || "",
+                            batchId: batchId
+                        });
+                        const pdfBase64 = pdfDoc.output('base64' as any);
 
                         await fetch('/api/email', {
                             method: 'POST',
@@ -614,7 +640,7 @@ export default function CollectionsPage() {
                                         </div>
                                         <div style="padding:28px 32px">
                                             <p>Dear <strong>${selectedMemberSummary.name || 'Member'}</strong>,</p>
-                                            <p>An administrator has recorded your monthly subscription <strong>donation(s)</strong> for ${multiMonthFormData.year}. Here is your detailed receipt:</p>
+                                            <p>An administrator has recorded your monthly subscription <strong>donation(s)</strong> for ${multiMonthFormData.year}. Your official PDF receipt is attached to this email.</p>
 
                                             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
                                                 <h3 style="margin:0 0 12px;color:#15803d;font-size:15px">🌟 Donation Summary</h3>
@@ -641,42 +667,6 @@ export default function CollectionsPage() {
                                                 </tr></tfoot>
                                             </table>
 
-                                            <div style="margin:24px 0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
-                                                <div style="background:linear-gradient(135deg,#1e3a8a 0%,#0f766e 100%);padding:11px 18px">
-                                                    <span style="color:#fff;font-weight:700;font-size:14px;letter-spacing:0.3px">Account Summary</span>
-                                                </div>
-                                                <div style="background:#f8fafc;padding:14px 18px;border-bottom:1px solid #e2e8f0">
-                                                    <div style="font-size:11px;color:#64748b;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.2px;text-align:center">${periodString}</div>
-                                                    <table style="width:100%;border-collapse:collapse"><tr>
-                                                        <td style="width:33%;padding:0 5px 0 0"><div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#334155">${totalPassedMonths} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.2px">Passed</div></div></td>
-                                                        <td style="width:33%;padding:0 5px"><div style="text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#15803d">${paidMonthsCount} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#16a34a;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Donated</div></div></td>
-                                                        <td style="width:33%;padding:0 0 0 5px"><div style="text-align:center;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 6px"><div style="font-size:18px;font-weight:800;color:#c2410c">${monthsDue} <span style="font-size:12px;font-weight:600">Months</span></div><div style="font-size:10px;color:#ea580c;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px">Due</div></div></td>
-                                                    </tr></table>
-                                                </div>
-                                                ${(() => {
-                                        const _cm = new Date().getMonth() + 1;
-                                        const _cy = new Date().getFullYear();
-                                        if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) return '';
-                                        return settings.collectionYears.map((yr) => {
-                                            const am = settings.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                                            const rel = yr < _cy ? am : yr === _cy ? am.filter((m) => m <= _cm) : [];
-
-                                            // Get future paid months to display in the UI even if they haven't passed
-                                            const futurePaid = yr > _cy ? am.filter((m) => paidMonthsSet.has(`${m}-${yr}`))
-                                                : yr === _cy ? am.filter((m) => m > _cm && paidMonthsSet.has(`${m}-${yr}`)) : [];
-
-                                            const displayMonths = [...new Set([...rel, ...futurePaid])].sort((a, b) => a - b);
-
-                                            if (displayMonths.length === 0) return '';
-
-                                            const pL = displayMonths.filter((m) => paidMonthsSet.has(`${m}-${yr}`)).map((m) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
-                                            const dL = rel.filter((m) => !paidMonthsSet.has(`${m}-${yr}`)).map((m) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
-                                            const hasDue = rel.some((m) => !paidMonthsSet.has(`${m}-${yr}`));
-                                            return `<div style="padding:10px 18px;border-bottom:1px solid #f1f5f9"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:5px">${yr}</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tr><td style="padding:2px 0;color:#15803d;width:70px;font-weight:600">&#10003; Donated</td><td style="padding:2px 0;color:#166534">${pL}</td></tr>${hasDue ? `<tr><td style="padding:2px 0;color:#c2410c;width:70px;font-weight:600">&#9679; Due</td><td style="padding:2px 0;color:#9a3412">${dL}</td></tr>` : ''}</table></div>`;
-                                        }).join('');
-                                    })()}
-                                            </div>
-
                                             <p style="margin-top:16px;font-size:13px;color:#6b7280">Your generous contributions make a real difference in the lives of children who depend on our support. Log in to your profile anytime to view your full donation history.</p>
                                             <p style="margin:20px 0 0">With deep gratitude,<br/><strong>Team Rangdhanu</strong></p>
                                         </div>
@@ -684,7 +674,15 @@ export default function CollectionsPage() {
                                             Automated receipt — Rangdhanu Charity Foundation. Ref: ${uniqueId}
                                         </div>
                                     </div>
-                                `
+                                `,
+                                attachments: [
+                                    {
+                                        filename: `receipt_${uniqueId.toLowerCase()}.pdf`,
+                                        content: pdfBase64,
+                                        encoding: 'base64',
+                                        contentType: 'application/pdf'
+                                    }
+                                ]
                             })
                         });
                     } catch (e) {
@@ -759,8 +757,24 @@ export default function CollectionsPage() {
                     const memberName = dataToSave.memberName || userSnap.data()?.name || 'Member';
                     if (userEmail) {
                         try {
-                            const uniqueId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                            const uniqueId = `DON-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                             const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
+                            
+                            // Generate the jsPDF instance for one-time donation
+                            const pdfDoc = await ReceiptService.generateDonationReceipt({
+                                id: uniqueId,
+                                userId: dataToSave.userId,
+                                memberName: memberName,
+                                amount: Number(dataToSave.amount),
+                                date: new Date(dataToSave.date),
+                                type: "one-time",
+                                method: dataToSave.method || "Cash",
+                                transactionId: dataToSave.transactionId || "",
+                                notes: dataToSave.notes || ""
+                            });
+
+                            const pdfBase64 = pdfDoc.output('base64' as any);
+
                             await fetch("/api/email", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
@@ -779,7 +793,7 @@ export default function CollectionsPage() {
                                                 <p>Dear <strong>${memberName}</strong>,</p>
                                                 <p>${editingPayment
                                             ? 'An administrator has updated your one-time donation record in our system.'
-                                            : 'An administrator has recorded your one-time donation. Thank you for your generous contribution! 🙏'}
+                                            : 'An administrator has recorded your one-time donation. Thank you for your generous contribution! Your official PDF receipt is attached to this email. 🙏'}
                                                 </p>
                                                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
                                                     <h3 style="margin:0 0 12px;color:#15803d;font-size:15px">💳 Donation Details</h3>
@@ -800,7 +814,15 @@ export default function CollectionsPage() {
                                                 Automated receipt — Rangdhanu Charity System. Ref: ${uniqueId}
                                             </div>
                                         </div>
-                                    `
+                                    `,
+                                    attachments: [
+                                        {
+                                            filename: `receipt_${uniqueId.toLowerCase()}.pdf`,
+                                            content: pdfBase64,
+                                            encoding: 'base64',
+                                            contentType: 'application/pdf'
+                                        }
+                                    ]
                                 })
                             });
                         } catch (e) { console.error("Failed to send receipt email", e); }
@@ -999,7 +1021,16 @@ export default function CollectionsPage() {
                         </div>
                         <Button onClick={() => {
                             setEditingPayment(null);
-                            setFormData({ ...formData, userId: "", memberName: "", amount: "" });
+                            setFormData({
+                                userId: "",
+                                memberName: "",
+                                amount: "",
+                                date: format(new Date(), "yyyy-MM-dd"),
+                                notes: "",
+                                type: "one-time",
+                                method: "bkash",
+                                transactionId: ""
+                            });
                             setIsOneTimeDialogOpen(true);
                         }} className="bg-blue-600 hover:bg-blue-700">
                             <Plus className="h-4 w-4 mr-2" /> Record Donation
@@ -1094,7 +1125,9 @@ export default function CollectionsPage() {
                                                             amount: payment.amount.toString(),
                                                             date: format(new Date(payment.date), "yyyy-MM-dd"),
                                                             notes: payment.notes || "",
-                                                            type: "one-time"
+                                                            type: "one-time",
+                                                            method: payment.method || "bkash",
+                                                            transactionId: payment.transactionId || ""
                                                         });
                                                         setIsOneTimeDialogOpen(true);
                                                     }}><Edit className="h-4 w-4" /></Button>
@@ -1173,6 +1206,36 @@ export default function CollectionsPage() {
                                 <Input type="date" required value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
                             </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Payment Method</Label>
+                                <Select
+                                    value={formData.method}
+                                    onValueChange={(v) => setFormData({ ...formData, method: v })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="bkash">bKash</SelectItem>
+                                        <SelectItem value="nagad">Nagad</SelectItem>
+                                        <SelectItem value="dbbl">DBBL / Rocket</SelectItem>
+                                        <SelectItem value="cash">Cash</SelectItem>
+                                        <SelectItem value="bank">Bank Transfer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Transaction ID (Optional)</Label>
+                                <Input
+                                    placeholder="Trx ID"
+                                    value={formData.transactionId}
+                                    onChange={e => setFormData({ ...formData, transactionId: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
                             <Label>Notes</Label>
                             <Input value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
@@ -1351,6 +1414,57 @@ export default function CollectionsPage() {
                                                         </AlertDescription>
                                                     </Alert>
                                                 )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-muted">
+                                                <div>
+                                                    <Label className="text-xs font-semibold">Payment Method</Label>
+                                                    <Select
+                                                        value={multiMonthFormData.method}
+                                                        onValueChange={(v) => setMultiMonthFormData(prev => ({ ...prev, method: v }))}
+                                                    >
+                                                        <SelectTrigger className="h-8 text-xs">
+                                                            <SelectValue placeholder="Method" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="bkash">bKash</SelectItem>
+                                                            <SelectItem value="nagad">Nagad</SelectItem>
+                                                            <SelectItem value="dbbl">DBBL / Rocket</SelectItem>
+                                                            <SelectItem value="cash">Cash</SelectItem>
+                                                            <SelectItem value="bank">Bank Transfer</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs font-semibold">Transaction ID (Optional)</Label>
+                                                    <Input
+                                                        className="h-8 text-xs font-mono"
+                                                        placeholder="Trx ID"
+                                                        value={multiMonthFormData.transactionId}
+                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, transactionId: e.target.value }))}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <Label className="text-xs font-semibold">Payment Date</Label>
+                                                    <Input
+                                                        type="date"
+                                                        className="h-8 text-xs"
+                                                        value={multiMonthFormData.date}
+                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, date: e.target.value }))}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs font-semibold">Notes (Optional)</Label>
+                                                    <Input
+                                                        className="h-8 text-xs"
+                                                        placeholder="e.g. Manual entry"
+                                                        value={multiMonthFormData.notes}
+                                                        onChange={e => setMultiMonthFormData(prev => ({ ...prev, notes: e.target.value }))}
+                                                    />
+                                                </div>
                                             </div>
 
                                             <div className="flex justify-between items-center py-3 px-4 bg-muted/40 rounded-md border text-sm">

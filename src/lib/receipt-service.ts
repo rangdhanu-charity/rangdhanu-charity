@@ -207,7 +207,11 @@ export const ReceiptService = {
     /**
      * Generates a beautifully styled Donation Receipt PDF with a QR code for verification.
      */
-    exportDonationReceipt: async (payment: any) => {
+    /**
+     * Generates a beautifully styled Donation Receipt PDF instance.
+     * Exposed as a public method so other pages can generate it for email attachments, etc.
+     */
+    generateDonationReceipt: async (payment: any): Promise<jsPDF> => {
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -309,17 +313,80 @@ export const ReceiptService = {
             detailY += 7;
         };
 
+        const formatMethod = (m: string) => {
+            if (!m) return 'CASH / MANUAL';
+            const lower = m.toLowerCase();
+            if (lower === 'bkash') return 'bKash';
+            if (lower === 'nagad') return 'Nagad';
+            if (lower === 'dbbl') return 'DBBL / Rocket';
+            if (lower === 'cash') return 'Cash';
+            if (lower === 'bank') return 'Bank Transfer';
+            return m.toUpperCase();
+        };
+
         drawDetailRow('Receipt No', receiptCode);
         drawDetailRow('Payment Date', format(paymentDate, 'MMMM d, yyyy h:mm a'));
-        drawDetailRow('Payment Method', (payment.method || 'Direct / Bank').toUpperCase());
-        if (payment.transactionId) {
+        drawDetailRow('Payment Method', formatMethod(payment.method));
+        if (payment.transactionId && payment.transactionId !== "Manual Admin Entry") {
             drawDetailRow('Trx ID', payment.transactionId);
         }
         
+        // --- DYNAMIC MULTI-MONTH RESOLUTION ---
+        let paidMonths: number[] = [];
+        let paymentYear = payment.year || new Date().getFullYear();
+        let amountBreakdown: { [month: number]: number } = {};
+        let isMultiMonth = false;
+
+        if (Array.isArray(payment.months) && payment.months.length > 0) {
+            paidMonths = [...payment.months].sort((a, b) => a - b);
+            isMultiMonth = paidMonths.length > 1;
+            const amountPerMonth = Number(payment.amount) / paidMonths.length;
+            paidMonths.forEach(m => {
+                amountBreakdown[m] = amountPerMonth;
+            });
+        } else {
+            // Check for batch payments in Firestore
+            let paymentsInBatch: any[] = [];
+            try {
+                const { db } = await import('@/lib/firebase');
+                const { collection: fsCol, query: fsQuery, where: fsWhere, getDocs: fsGetDocs } = await import('firebase/firestore');
+                
+                let q;
+                if (payment.batchId) {
+                    q = fsQuery(fsCol(db, 'payments'), fsWhere('batchId', '==', payment.batchId));
+                } else if (payment.transactionId && payment.transactionId !== "Manual Admin Entry" && payment.transactionId !== "") {
+                    q = fsQuery(fsCol(db, 'payments'), fsWhere('transactionId', '==', payment.transactionId), fsWhere('userId', '==', payment.userId));
+                }
+                
+                if (q) {
+                    const snap = await fsGetDocs(q);
+                    paymentsInBatch = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                }
+            } catch (err) {
+                console.error("Failed to fetch related payments in batch:", err);
+            }
+
+            if (paymentsInBatch.length > 1) {
+                isMultiMonth = true;
+                paidMonths = paymentsInBatch.map(p => p.month).filter(m => m !== undefined).sort((a, b) => a - b);
+                paymentsInBatch.forEach(p => {
+                    amountBreakdown[p.month] = Number(p.amount);
+                });
+                payment.amount = paymentsInBatch.reduce((sum, p) => sum + Number(p.amount), 0);
+            } else {
+                paidMonths = [payment.month || new Date().getMonth() + 1];
+                amountBreakdown[paidMonths[0]] = Number(payment.amount);
+            }
+        }
+
         // Subscription type details
-        const typeStr = payment.type === 'monthly' 
-            ? `Monthly Subscription (${format(new Date(2000, (payment.month || 1) - 1, 1), 'MMMM')} ${payment.year || new Date().getFullYear()})`
-            : 'One-time General Contribution';
+        let typeStr = '';
+        if (payment.type === 'one-time') {
+            typeStr = 'One-time General Contribution';
+        } else {
+            const monthNames = paidMonths.map(m => format(new Date(2000, m - 1, 1), 'MMMM')).join(', ');
+            typeStr = `Monthly Subscription (${monthNames} ${paymentYear})`;
+        }
         
         // Donation Type text draw using renderUnicodeText for safety
         doc.setFont('helvetica', 'bold');
@@ -355,26 +422,72 @@ export const ReceiptService = {
             doc.text('Scan with phone to verify authenticity online', 139, 125);
         }
 
+        // --- MULTI-MONTH BREAKDOWN TABLE ---
+        let breakdownHeight = 0;
+        if (payment.type === 'monthly' && isMultiMonth) {
+            const tableY = 95;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(10, 37, 64);
+            doc.text('MONTH-BY-MONTH BREAKDOWN', 15, tableY);
+
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.3);
+            doc.line(15, tableY + 2, 115, tableY + 2); // Thin horizontal line for header
+
+            // Header row
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(71, 85, 105);
+            doc.text('Month / Period', 18, tableY + 6);
+            doc.text('Amount', 95, tableY + 6);
+            
+            doc.line(15, tableY + 8, 115, tableY + 8);
+
+            let rowY = tableY + 12;
+            paidMonths.forEach(m => {
+                const monthName = format(new Date(2000, m - 1, 1), 'MMMM');
+                const amt = amountBreakdown[m] || 0;
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(71, 85, 105);
+                doc.text(`${monthName} ${paymentYear}`, 18, rowY);
+                
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(22, 163, 74); // Green
+                doc.text(`TK ${amt.toLocaleString()}`, 95, rowY);
+
+                doc.line(15, rowY + 2, 115, rowY + 2);
+                rowY += 6;
+            });
+            
+            breakdownHeight = rowY - tableY;
+        }
+
+        // Adjust Y positions dynamically based on breakdown table height
+        const amountBoxY = Math.max(133, 90 + breakdownHeight + 10);
+
         // --- AMOUNT CONTENT BOX ---
         doc.setFillColor(240, 246, 255); // Soft blue background
         doc.setDrawColor(14, 165, 233);  // Sky blue border
         doc.setLineWidth(0.5);
-        doc.rect(15, 133, 180, 24, 'FD');
+        doc.rect(15, amountBoxY, 180, 24, 'FD');
 
         doc.setTextColor(10, 37, 64);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
-        doc.text('TOTAL AMOUNT RECEIVED:', 20, 142);
+        doc.text('TOTAL AMOUNT RECEIVED:', 20, amountBoxY + 9);
         
         doc.setFontSize(16);
         doc.setTextColor(22, 163, 74); // Vibrant Green
-        doc.text(`TK ${Number(payment.amount).toLocaleString('en-IN')}.00 BDT`, 20, 150);
+        doc.text(`TK ${Number(payment.amount).toLocaleString('en-IN')}.00 BDT`, 20, amountBoxY + 17);
 
         // --- THANK YOU / STATEMENT SECTION ---
         doc.setTextColor(15, 23, 42);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10.5);
-        doc.text('Thank you for your generous support!', 15, 172);
+        doc.text('Thank you for your generous support!', 15, amountBoxY + 39);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9.5);
@@ -386,7 +499,7 @@ export const ReceiptService = {
             'towards a brighter and more equitable society.'
         ];
         
-        let termY = 178;
+        let termY = amountBoxY + 45;
         termsText.forEach(line => {
             doc.text(line, 15, termY);
             termY += 5;
@@ -428,7 +541,13 @@ export const ReceiptService = {
         doc.setTextColor(10, 37, 64);
         doc.text('This is a computer generated, authenticated document.', 67, 289);
 
-        // Save PDF
+        return doc;
+    },
+
+    exportDonationReceipt: async (payment: any) => {
+        const paymentDate = parseDate(payment.date || payment.createdAt);
+        const receiptCode = ReceiptService.getDonationCode(payment.id, paymentDate);
+        const doc = await ReceiptService.generateDonationReceipt(payment);
         doc.save(`receipt_${receiptCode.toLowerCase()}.pdf`);
     },
 

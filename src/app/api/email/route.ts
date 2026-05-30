@@ -19,7 +19,7 @@ const getTransporter = () => {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { to, subject, html, text } = body;
+        const { to, subject, html, text, attachments } = body;
 
         if (!to || !subject || (!html && !text)) {
             return NextResponse.json(
@@ -50,7 +50,8 @@ export async function POST(request: Request) {
             headers: {
                 'X-Entity-Ref-ID': Date.now().toString(),
                 'Content-Type': 'text/html; charset=UTF-8'
-            }
+            },
+            attachments: attachments || []
         };
 
         const info = await transporter.sendMail(mailOptions);
