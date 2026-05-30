@@ -545,6 +545,7 @@ export default function CollectionsPage() {
                     try {
                         const uniqueId = `DON-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                         const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
+                        const receiptCode = ReceiptService.getDonationCode(uniqueId, new Date());
 
                         // Build per-month breakdown rows
                         const paidMonthNumbers = multiMonthFormData.months.filter(m => (Number(allocationsToSave[m]) || 0) > 0);
@@ -626,7 +627,7 @@ export default function CollectionsPage() {
                                             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
                                                 <h3 style="margin:0 0 12px;color:#15803d;font-size:15px">🌟 Donation Summary</h3>
                                                 <table style="width:100%;border-collapse:collapse;font-size:14px">
-                                                    <tr><td style="padding:4px 0;color:#6b7280">Receipt ID</td><td style="padding:4px 0;text-align:right;font-family:monospace;font-size:12px">${uniqueId}</td></tr>
+                                                    <tr><td style="padding:4px 0;color:#6b7280">Receipt ID</td><td style="padding:4px 0;text-align:right;font-family:monospace;font-size:12px">${receiptCode}</td></tr>
                                                     <tr><td style="padding:4px 0;color:#6b7280">Date Recorded</td><td style="padding:4px 0;text-align:right">${receiptDate}</td></tr>
                                                     <tr style="border-top:2px solid #bbf7d0">
                                                         <td style="padding:10px 0 4px;font-weight:700;font-size:15px">Total Donated</td>
@@ -689,13 +690,13 @@ export default function CollectionsPage() {
                                             <p style="margin:20px 0 0">With deep gratitude,<br/><strong>Team Rangdhanu</strong></p>
                                         </div>
                                         <div style="background:#f9fafb;padding:14px 32px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb">
-                                            Automated receipt — Rangdhanu Charity Foundation. Ref: ${uniqueId}
+                                            Automated receipt — Rangdhanu Charity Foundation. Ref: ${receiptCode}
                                         </div>
                                     </div>
                                 `,
                                 attachments: [
                                     {
-                                        filename: `receipt_${uniqueId.toLowerCase()}.pdf`,
+                                        filename: `receipt_${receiptCode.toLowerCase()}.pdf`,
                                         content: pdfBase64,
                                         encoding: 'base64',
                                         contentType: 'application/pdf'
@@ -777,6 +778,7 @@ export default function CollectionsPage() {
                         try {
                             const uniqueId = `DON-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                             const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
+                            const receiptCode = ReceiptService.getDonationCode(uniqueId, new Date(dataToSave.date));
                             
                             // Generate the jsPDF instance for one-time donation
                             const pdfDoc = await ReceiptService.generateDonationReceipt({
@@ -816,7 +818,7 @@ export default function CollectionsPage() {
                                                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
                                                     <h3 style="margin:0 0 12px;color:#15803d;font-size:15px">💳 Donation Details</h3>
                                                     <table style="width:100%;border-collapse:collapse;font-size:14px">
-                                                        <tr><td style="padding:5px 0;color:#6b7280">Receipt ID</td><td style="padding:5px 0;text-align:right;font-family:monospace;font-size:12px">${uniqueId}</td></tr>
+                                                        <tr><td style="padding:5px 0;color:#6b7280">Receipt ID</td><td style="padding:5px 0;text-align:right;font-family:monospace;font-size:12px">${receiptCode}</td></tr>
                                                         <tr><td style="padding:5px 0;color:#6b7280">Date</td><td style="padding:5px 0;text-align:right">${receiptDate}</td></tr>
                                                         <tr><td style="padding:5px 0;color:#6b7280">Type</td><td style="padding:5px 0;text-align:right">One-Time Donation</td></tr>
                                                         <tr style="border-top:2px solid #bbf7d0">
@@ -829,13 +831,13 @@ export default function CollectionsPage() {
                                                 <p style="margin-top:20px">With gratitude,<br/><strong>Team Rangdhanu</strong></p>
                                             </div>
                                             <div style="background:#f9fafb;padding:14px 32px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb">
-                                                Automated receipt — Rangdhanu Charity System. Ref: ${uniqueId}
+                                                Automated receipt — Rangdhanu Charity System. Ref: ${receiptCode}
                                             </div>
                                         </div>
                                     `,
                                     attachments: [
                                         {
-                                            filename: `receipt_${uniqueId.toLowerCase()}.pdf`,
+                                            filename: `receipt_${receiptCode.toLowerCase()}.pdf`,
                                             content: pdfBase64,
                                             encoding: 'base64',
                                             contentType: 'application/pdf'
