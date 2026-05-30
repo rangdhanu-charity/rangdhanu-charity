@@ -469,7 +469,7 @@ export default function CollectionsPage() {
 
         try {
             const { addDoc, collection } = await import("firebase/firestore");
-            const batchId = `BATCH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const batchId = `DON-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
             // Track what happened per month for the single combined notification
             const addedMonths: string[] = [];
@@ -543,9 +543,8 @@ export default function CollectionsPage() {
 
                 if (userEmail) {
                     try {
-                        const uniqueId = `DON-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                         const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
-                        const receiptCode = ReceiptService.getDonationCode(uniqueId, new Date());
+                        const receiptCode = ReceiptService.getDonationCode(batchId, new Date());
 
                         // Build per-month breakdown rows
                         const paidMonthNumbers = multiMonthFormData.months.filter(m => (Number(allocationsToSave[m]) || 0) > 0);
@@ -596,7 +595,7 @@ export default function CollectionsPage() {
 
                         // Generate the jsPDF instance for this payment batch to send as email attachment!
                         const pdfDoc = await ReceiptService.generateDonationReceipt({
-                            id: uniqueId,
+                            id: batchId,
                             userId: selectedMemberSummary.id,
                             memberName: selectedMemberSummary.name || selectedMemberSummary.username || "Unknown",
                             amount: finalAllocatedSum,

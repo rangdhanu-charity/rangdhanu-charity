@@ -26,18 +26,38 @@ export default function ReceiptVerificationPage() {
 
         const fetchPayment = async () => {
             try {
-                const docRef = doc(db, "payments", id);
-                const docSnap = await getDoc(docRef);
+                let docSnap = await getDoc(doc(db, "payments", id));
+                let initialPayment: any = null;
+                let data: any = null;
 
                 if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const initialPayment = {
+                    data = docSnap.data();
+                    initialPayment = {
                         id: docSnap.id,
                         ...data,
                         date: data.date?.toDate 
                             ? data.date.toDate() 
                             : new Date(data.date)
                     };
+                } else {
+                    // Fallback: Check if the ID matches a batchId in Firestore (multi-month batch ID verification support)
+                    const { collection: fsCol, query: fsQuery, where: fsWhere, getDocs: fsGetDocs } = await import("firebase/firestore");
+                    const qBatch = fsQuery(fsCol(db, "payments"), fsWhere("batchId", "==", id));
+                    const batchSnap = await fsGetDocs(qBatch);
+                    if (!batchSnap.empty) {
+                        const firstDoc = batchSnap.docs[0];
+                        data = firstDoc.data();
+                        initialPayment = {
+                            id: firstDoc.id,
+                            ...data,
+                            date: data.date?.toDate 
+                                ? data.date.toDate() 
+                                : new Date(data.date)
+                        };
+                    }
+                }
+
+                if (initialPayment) {
 
                     // Check for related payments in the same batch or recorded close in time (multi-month grouping)
                     let paymentsInBatch: any[] = [];

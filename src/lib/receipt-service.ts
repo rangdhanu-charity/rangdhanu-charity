@@ -191,7 +191,14 @@ export const ReceiptService = {
      */
     getDonationCode: (id: string, date: any): string => {
         const d = parseDate(date);
-        const shortId = id ? id.toUpperCase().substring(0, 8) : 'TEMP';
+        let cleanId = id || 'TEMP';
+        const upper = cleanId.toUpperCase();
+        if (upper.startsWith('DON-')) {
+            cleanId = cleanId.substring(4);
+        } else if (upper.startsWith('BATCH-')) {
+            cleanId = cleanId.substring(6);
+        }
+        const shortId = cleanId.toUpperCase().substring(0, 8);
         return `DON-${shortId}-${format(d, 'yyyyMMdd')}`;
     },
 
@@ -219,9 +226,10 @@ export const ReceiptService = {
         });
 
         const paymentDate = parseDate(payment.date || payment.createdAt);
-        const receiptCode = ReceiptService.getDonationCode(payment.id, paymentDate);
+        const receiptId = payment.batchId || payment.id;
+        const receiptCode = ReceiptService.getDonationCode(receiptId, paymentDate);
         const origin = typeof window !== 'undefined' ? window.location.origin : 'https://rangdhanu.org';
-        const verificationUrl = `${origin}/verify/receipt/${payment.id || 'invalid'}`;
+        const verificationUrl = `${origin}/verify/receipt/${receiptId || 'invalid'}`;
 
         // Generate QR code data URL offline
         let qrDataUrl = '';
