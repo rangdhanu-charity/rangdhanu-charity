@@ -350,8 +350,9 @@ export default function RequestsPage() {
             }
 
             // Trigger beautiful PDF receipt download for the admin
+            let combinedPayment: any = null;
             if (createdPayments.length > 0) {
-                const combinedPayment = {
+                combinedPayment = {
                     ...createdPayments[0],
                     amount: request.amount, // Total amount approved
                     type: request.type,
@@ -388,7 +389,19 @@ export default function RequestsPage() {
                 try {
                     const isMonthlyReq = request.type === 'monthly';
                     const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
-                    const uniqueId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                    const receiptId = combinedPayment?.batchId || combinedPayment?.id || `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                    const receiptCode = ReceiptService.getDonationCode(receiptId, combinedPayment ? new Date(combinedPayment.date) : new Date());
+
+                    // Generate the jsPDF instance for approved request to send as email attachment!
+                    let pdfBase64 = '';
+                    if (combinedPayment) {
+                        try {
+                            const pdfDoc = await ReceiptService.generateDonationReceipt(combinedPayment);
+                            pdfBase64 = pdfDoc.output('datauristring');
+                        } catch (pdfErr) {
+                            console.error('Failed to generate PDF receipt for approved request email:', pdfErr);
+                        }
+                    }
 
                     // Build month breakdown rows for monthly donations
                     let monthBreakdownHtml = '';
@@ -511,7 +524,7 @@ export default function RequestsPage() {
                                         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0">
                                             <h3 style="margin:0 0 12px;color:#15803d;font-size:16px">💳 Payment Summary</h3>
                                             <table style="width:100%;border-collapse:collapse;font-size:14px">
-                                                <tr><td style="padding:5px 0;color:#6b7280">Receipt ID</td><td style="padding:5px 0;text-align:right;font-family:monospace">${uniqueId}</td></tr>
+                                                <tr><td style="padding:5px 0;color:#6b7280">Receipt ID</td><td style="padding:5px 0;text-align:right;font-family:monospace">${receiptCode}</td></tr>
                                                 <tr><td style="padding:5px 0;color:#6b7280">Date Approved</td><td style="padding:5px 0;text-align:right">${receiptDate}</td></tr>
                                                 <tr><td style="padding:5px 0;color:#6b7280">Type</td><td style="padding:5px 0;text-align:right;text-transform:capitalize">${request.type}</td></tr>
                                                 <tr><td style="padding:5px 0;color:#6b7280">Method</td><td style="padding:5px 0;text-align:right;text-transform:capitalize">${request.method || 'N/A'}</td></tr>
@@ -531,10 +544,18 @@ export default function RequestsPage() {
                                         <p style="margin:24px 0 0">With deep gratitude,<br/><strong>Team Rangdhanu</strong></p>
                                     </div>
                                     <div style="background:#f9fafb;padding:14px 32px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb">
-                                        This is an automated receipt. Ref: ${uniqueId}
+                                        This is an automated receipt. Ref: ${receiptCode}
                                     </div>
                                 </div>
-                            `
+                            `,
+                            attachments: pdfBase64 ? [
+                                {
+                                    filename: `receipt_${receiptCode.toLowerCase()}.pdf`,
+                                    content: pdfBase64,
+                                    encoding: 'base64',
+                                    contentType: 'application/pdf'
+                                }
+                            ] : []
                         })
                     });
                 } catch (emailError) {

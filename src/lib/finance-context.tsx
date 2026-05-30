@@ -48,7 +48,7 @@ interface FinanceContextType {
     expenses: Expense[];
     loading: boolean;
     // Actions
-    addPayment: (data: Omit<Payment, "id" | "createdAt" | "date"> & { date: Date }) => Promise<{ success: boolean; error?: string }>;
+    addPayment: (data: Omit<Payment, "id" | "createdAt" | "date"> & { date: Date }) => Promise<{ success: boolean; id?: string; error?: string }>;
     updatePayment: (id: string, data: Partial<Payment>) => Promise<{ success: boolean; error?: string }>;
     deletePayment: (id: string, name?: string, additionalData?: any) => Promise<{ success: boolean; error?: string }>;
     addExpense: (data: Omit<Expense, "id" | "createdAt" | "date"> & { date: Date }) => Promise<{ success: boolean; error?: string }>;
@@ -128,7 +128,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     // Actions
     const addPayment = async (data: Omit<Payment, "id" | "createdAt" | "date"> & { date: Date }) => {
         try {
-            await addDoc(collection(db, "payments"), {
+            const docRef = await addDoc(collection(db, "payments"), {
                 ...data,
                 date: Timestamp.fromDate(data.date),
                 createdAt: Timestamp.now()
@@ -139,7 +139,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             }
 
             toast({ title: "Success", description: "Payment recorded successfully." });
-            return { success: true };
+            return { success: true, id: docRef.id };
         } catch (error: any) {
             console.error("Error adding payment:", error);
             toast({ title: "Error", description: "Failed to add payment.", variant: "destructive" });

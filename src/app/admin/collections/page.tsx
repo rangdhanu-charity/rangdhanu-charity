@@ -731,6 +731,7 @@ export default function CollectionsPage() {
                 type: "one-time" as const,
                 hiddenFromProfile: false
             };
+            let savedId = editingPayment ? editingPayment.id : null;
             if (editingPayment) {
                 await updatePayment(editingPayment.id, dataToSave);
                 if (dataToSave.userId) {
@@ -744,7 +745,10 @@ export default function CollectionsPage() {
                     });
                 }
             } else {
-                await addPayment(dataToSave);
+                const res = await addPayment(dataToSave);
+                if (res.success && res.id) {
+                    savedId = res.id;
+                }
                 if (dataToSave.userId) {
                     await addDoc(collection(db, "notifications"), {
                         userId: dataToSave.userId,
@@ -768,20 +772,19 @@ export default function CollectionsPage() {
                     });
                 }
 
-                if (sendReceiptEmail && dataToSave.userId) {
+                if (sendReceiptEmail && dataToSave.userId && savedId) {
                     const { doc: fDoc, getDoc: fGet } = await import("firebase/firestore");
                     const userSnap = await fGet(fDoc(db, "users", dataToSave.userId));
                     const userEmail = userSnap.exists() ? userSnap.data().email : null;
                     const memberName = dataToSave.memberName || userSnap.data()?.name || 'Member';
                     if (userEmail) {
                         try {
-                            const uniqueId = `DON-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                             const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
-                            const receiptCode = ReceiptService.getDonationCode(uniqueId, new Date(dataToSave.date));
+                            const receiptCode = ReceiptService.getDonationCode(savedId, new Date(dataToSave.date));
                             
                             // Generate the jsPDF instance for one-time donation
                             const pdfDoc = await ReceiptService.generateDonationReceipt({
-                                id: uniqueId,
+                                id: savedId,
                                 userId: dataToSave.userId,
                                 memberName: memberName,
                                 amount: Number(dataToSave.amount),
