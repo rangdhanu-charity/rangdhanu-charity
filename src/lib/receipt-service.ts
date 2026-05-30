@@ -611,7 +611,8 @@ export const ReceiptService = {
 
     exportDonationReceipt: async (payment: any) => {
         const paymentDate = parseDate(payment.date || payment.createdAt);
-        const receiptCode = ReceiptService.getDonationCode(payment.id, paymentDate);
+        const receiptId = payment.batchId || payment.id;
+        const receiptCode = ReceiptService.getDonationCode(receiptId, paymentDate);
         const doc = await ReceiptService.generateDonationReceipt(payment);
         doc.save(`receipt_${receiptCode.toLowerCase()}.pdf`);
     },

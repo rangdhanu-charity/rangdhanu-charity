@@ -199,7 +199,7 @@ export default function ReceiptVerificationPage() {
                                     <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
                                         <span className="text-muted-foreground font-medium">Receipt Code</span>
                                         <span className="col-span-2 text-foreground font-semibold text-right">
-                                            {ReceiptService.getDonationCode(payment.id, payment.date)}
+                                            {ReceiptService.getDonationCode(payment.batchId || payment.id, payment.date)}
                                         </span>
                                     </div>
 
