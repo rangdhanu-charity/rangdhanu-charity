@@ -30,13 +30,66 @@ export default function ReceiptVerificationPage() {
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    setPayment({
+                    const data = docSnap.data();
+                    const initialPayment = {
                         id: docSnap.id,
-                        ...docSnap.data(),
-                        date: docSnap.data().date?.toDate 
-                            ? docSnap.data().date.toDate() 
-                            : new Date(docSnap.data().date)
-                    });
+                        ...data,
+                        date: data.date?.toDate 
+                            ? data.date.toDate() 
+                            : new Date(data.date)
+                    };
+
+                    // Check for related payments in the same batch or recorded close in time (multi-month grouping)
+                    let paymentsInBatch: any[] = [];
+                    try {
+                        const { collection: fsCol, query: fsQuery, where: fsWhere, getDocs: fsGetDocs } = await import("firebase/firestore");
+                        
+                        let q;
+                        if (data.batchId) {
+                            q = fsQuery(fsCol(db, 'payments'), fsWhere('batchId', '==', data.batchId));
+                        } else if (data.transactionId && data.transactionId !== "Manual Admin Entry" && data.transactionId !== "") {
+                            q = fsQuery(fsCol(db, 'payments'), fsWhere('transactionId', '==', data.transactionId), fsWhere('userId', '==', data.userId));
+                        } else if (data.userId && data.type === 'monthly') {
+                            q = fsQuery(
+                                fsCol(db, 'payments'),
+                                fsWhere('userId', '==', data.userId),
+                                fsWhere('type', '==', 'monthly'),
+                                fsWhere('year', '==', Number(data.year || new Date().getFullYear()))
+                            );
+                        }
+
+                        if (q) {
+                            const snap = await fsGetDocs(q);
+                            const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+                            if (data.batchId || (data.transactionId && data.transactionId !== "Manual Admin Entry" && data.transactionId !== "")) {
+                                paymentsInBatch = fetched;
+                            } else {
+                                const targetTime = (data.createdAt?.toDate ? data.createdAt.toDate() : (data.date?.toDate ? data.date.toDate() : new Date(data.date))).getTime();
+                                paymentsInBatch = fetched.filter(p => {
+                                    const pTime = (p.createdAt?.toDate ? p.createdAt.toDate() : (p.date?.toDate ? p.date.toDate() : new Date(p.date))).getTime();
+                                    return Math.abs(pTime - targetTime) <= 5000; // 5 seconds
+                                });
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Failed to query related payments on verification page:", err);
+                    }
+
+                    if (paymentsInBatch.length > 1) {
+                        const sortedPayments = [...paymentsInBatch].sort((a, b) => a.month - b.month);
+                        const totalAmount = sortedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+                        const months = sortedPayments.map(p => p.month);
+                        
+                        setPayment({
+                            ...initialPayment,
+                            amount: totalAmount,
+                            months: months,
+                            paymentsInBatch: sortedPayments
+                        });
+                    } else {
+                        setPayment(initialPayment);
+                    }
+                    
                     setExists(true);
                 } else {
                     setExists(false);
@@ -145,9 +198,15 @@ export default function ReceiptVerificationPage() {
                                     <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
                                         <span className="text-muted-foreground font-medium">Donation Type</span>
                                         <span className="col-span-2 text-foreground font-semibold text-right capitalize">
-                                            {payment.type === "monthly" && payment.month && payment.year ? (
+                                            {payment.type === "monthly" ? (
                                                 <Badge variant="secondary" className="bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30">
-                                                    {format(new Date(2000, payment.month - 1, 1), "MMMM")} {payment.year} (Monthly)
+                                                    {payment.paymentsInBatch ? (
+                                                        `${payment.paymentsInBatch.length}-Month Subscription`
+                                                    ) : payment.month && payment.year ? (
+                                                        `${format(new Date(2000, payment.month - 1, 1), "MMMM")} ${payment.year} (Monthly)`
+                                                    ) : (
+                                                        "Monthly Subscription"
+                                                    )}
                                                 </Badge>
                                             ) : (
                                                 "One-time Donation"
@@ -157,10 +216,12 @@ export default function ReceiptVerificationPage() {
 
                                     <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
                                         <span className="text-muted-foreground font-medium">Method</span>
-                                        <span className="col-span-2 text-foreground font-semibold text-right uppercase">{payment.method || "bkash"}</span>
+                                        <span className="col-span-2 text-foreground font-semibold text-right uppercase">
+                                            {!payment.method || payment.method.toLowerCase() === 'manual admin entry' ? 'Cash / Not Applicable' : payment.method}
+                                        </span>
                                     </div>
 
-                                    {payment.transactionId && (
+                                    {payment.transactionId && payment.transactionId !== "Manual Admin Entry" && (
                                         <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
                                             <span className="text-muted-foreground font-medium">Transaction ID</span>
                                             <span className="col-span-2 text-foreground font-mono font-semibold text-right select-all">
@@ -178,6 +239,21 @@ export default function ReceiptVerificationPage() {
                                         </span>
                                     </div>
                                 </div>
+
+                                {/* Detailed Monthly Breakdown on Page if batch exists */}
+                                {payment.paymentsInBatch && (
+                                    <div className="rounded-xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/10 dark:bg-emerald-950/5 p-4 text-sm mt-4 space-y-2">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detailed Monthly Breakdown</h4>
+                                        <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                                            {payment.paymentsInBatch.map((p: any) => (
+                                                <div key={p.id} className="flex justify-between items-center text-xs pb-1 border-b border-dashed border-slate-100 dark:border-slate-800 last:border-none last:pb-0">
+                                                    <span className="text-muted-foreground">{format(new Date(2000, p.month - 1, 1), "MMMM")} {p.year}</span>
+                                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">৳{Number(p.amount).toLocaleString()} BDT</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Authenticity Guarantee Note */}
                                 <div className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 p-4 text-xs text-muted-foreground space-y-2 mt-4">

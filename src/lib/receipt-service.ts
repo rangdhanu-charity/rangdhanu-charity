@@ -462,19 +462,58 @@ export const ReceiptService = {
             
             doc.line(15, tableY + 8, 115, tableY + 8);
 
+            // Group consecutive months with identical amounts to compress vertical space
+            const groupedRanges: { startMonth: number; endMonth: number; amountPerMonth: number }[] = [];
+            if (paidMonths.length > 0) {
+                let currentRange = {
+                    startMonth: paidMonths[0],
+                    endMonth: paidMonths[0],
+                    amountPerMonth: amountBreakdown[paidMonths[0]] || 0
+                };
+                
+                for (let i = 1; i < paidMonths.length; i++) {
+                    const m = paidMonths[i];
+                    const amt = amountBreakdown[m] || 0;
+                    if (m === currentRange.endMonth + 1 && amt === currentRange.amountPerMonth) {
+                        currentRange.endMonth = m;
+                    } else {
+                        groupedRanges.push(currentRange);
+                        currentRange = {
+                            startMonth: m,
+                            endMonth: m,
+                            amountPerMonth: amt
+                        };
+                    }
+                }
+                groupedRanges.push(currentRange);
+            }
+
             let rowY = tableY + 12;
-            paidMonths.forEach(m => {
-                const monthName = format(new Date(2000, m - 1, 1), 'MMMM');
-                const amt = amountBreakdown[m] || 0;
+            groupedRanges.forEach(range => {
+                let periodText = '';
+                let amountText = '';
+                
+                if (range.startMonth === range.endMonth) {
+                    const monthName = format(new Date(2000, range.startMonth - 1, 1), 'MMMM');
+                    periodText = `${monthName} ${paymentYear}`;
+                    amountText = `TK ${range.amountPerMonth.toLocaleString()}`;
+                } else {
+                    const startMonthName = format(new Date(2000, range.startMonth - 1, 1), 'MMMM');
+                    const endMonthName = format(new Date(2000, range.endMonth - 1, 1), 'MMMM');
+                    periodText = `${startMonthName} to ${endMonthName} ${paymentYear}`;
+                    
+                    const count = range.endMonth - range.startMonth + 1;
+                    amountText = `TK ${range.amountPerMonth.toLocaleString()} * ${count}`;
+                }
 
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8.5);
                 doc.setTextColor(71, 85, 105);
-                doc.text(`${monthName} ${paymentYear}`, 18, rowY);
+                doc.text(periodText, 18, rowY);
                 
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(22, 163, 74); // Green
-                doc.text(`TK ${amt.toLocaleString()}`, 95, rowY);
+                doc.text(amountText, 95, rowY);
 
                 doc.line(15, rowY + 2, 115, rowY + 2);
                 rowY += 6;

@@ -39,6 +39,19 @@ export async function POST(request: Request) {
 
         const transporter = getTransporter();
 
+        // Convert base64 string attachments into clean server-side binary Buffer objects
+        // to prevent corruption, missing attachment files, and MIME header parsing bugs in mail clients.
+        const formattedAttachments = attachments ? attachments.map((att: any) => {
+            if (att.encoding === 'base64' && typeof att.content === 'string') {
+                return {
+                    filename: att.filename,
+                    content: Buffer.from(att.content, 'base64'),
+                    contentType: att.contentType || 'application/pdf'
+                };
+            }
+            return att;
+        }) : [];
+
         const mailOptions = {
             from: `"${process.env.NEXT_PUBLIC_SITE_NAME || 'Rangdhanu Charity'}" <${process.env.ZOHO_EMAIL_USER}>`,
             replyTo: process.env.ZOHO_EMAIL_USER,
@@ -46,12 +59,10 @@ export async function POST(request: Request) {
             subject,
             text,
             html,
-            encoding: 'utf-8',
             headers: {
-                'X-Entity-Ref-ID': Date.now().toString(),
-                'Content-Type': 'text/html; charset=UTF-8'
+                'X-Entity-Ref-ID': Date.now().toString()
             },
-            attachments: attachments || []
+            attachments: formattedAttachments
         };
 
         const info = await transporter.sendMail(mailOptions);
