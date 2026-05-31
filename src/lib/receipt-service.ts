@@ -484,27 +484,32 @@ export const ReceiptService = {
         doc.setTextColor(71, 85, 105);
         
         doc.setFont('helvetica', 'bold');
+        doc.setTextColor(71, 85, 105);
         doc.text(`Name:`, 115, yCol2 + 7);
         // Donor Name render using renderUnicodeText to perfectly support Unicode (Bangla)
         renderUnicodeText(doc, payment.memberName || 'Guest Donor', 133, yCol2 + 4, 9.5, false, '#475569', 65);
         
         doc.setFont('helvetica', 'bold');
+        doc.setTextColor(71, 85, 105);
         doc.text(`Membership Status:`, 115, yCol2 + 14);
-        renderUnicodeText(doc, membershipStatus, 148, yCol2 + 11, 9.5, true, '#0F766E', 48);
+        renderUnicodeText(doc, membershipStatus, 148, yCol2 + 11, 9.5, false, '#475569', 48);
 
         doc.setFont('helvetica', 'bold');
+        doc.setTextColor(71, 85, 105);
         doc.text(`Payment Status:`, 115, yCol2 + 21);
-        renderUnicodeText(doc, 'Verified & Approved', 142, yCol2 + 18, 9.5, true, '#16A34A', 54);
+        renderUnicodeText(doc, 'Verified & Approved', 142, yCol2 + 18, 9.5, false, '#475569', 54);
 
         let currentDonorY = yCol2 + 28;
         if (donorPhone) {
             doc.setFont('helvetica', 'bold');
+            doc.setTextColor(71, 85, 105);
             doc.text(`Contact:`, 115, currentDonorY);
             renderUnicodeText(doc, donorPhone, 133, currentDonorY - 3, 9.5, false, '#475569', 65);
             currentDonorY += 7;
         }
         if (donorEmail) {
             doc.setFont('helvetica', 'bold');
+            doc.setTextColor(71, 85, 105);
             doc.text(`Email:`, 115, currentDonorY);
             renderUnicodeText(doc, donorEmail, 133, currentDonorY - 3, 9.5, false, '#475569', 65);
             currentDonorY += 7;
