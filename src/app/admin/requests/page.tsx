@@ -261,6 +261,11 @@ export default function RequestsPage() {
                 }
             }
 
+            const rawContact = request.userEmail || "";
+            const isEmail = rawContact.includes("@");
+            const phoneVal = request.phone || (!isEmail ? rawContact : "");
+            const emailVal = request.userEmail || (isEmail ? rawContact : "");
+
             const createdPayments: any[] = [];
 
             for (const m of monthsToProcess) {
@@ -301,7 +306,7 @@ export default function RequestsPage() {
                         if (snap.docs.length > 1) {
                             const { deleteDoc } = await import("firebase/firestore");
                             for (let i = 1; i < snap.docs.length; i++) {
-                                await deleteDoc(doc(db, "payments", snap.docs[i].id));
+                                  await deleteDoc(doc(db, "payments", snap.docs[i].id));
                             }
                         }
                     } else {
@@ -317,7 +322,9 @@ export default function RequestsPage() {
                             notes: request.notes,
                             transactionId: request.transactionId || "",
                             createdAt: Timestamp.now(),
-                            hiddenFromProfile: false
+                            hiddenFromProfile: false,
+                            email: emailVal || "",
+                            phone: phoneVal || ""
                         };
                         const docRef = await addDoc(collection(db, "payments"), paymentData);
                         createdPayments.push({
@@ -338,7 +345,9 @@ export default function RequestsPage() {
                         notes: request.notes,
                         transactionId: request.transactionId || "",
                         createdAt: Timestamp.now(),
-                        hiddenFromProfile: false
+                        hiddenFromProfile: false,
+                        email: emailVal || "",
+                        phone: phoneVal || ""
                     };
                     const docRef = await addDoc(collection(db, "payments"), paymentData);
                     createdPayments.push({
@@ -505,6 +514,55 @@ export default function RequestsPage() {
                         }
                     }
 
+                    let emailMembershipStatus = "Non-Member";
+                    let userPhone = "";
+                    let userEmail = "";
+
+                    if (request.userId && request.userId !== "guest") {
+                        try {
+                            const { doc: fDoc, getDoc: fGet } = await import("firebase/firestore");
+                            const { db } = await import("@/lib/firebase");
+                            const userSnap = await fGet(fDoc(db, "users", request.userId));
+                            if (userSnap.exists()) {
+                                const userData = userSnap.data();
+                                userPhone = userData.phone || "";
+                                userEmail = userData.email || "";
+
+                                const userRoles = userData.roles || [];
+                                const mappedRoles = userRoles.map((r: string) => {
+                                    const lower = r.toLowerCase();
+                                    if (lower === 'member' || lower === 'user') return 'Regular Member';
+                                    if (lower === 'admin') return 'Admin';
+                                    if (lower === 'moderator') return 'Moderator';
+                                    return r.charAt(0).toUpperCase() + r.slice(1);
+                                });
+                                const uniqueRoles = Array.from(new Set(mappedRoles)) as string[];
+                                if (uniqueRoles.length > 0) {
+                                    if (uniqueRoles.length === 1) {
+                                        emailMembershipStatus = uniqueRoles[0];
+                                    } else if (uniqueRoles.length === 2) {
+                                        emailMembershipStatus = `${uniqueRoles[0]} & ${uniqueRoles[1]}`;
+                                    } else {
+                                        const last = uniqueRoles[uniqueRoles.length - 1];
+                                        const rest = uniqueRoles.slice(0, uniqueRoles.length - 1).join(', ');
+                                        emailMembershipStatus = `${rest} & ${last}`;
+                                    }
+                                } else {
+                                    emailMembershipStatus = "Regular Member";
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Failed to fetch user roles for email in requests:", err);
+                        }
+                    } else {
+                        // For guest
+                        emailMembershipStatus = "Non-Member";
+                        const rawContact = request.userEmail || "";
+                        const isEmail = rawContact.includes("@");
+                        userPhone = request.phone || (!isEmail ? rawContact : "");
+                        userEmail = request.userEmail || (isEmail ? rawContact : "");
+                    }
+
                     await fetch('/api/email', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -529,6 +587,9 @@ export default function RequestsPage() {
                                                 <tr><td style="padding:5px 0;color:#6b7280">Type</td><td style="padding:5px 0;text-align:right;text-transform:capitalize">${request.type}</td></tr>
                                                 <tr><td style="padding:5px 0;color:#6b7280">Method</td><td style="padding:5px 0;text-align:right;text-transform:capitalize">${request.method || 'N/A'}</td></tr>
                                                 ${request.transactionId ? `<tr><td style="padding:5px 0;color:#6b7280">Transaction ID</td><td style="padding:5px 0;text-align:right;font-family:monospace">${request.transactionId}</td></tr>` : ''}
+                                                <tr><td style="padding:5px 0;color:#6b7280">Membership Status</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#0f766e">${emailMembershipStatus}</td></tr>
+                                                ${userPhone ? `<tr><td style="padding:5px 0;color:#6b7280">Contact Number</td><td style="padding:5px 0;text-align:right">${userPhone}</td></tr>` : ''}
+                                                ${userEmail ? `<tr><td style="padding:5px 0;color:#6b7280">Email Address</td><td style="padding:5px 0;text-align:right">${userEmail}</td></tr>` : ''}
                                                 <tr style="border-top:2px solid #bbf7d0">
                                                     <td style="padding:10px 0 5px;font-weight:700;font-size:16px">Total Approved</td>
                                                     <td style="padding:10px 0 5px;text-align:right;font-weight:700;font-size:18px;color:#16a34a">৳${Number(request.amount).toLocaleString()}</td>

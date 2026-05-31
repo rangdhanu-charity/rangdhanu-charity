@@ -58,6 +58,61 @@ export default function ReceiptVerificationPage() {
                 }
 
                 if (initialPayment) {
+                    let donorPhone = initialPayment.phone || '';
+                    let donorEmail = initialPayment.email || initialPayment.userEmail || '';
+                    let membershipStatus = 'Non-Member';
+
+                    if (initialPayment.userId && initialPayment.userId !== "guest" && initialPayment.userId !== "deleted-user") {
+                        try {
+                            const userSnap = await getDoc(doc(db, "users", initialPayment.userId));
+                            if (userSnap.exists()) {
+                                const userData = userSnap.data();
+                                if (userData.phone) donorPhone = userData.phone;
+                                if (userData.email) donorEmail = userData.email;
+
+                                const roles: string[] = Array.isArray(userData.roles) ? userData.roles : (userData.role ? [userData.role] : []);
+                                const mappedRoles = roles.map(r => {
+                                    const lower = r.toLowerCase();
+                                    if (lower === 'member' || lower === 'user') return 'Regular Member';
+                                    if (lower === 'admin') return 'Admin';
+                                    if (lower === 'moderator') return 'Moderator';
+                                    return r.charAt(0).toUpperCase() + r.slice(1);
+                                });
+                                const uniqueRoles = Array.from(new Set(mappedRoles));
+                                if (uniqueRoles.length > 0) {
+                                    if (uniqueRoles.length === 1) {
+                                        membershipStatus = uniqueRoles[0];
+                                    } else if (uniqueRoles.length === 2) {
+                                        membershipStatus = `${uniqueRoles[0]} & ${uniqueRoles[1]}`;
+                                    } else {
+                                        const last = uniqueRoles[uniqueRoles.length - 1];
+                                        const rest = uniqueRoles.slice(0, uniqueRoles.length - 1).join(', ');
+                                        membershipStatus = `${rest} & ${last}`;
+                                    }
+                                } else {
+                                    membershipStatus = "Regular Member";
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Failed to fetch donor details on verify page:", err);
+                        }
+                    }
+
+                    if (!donorPhone && !donorEmail && initialPayment.contact) {
+                        const rawContact = initialPayment.contact;
+                        if (rawContact.includes('@')) {
+                            donorEmail = rawContact;
+                        } else {
+                            donorPhone = rawContact;
+                        }
+                    }
+
+                    const enrichedPayment = {
+                        ...initialPayment,
+                        donorPhone,
+                        donorEmail,
+                        membershipStatus
+                    };
 
                     // Check for related payments in the same batch or recorded close in time (multi-month grouping)
                     let paymentsInBatch: any[] = [];
@@ -101,13 +156,13 @@ export default function ReceiptVerificationPage() {
                         const months = sortedPayments.map(p => p.month);
                         
                         setPayment({
-                            ...initialPayment,
+                            ...enrichedPayment,
                             amount: totalAmount,
                             months: months,
                             paymentsInBatch: sortedPayments
                         });
                     } else {
-                        setPayment(initialPayment);
+                        setPayment(enrichedPayment);
                     }
                     
                     setExists(true);
@@ -207,6 +262,33 @@ export default function ReceiptVerificationPage() {
                                         <span className="text-muted-foreground font-medium">Donor Name</span>
                                         <span className="col-span-2 text-foreground font-semibold text-right">{payment.memberName || "Guest Donor"}</span>
                                     </div>
+
+                                    <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
+                                        <span className="text-muted-foreground font-medium">Donor Status</span>
+                                        <span className="col-span-2 text-right">
+                                            <Badge variant="secondary" className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 font-semibold text-xs py-0.5">
+                                                {payment.membershipStatus || "Non-Member"}
+                                            </Badge>
+                                        </span>
+                                    </div>
+
+                                    {payment.donorPhone && (
+                                        <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
+                                            <span className="text-muted-foreground font-medium">Contact Number</span>
+                                            <span className="col-span-2 text-foreground font-semibold text-right">
+                                                {payment.donorPhone}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {payment.donorEmail && (
+                                        <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
+                                            <span className="text-muted-foreground font-medium">Email Address</span>
+                                            <span className="col-span-2 text-foreground font-semibold text-right select-all">
+                                                {payment.donorEmail}
+                                            </span>
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
                                         <span className="text-muted-foreground font-medium">Payment Date</span>

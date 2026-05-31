@@ -231,6 +231,59 @@ export const ReceiptService = {
         const origin = typeof window !== 'undefined' ? window.location.origin : 'https://rangdhanu.org';
         const verificationUrl = `${origin}/verify/receipt/${receiptId || 'invalid'}`;
 
+        // Fetch detailed donor info if userId is available and not guest
+        let donorPhone = payment.phone || '';
+        let donorEmail = payment.email || payment.userEmail || '';
+        let membershipStatus = 'Non-Member';
+
+        if (payment.userId && payment.userId !== "guest" && payment.userId !== "deleted-user") {
+            try {
+                const { db } = await import('@/lib/firebase');
+                const { doc: fsDoc, getDoc: fsGetDoc } = await import('firebase/firestore');
+                const userSnap = await fsGetDoc(fsDoc(db, 'users', payment.userId));
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    if (userData.phone) donorPhone = userData.phone;
+                    if (userData.email) donorEmail = userData.email;
+
+                    // Compute membership status
+                    const roles: string[] = Array.isArray(userData.roles) ? userData.roles : (userData.role ? [userData.role] : []);
+                    const mappedRoles = roles.map(r => {
+                        const lower = r.toLowerCase();
+                        if (lower === 'member' || lower === 'user') return 'Regular Member';
+                        if (lower === 'admin') return 'Admin';
+                        if (lower === 'moderator') return 'Moderator';
+                        return r.charAt(0).toUpperCase() + r.slice(1);
+                    });
+                    const uniqueRoles = Array.from(new Set(mappedRoles));
+                    if (uniqueRoles.length > 0) {
+                        if (uniqueRoles.length === 1) {
+                            membershipStatus = uniqueRoles[0];
+                        } else if (uniqueRoles.length === 2) {
+                            membershipStatus = `${uniqueRoles[0]} & ${uniqueRoles[1]}`;
+                        } else {
+                            const last = uniqueRoles[uniqueRoles.length - 1];
+                            const rest = uniqueRoles.slice(0, uniqueRoles.length - 1).join(', ');
+                            membershipStatus = `${rest} & ${last}`;
+                        }
+                    } else {
+                        membershipStatus = "Regular Member"; // Fallback
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch donor info in receipt service:", err);
+            }
+        }
+
+        if (!donorPhone && !donorEmail && payment.contact) {
+            const rawContact = payment.contact;
+            if (rawContact.includes('@')) {
+                donorEmail = rawContact;
+            } else {
+                donorPhone = rawContact;
+            }
+        }
+
         // Generate QR code data URL offline
         let qrDataUrl = '';
         try {
@@ -433,19 +486,32 @@ export const ReceiptService = {
         doc.setFont('helvetica', 'bold');
         doc.text(`Name:`, 115, yCol2 + 7);
         // Donor Name render using renderUnicodeText to perfectly support Unicode (Bangla)
-        renderUnicodeText(doc, payment.memberName || 'Guest Donor', 130, yCol2 + 4, 9.5, false, '#475569', 65);
+        renderUnicodeText(doc, payment.memberName || 'Guest Donor', 133, yCol2 + 4, 9.5, false, '#475569', 65);
         
         doc.setFont('helvetica', 'bold');
         doc.text(`Status:`, 115, yCol2 + 14);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Verified & Approved`, 130, yCol2 + 14);
+        renderUnicodeText(doc, membershipStatus, 133, yCol2 + 11, 9.5, true, '#0F766E', 65);
+
+        let currentDonorY = yCol2 + 21;
+        if (donorPhone) {
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Contact:`, 115, currentDonorY);
+            renderUnicodeText(doc, donorPhone, 133, currentDonorY - 3, 9.5, false, '#475569', 65);
+            currentDonorY += 7;
+        }
+        if (donorEmail) {
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Email:`, 115, currentDonorY);
+            renderUnicodeText(doc, donorEmail, 133, currentDonorY - 3, 9.5, false, '#475569', 65);
+            currentDonorY += 7;
+        }
 
         // Draw QR Code
         if (qrDataUrl) {
-            doc.addImage(qrDataUrl, 'PNG', 145, 80, 42, 42);
+            doc.addImage(qrDataUrl, 'PNG', 145, 95, 38, 38);
             doc.setFontSize(7.5);
             doc.setTextColor(148, 163, 184);
-            doc.text('Scan with phone to verify authenticity online', 139, 125);
+            doc.text('Scan with phone to verify authenticity online', 139, 137);
         }
 
         // --- MULTI-MONTH BREAKDOWN TABLE ---
@@ -531,7 +597,7 @@ export const ReceiptService = {
         }
 
         // Adjust Y positions dynamically based on breakdown table height
-        const amountBoxY = Math.max(133, 90 + breakdownHeight + 10);
+        const amountBoxY = Math.max(142, 90 + breakdownHeight + 10);
 
         // --- AMOUNT CONTENT BOX ---
         doc.setFillColor(240, 246, 255); // Soft blue background

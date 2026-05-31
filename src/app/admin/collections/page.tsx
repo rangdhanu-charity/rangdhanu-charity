@@ -593,6 +593,30 @@ export default function CollectionsPage() {
                             periodString = `From ${firstMonthName} ${firstYear} to Present`;
                         }
 
+                        const memberRoles = selectedMemberSummary.roles || [];
+                        const mappedRoles = memberRoles.map((r: string) => {
+                            const lower = r.toLowerCase();
+                            if (lower === 'member' || lower === 'user') return 'Regular Member';
+                            if (lower === 'admin') return 'Admin';
+                            if (lower === 'moderator') return 'Moderator';
+                            return r.charAt(0).toUpperCase() + r.slice(1);
+                        });
+                        const uniqueRoles = Array.from(new Set(mappedRoles)) as string[];
+                        let emailMembershipStatus = "Regular Member";
+                        if (uniqueRoles.length > 0) {
+                            if (uniqueRoles.length === 1) {
+                                emailMembershipStatus = uniqueRoles[0];
+                            } else if (uniqueRoles.length === 2) {
+                                emailMembershipStatus = `${uniqueRoles[0]} & ${uniqueRoles[1]}`;
+                            } else {
+                                const last = uniqueRoles[uniqueRoles.length - 1];
+                                const rest = uniqueRoles.slice(0, uniqueRoles.length - 1).join(', ');
+                                emailMembershipStatus = `${rest} & ${last}`;
+                            }
+                        }
+                        const emailPhone = selectedMemberSummary.phone || "";
+                        const emailAddress = selectedMemberSummary.email || userEmail || "";
+
                         // Generate the jsPDF instance for this payment batch to send as email attachment!
                         const pdfDoc = await ReceiptService.generateDonationReceipt({
                             id: batchId,
@@ -628,6 +652,9 @@ export default function CollectionsPage() {
                                                 <table style="width:100%;border-collapse:collapse;font-size:14px">
                                                     <tr><td style="padding:4px 0;color:#6b7280">Receipt ID</td><td style="padding:4px 0;text-align:right;font-family:monospace;font-size:12px">${receiptCode}</td></tr>
                                                     <tr><td style="padding:4px 0;color:#6b7280">Date Recorded</td><td style="padding:4px 0;text-align:right">${receiptDate}</td></tr>
+                                                    <tr><td style="padding:4px 0;color:#6b7280">Membership Status</td><td style="padding:4px 0;text-align:right;font-weight:600;color:#0f766e">${emailMembershipStatus}</td></tr>
+                                                    ${emailPhone ? `<tr><td style="padding:4px 0;color:#6b7280">Contact Number</td><td style="padding:4px 0;text-align:right">${emailPhone}</td></tr>` : ''}
+                                                    ${emailAddress ? `<tr><td style="padding:4px 0;color:#6b7280">Email Address</td><td style="padding:4px 0;text-align:right">${emailAddress}</td></tr>` : ''}
                                                     <tr style="border-top:2px solid #bbf7d0">
                                                         <td style="padding:10px 0 4px;font-weight:700;font-size:15px">Total Donated</td>
                                                         <td style="padding:10px 0 4px;text-align:right;font-weight:700;font-size:18px;color:#16a34a">৳${finalAllocatedSum.toLocaleString()}</td>
@@ -775,8 +802,37 @@ export default function CollectionsPage() {
                 if (sendReceiptEmail && dataToSave.userId && savedId) {
                     const { doc: fDoc, getDoc: fGet } = await import("firebase/firestore");
                     const userSnap = await fGet(fDoc(db, "users", dataToSave.userId));
-                    const userEmail = userSnap.exists() ? userSnap.data().email : null;
-                    const memberName = dataToSave.memberName || userSnap.data()?.name || 'Member';
+                    const userData = userSnap.exists() ? userSnap.data() : null;
+                    const userEmail = userData ? userData.email : null;
+                    const memberName = dataToSave.memberName || userData?.name || 'Member';
+                    const userPhone = userData?.phone || "";
+
+                    const userRoles = userData?.roles || [];
+                    const mappedRoles = userRoles.map((r: string) => {
+                        const lower = r.toLowerCase();
+                        if (lower === 'member' || lower === 'user') return 'Regular Member';
+                        if (lower === 'admin') return 'Admin';
+                        if (lower === 'moderator') return 'Moderator';
+                        return r.charAt(0).toUpperCase() + r.slice(1);
+                    });
+                    const uniqueRoles = Array.from(new Set(mappedRoles)) as string[];
+                    let emailMembershipStatus = "Non-Member";
+                    if (dataToSave.userId && dataToSave.userId !== "guest" && userData) {
+                        if (uniqueRoles.length > 0) {
+                            if (uniqueRoles.length === 1) {
+                                emailMembershipStatus = uniqueRoles[0];
+                            } else if (uniqueRoles.length === 2) {
+                                emailMembershipStatus = `${uniqueRoles[0]} & ${uniqueRoles[1]}`;
+                            } else {
+                                const last = uniqueRoles[uniqueRoles.length - 1];
+                                const rest = uniqueRoles.slice(0, uniqueRoles.length - 1).join(', ');
+                                emailMembershipStatus = `${rest} & ${last}`;
+                            }
+                        } else {
+                            emailMembershipStatus = "Regular Member";
+                        }
+                    }
+
                     if (userEmail) {
                         try {
                             const receiptDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka', dateStyle: 'long', timeStyle: 'short' });
@@ -823,6 +879,9 @@ export default function CollectionsPage() {
                                                         <tr><td style="padding:5px 0;color:#6b7280">Receipt ID</td><td style="padding:5px 0;text-align:right;font-family:monospace;font-size:12px">${receiptCode}</td></tr>
                                                         <tr><td style="padding:5px 0;color:#6b7280">Date</td><td style="padding:5px 0;text-align:right">${receiptDate}</td></tr>
                                                         <tr><td style="padding:5px 0;color:#6b7280">Type</td><td style="padding:5px 0;text-align:right">One-Time Donation</td></tr>
+                                                        <tr><td style="padding:5px 0;color:#6b7280">Membership Status</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#0f766e">${emailMembershipStatus}</td></tr>
+                                                        ${userPhone ? `<tr><td style="padding:5px 0;color:#6b7280">Contact Number</td><td style="padding:5px 0;text-align:right">${userPhone}</td></tr>` : ''}
+                                                        ${userEmail ? `<tr><td style="padding:5px 0;color:#6b7280">Email Address</td><td style="padding:5px 0;text-align:right">${userEmail}</td></tr>` : ''}
                                                         <tr style="border-top:2px solid #bbf7d0">
                                                             <td style="padding:10px 0 4px;font-weight:700;font-size:15px">Amount</td>
                                                             <td style="padding:10px 0 4px;text-align:right;font-weight:700;font-size:18px;color:#16a34a">৳${Number(dataToSave.amount).toLocaleString()}</td>
