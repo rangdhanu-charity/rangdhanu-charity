@@ -233,7 +233,14 @@ export const ReceiptService = {
 
         // Fetch detailed donor info if userId is available and not guest
         let donorPhone = payment.phone || '';
-        let donorEmail = payment.email || payment.userEmail || '';
+        let donorEmail = payment.email || '';
+        if (payment.userEmail) {
+            if (payment.userEmail.includes('@')) {
+                if (!donorEmail) donorEmail = payment.userEmail;
+            } else {
+                if (!donorPhone) donorPhone = payment.userEmail;
+            }
+        }
         let membershipStatus = 'Non-Member';
 
         if (payment.userId && payment.userId !== "guest" && payment.userId !== "deleted-user") {

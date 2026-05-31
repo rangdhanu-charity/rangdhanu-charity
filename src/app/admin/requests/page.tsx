@@ -264,7 +264,7 @@ export default function RequestsPage() {
             const rawContact = request.userEmail || "";
             const isEmail = rawContact.includes("@");
             const phoneVal = request.phone || (!isEmail ? rawContact : "");
-            const emailVal = request.userEmail || (isEmail ? rawContact : "");
+            const emailVal = isEmail ? rawContact : "";
 
             const createdPayments: any[] = [];
 
@@ -560,7 +560,7 @@ export default function RequestsPage() {
                         const rawContact = request.userEmail || "";
                         const isEmail = rawContact.includes("@");
                         userPhone = request.phone || (!isEmail ? rawContact : "");
-                        userEmail = request.userEmail || (isEmail ? rawContact : "");
+                        userEmail = isEmail ? rawContact : "";
                     }
 
                     await fetch('/api/email', {

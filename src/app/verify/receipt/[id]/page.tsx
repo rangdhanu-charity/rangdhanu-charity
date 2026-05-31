@@ -59,7 +59,14 @@ export default function ReceiptVerificationPage() {
 
                 if (initialPayment) {
                     let donorPhone = initialPayment.phone || '';
-                    let donorEmail = initialPayment.email || initialPayment.userEmail || '';
+                    let donorEmail = initialPayment.email || '';
+                    if (initialPayment.userEmail) {
+                        if (initialPayment.userEmail.includes('@')) {
+                            if (!donorEmail) donorEmail = initialPayment.userEmail;
+                        } else {
+                            if (!donorPhone) donorPhone = initialPayment.userEmail;
+                        }
+                    }
                     let membershipStatus = 'Non-Member';
 
                     if (initialPayment.userId && initialPayment.userId !== "guest" && initialPayment.userId !== "deleted-user") {
