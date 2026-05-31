@@ -654,8 +654,6 @@ export default function CollectionsPage() {
                                                     <tr><td style="padding:4px 0;color:#6b7280">Date Recorded</td><td style="padding:4px 0;text-align:right">${receiptDate}</td></tr>
                                                     <tr><td style="padding:4px 0;color:#6b7280">Membership Status</td><td style="padding:4px 0;text-align:right;font-weight:600;color:#0f766e">${emailMembershipStatus}</td></tr>
                                                     <tr><td style="padding:4px 0;color:#6b7280">Payment Status</td><td style="padding:4px 0;text-align:right;font-weight:600;color:#16a34a">Verified & Approved</td></tr>
-                                                    ${emailPhone ? `<tr><td style="padding:4px 0;color:#6b7280">Contact Number</td><td style="padding:4px 0;text-align:right">${emailPhone}</td></tr>` : ''}
-                                                    ${emailAddress ? `<tr><td style="padding:4px 0;color:#6b7280">Email Address</td><td style="padding:4px 0;text-align:right">${emailAddress}</td></tr>` : ''}
                                                     <tr style="border-top:2px solid #bbf7d0">
                                                         <td style="padding:10px 0 4px;font-weight:700;font-size:15px">Total Donated</td>
                                                         <td style="padding:10px 0 4px;text-align:right;font-weight:700;font-size:18px;color:#16a34a">৳${finalAllocatedSum.toLocaleString()}</td>
@@ -882,8 +880,6 @@ export default function CollectionsPage() {
                                                         <tr><td style="padding:5px 0;color:#6b7280">Type</td><td style="padding:5px 0;text-align:right">One-Time Donation</td></tr>
                                                         <tr><td style="padding:5px 0;color:#6b7280">Membership Status</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#0f766e">${emailMembershipStatus}</td></tr>
                                                         <tr><td style="padding:5px 0;color:#6b7280">Payment Status</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#16a34a">Verified & Approved</td></tr>
-                                                        ${userPhone ? `<tr><td style="padding:5px 0;color:#6b7280">Contact Number</td><td style="padding:5px 0;text-align:right">${userPhone}</td></tr>` : ''}
-                                                        ${userEmail ? `<tr><td style="padding:5px 0;color:#6b7280">Email Address</td><td style="padding:5px 0;text-align:right">${userEmail}</td></tr>` : ''}
                                                         <tr style="border-top:2px solid #bbf7d0">
                                                             <td style="padding:10px 0 4px;font-weight:700;font-size:15px">Amount</td>
                                                             <td style="padding:10px 0 4px;text-align:right;font-weight:700;font-size:18px;color:#16a34a">৳${Number(dataToSave.amount).toLocaleString()}</td>
