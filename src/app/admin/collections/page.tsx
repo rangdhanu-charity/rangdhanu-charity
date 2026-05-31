@@ -1270,7 +1270,7 @@ export default function CollectionsPage() {
                                     </div>
                                 )}
                             </div>
-                            {formData.userId && <p className="text-xs text-green-600">✓ Linked to member</p>}
+                            {formData.userId && formData.userId !== "guest" && formData.userId !== "deleted-user" && <p className="text-xs text-green-600">✓ Linked to member</p>}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
