@@ -391,6 +391,7 @@ export const ReceiptService = {
         if (payment.transactionId && payment.transactionId !== "Manual Admin Entry") {
             drawDetailRow('Trx ID', payment.transactionId);
         }
+        drawDetailRow('Payment Status', 'Verified & Approved');
         
         // --- DYNAMIC MULTI-MONTH RESOLUTION ---
         let paidMonths: number[] = [];
@@ -494,12 +495,7 @@ export const ReceiptService = {
         doc.text(`Membership Status:`, 115, yCol2 + 14);
         renderUnicodeText(doc, membershipStatus, 148, yCol2 + 11.625, 9.5, false, '#475569', 48);
 
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(71, 85, 105);
-        doc.text(`Payment Status:`, 115, yCol2 + 21);
-        renderUnicodeText(doc, 'Verified & Approved', 142, yCol2 + 18.625, 9.5, false, '#475569', 54);
-
-        let currentDonorY = yCol2 + 28;
+        let currentDonorY = yCol2 + 21;
         if (donorPhone) {
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(71, 85, 105);
