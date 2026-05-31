@@ -264,7 +264,7 @@ export default function ReceiptVerificationPage() {
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
-                                        <span className="text-muted-foreground font-medium">Donor Status</span>
+                                        <span className="text-muted-foreground font-medium">Membership Status</span>
                                         <span className="col-span-2 text-right">
                                             <Badge variant="secondary" className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 font-semibold text-xs py-0.5">
                                                 {payment.membershipStatus || "Non-Member"}
@@ -333,10 +333,10 @@ export default function ReceiptVerificationPage() {
                                     )}
 
                                     <div className="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-sm">
-                                        <span className="text-muted-foreground font-medium">System Status</span>
+                                        <span className="text-muted-foreground font-medium">Payment Status</span>
                                         <span className="col-span-2 text-right">
                                             <Badge className="bg-emerald-500 text-white hover:bg-emerald-600 border-none font-bold">
-                                                RECORDED & APPROVED
+                                                Verified & Approved
                                             </Badge>
                                         </span>
                                     </div>

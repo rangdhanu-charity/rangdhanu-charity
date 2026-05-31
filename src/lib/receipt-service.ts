@@ -489,10 +489,14 @@ export const ReceiptService = {
         renderUnicodeText(doc, payment.memberName || 'Guest Donor', 133, yCol2 + 4, 9.5, false, '#475569', 65);
         
         doc.setFont('helvetica', 'bold');
-        doc.text(`Status:`, 115, yCol2 + 14);
-        renderUnicodeText(doc, membershipStatus, 133, yCol2 + 11, 9.5, true, '#0F766E', 65);
+        doc.text(`Membership Status:`, 115, yCol2 + 14);
+        renderUnicodeText(doc, membershipStatus, 148, yCol2 + 11, 9.5, true, '#0F766E', 48);
 
-        let currentDonorY = yCol2 + 21;
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Payment Status:`, 115, yCol2 + 21);
+        renderUnicodeText(doc, 'Verified & Approved', 142, yCol2 + 18, 9.5, true, '#16A34A', 54);
+
+        let currentDonorY = yCol2 + 28;
         if (donorPhone) {
             doc.setFont('helvetica', 'bold');
             doc.text(`Contact:`, 115, currentDonorY);
@@ -508,16 +512,16 @@ export const ReceiptService = {
 
         // Draw QR Code
         if (qrDataUrl) {
-            doc.addImage(qrDataUrl, 'PNG', 145, 95, 38, 38);
+            doc.addImage(qrDataUrl, 'PNG', 145, 100, 38, 38);
             doc.setFontSize(7.5);
             doc.setTextColor(148, 163, 184);
-            doc.text('Scan with phone to verify authenticity online', 139, 137);
+            doc.text('Scan with phone to verify authenticity online', 139, 142);
         }
 
         // --- MULTI-MONTH BREAKDOWN TABLE ---
         let breakdownHeight = 0;
         if (payment.type === 'monthly' && isMultiMonth) {
-            const tableY = 95;
+            const tableY = 100;
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(10);
             doc.setTextColor(10, 37, 64);
@@ -597,7 +601,7 @@ export const ReceiptService = {
         }
 
         // Adjust Y positions dynamically based on breakdown table height
-        const amountBoxY = Math.max(142, 90 + breakdownHeight + 10);
+        const amountBoxY = Math.max(148, 95 + breakdownHeight + 10);
 
         // --- AMOUNT CONTENT BOX ---
         doc.setFillColor(240, 246, 255); // Soft blue background

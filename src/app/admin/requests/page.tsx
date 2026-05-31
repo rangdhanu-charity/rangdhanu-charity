@@ -588,6 +588,7 @@ export default function RequestsPage() {
                                                 <tr><td style="padding:5px 0;color:#6b7280">Method</td><td style="padding:5px 0;text-align:right;text-transform:capitalize">${request.method || 'N/A'}</td></tr>
                                                 ${request.transactionId ? `<tr><td style="padding:5px 0;color:#6b7280">Transaction ID</td><td style="padding:5px 0;text-align:right;font-family:monospace">${request.transactionId}</td></tr>` : ''}
                                                 <tr><td style="padding:5px 0;color:#6b7280">Membership Status</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#0f766e">${emailMembershipStatus}</td></tr>
+                                                <tr><td style="padding:5px 0;color:#6b7280">Payment Status</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#16a34a">Verified & Approved</td></tr>
                                                 ${userPhone ? `<tr><td style="padding:5px 0;color:#6b7280">Contact Number</td><td style="padding:5px 0;text-align:right">${userPhone}</td></tr>` : ''}
                                                 ${userEmail ? `<tr><td style="padding:5px 0;color:#6b7280">Email Address</td><td style="padding:5px 0;text-align:right">${userEmail}</td></tr>` : ''}
                                                 <tr style="border-top:2px solid #bbf7d0">
