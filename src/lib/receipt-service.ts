@@ -185,6 +185,177 @@ const renderUnicodeText = (
     }
 };
 
+const generatePaidSeal = (): string => {
+    if (typeof document === 'undefined') return '';
+    
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 400;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return '';
+
+        const center = 200;
+        const radius = 170;
+        const greenColor = '#15803D'; // Rich professional green
+
+        // Clear canvas
+        ctx.clearRect(0, 0, 400, 400);
+
+        // Apply a subtle rotation to the entire stamp for authenticity
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(-0.11); // ~6.3 degrees counter-clockwise
+        ctx.translate(-center, -center);
+
+        // 1. Draw outer circle (thick)
+        ctx.strokeStyle = greenColor;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // 2. Draw inner circle (thin)
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(center, center, radius - 15, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // 3. Draw horizontal lines for the central PAID banner
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(center - 110, center - 25);
+        ctx.lineTo(center + 110, center - 25);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(center - 110, center + 25);
+        ctx.lineTo(center + 110, center + 25);
+        ctx.stroke();
+
+        // 4. Draw central "PAID" text
+        ctx.font = 'bold 68px "Arial", "Helvetica", sans-serif';
+        ctx.fillStyle = greenColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText("PAID", center, center + 3);
+
+        // Helper to draw curved text
+        const drawTextAlongArc = (
+            text: string,
+            arcRadius: number,
+            startAngle: number,
+            endAngle: number,
+            isReversed: boolean = false
+        ) => {
+            ctx.font = 'bold 15px "Arial", "Helvetica", sans-serif';
+            ctx.fillStyle = greenColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const totalAngle = endAngle - startAngle;
+            const charCount = text.length;
+            const angleStep = totalAngle / (charCount - 1 || 1);
+
+            for (let i = 0; i < charCount; i++) {
+                const char = text[i];
+                const currentAngle = isReversed
+                    ? endAngle - i * angleStep
+                    : startAngle + i * angleStep;
+
+                ctx.save();
+                ctx.translate(
+                    center + arcRadius * Math.cos(currentAngle),
+                    center + arcRadius * Math.sin(currentAngle)
+                );
+                
+                const rotation = isReversed
+                    ? currentAngle - Math.PI / 2
+                    : currentAngle + Math.PI / 2;
+                    
+                ctx.rotate(rotation);
+                ctx.fillText(char, 0, 0);
+                ctx.restore();
+            }
+        };
+
+        // Draw top arc text: RANGDHANU CHARITY FOUNDATION
+        drawTextAlongArc(
+            "RANGDHANU CHARITY FOUNDATION",
+            radius - 38,
+            Math.PI * 1.15,
+            Math.PI * 1.85,
+            false
+        );
+
+        // Draw bottom arc text: MEGHNA - 3515, CUMILLA
+        drawTextAlongArc(
+            "MEGHNA - 3515, CUMILLA",
+            radius - 38,
+            Math.PI * 0.22,
+            Math.PI * 0.78,
+            true
+        );
+
+        // 5. Draw left and right star dividers
+        ctx.font = 'bold 18px "Arial", "Helvetica", sans-serif';
+        ctx.fillStyle = greenColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Left Star (at 180 deg / Math.PI)
+        ctx.save();
+        ctx.translate(center - (radius - 38), center);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillText("★", 0, 0);
+        ctx.restore();
+
+        // Right Star (at 0 deg / 360 deg)
+        ctx.save();
+        ctx.translate(center + (radius - 38), center);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("★", 0, 0);
+        ctx.restore();
+
+        ctx.restore(); // Restore from rotation
+
+        // 6. Apply a realistic grunge/distressed noise effect to the stamp pixels
+        const imgData = ctx.getImageData(0, 0, 400, 400);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const alpha = data[i+3];
+            if (alpha > 0) {
+                const pixelIndex = i / 4;
+                const x = pixelIndex % 400;
+                const y = Math.floor(pixelIndex / 400);
+                
+                const noise = Math.random();
+                // Speckle noise - random spots of missing ink
+                if (noise < 0.14) {
+                    data[i+3] = 0; // Make pixel fully transparent
+                }
+                // Dry ink effect - random faded spots
+                else if (noise < 0.32) {
+                    data[i+3] = Math.floor(alpha * (0.2 + Math.random() * 0.5));
+                }
+                
+                // Natural scratches
+                const scratchPattern1 = Math.sin(x * 0.04 + y * 0.02) * Math.cos(y * 0.07 - x * 0.015);
+                const scratchPattern2 = Math.cos(x * 0.02 - y * 0.05) * Math.sin(y * 0.04 + x * 0.01);
+                if (scratchPattern1 > 0.84 || scratchPattern2 > 0.86) {
+                    data[i+3] = Math.floor(alpha * 0.1);
+                }
+            }
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        return canvas.toDataURL('image/png');
+    } catch (e) {
+        console.error("Failed to generate PAID seal canvas:", e);
+        return '';
+    }
+};
+
 export const ReceiptService = {
     /**
      * Generates a unique code for a donation receipt.
@@ -662,11 +833,16 @@ export const ReceiptService = {
         doc.setTextColor(100, 116, 139);
         doc.text('Rangdhanu Charity Foundation', 141, 249);
 
-        // Placeholder Signature Logo / Initials
-        doc.setTextColor(14, 165, 233);
-        doc.setFont('courier', 'italic');
-        doc.setFontSize(14);
-        doc.text('Rangdhanu', 146, 235);
+        // Draw professional green PAID seal
+        const sealDataUrl = generatePaidSeal();
+        if (sealDataUrl) {
+            try {
+                // Sized 32mm x 32mm and placed overlapping the signature line
+                doc.addImage(sealDataUrl, 'PNG', 146.5, 210, 32, 32);
+            } catch (err) {
+                console.error("Failed to render PAID seal on PDF:", err);
+            }
+        }
 
         // --- FOOTER ---
         doc.setFillColor(248, 250, 252);
