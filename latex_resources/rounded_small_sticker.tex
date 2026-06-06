@@ -1,0 +1,77 @@
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+\documentclass[9pt]{article}
+
+% --- packages ---
+\usepackage[paperwidth=1.6in, paperheight=1.6in, margin=0.02in]{geometry}
+\usepackage{fontspec}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+% --- Font Configuration (Portable Local Fonts) ---
+\setmainfont[
+    Path = ./,
+    Extension = .ttf,
+    Script = Bengali,
+    BoldFont = NotoSansBengali-Bold,
+    ItalicFont = NotoSansBengali-Regular
+]{NotoSansBengali-Regular}
+
+% Secondary font for English/Latin characters to prevent boxes/tofu
+\newfontfamily\engfont{Arial}
+\newcommand{\eng}[1]{{\engfont #1}}
+
+% --- Colors ---
+\definecolor{navyblue}{HTML}{0D47A1}
+\definecolor{deepcyan}{HTML}{00838F}
+\definecolor{softgray}{HTML}{F8F9FA}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\centering
+\begin{tikzpicture}[remember picture, overlay]
+    \coordinate (center) at (current page.center);
+    
+    % --- Official Seal Borders ---
+    % Thick outer circle
+    \draw[navyblue, line width=1.8pt] (center) circle (0.74in);
+    % Thin inner circle
+    \draw[navyblue, line width=0.6pt] (center) circle (0.68in);
+    
+    % Solid Background inside the inner circle
+    \fill[softgray] (center) circle (0.67in);
+    
+    % --- Central Logo ---
+    % Sized to 2.0cm to make it bold and fill the center of the seal
+    \node at (center) {
+        \includegraphics[width=2.0cm]{Logo_bright.png}
+    };
+    
+    % --- Curved English Text (Top Circumference: Organization Name) ---
+    % Font size set to 6.0pt, path radius set to 0.58in, arc spans from 151 to 29 degrees
+    \path [decorate, decoration={text along path, text={|\engfont\fontsize{6.0pt}{7.5pt}\selectfont\color{navyblue}\bfseries|Rangdhanu Charity Foundation}, text align=center}] 
+        ([shift={(151:0.58in)}]center) arc (151:29:0.58in);
+    
+    % --- Curved English Text (Bottom-Left Circumference: Phone Number) ---
+    % Font size set to 5.2pt (slightly smaller for text hierarchy), path radius set to 0.58in, arc spans from 182 to 252 degrees
+    \path [decorate, decoration={text along path, text={|\engfont\fontsize{5.2pt}{6.5pt}\selectfont\color{navyblue}\bfseries|+880 1829-965153}, text align=center}] 
+        ([shift={(182:0.58in)}]center) arc (182:252:0.58in);
+        
+    % --- Curved English Text (Bottom-Right Circumference: Website) ---
+    % Font size set to 6.0pt, path radius set to 0.58in, arc spans from 283 to 358 degrees
+    \path [decorate, decoration={text along path, text={|\engfont\fontsize{6.0pt}{7.5pt}\selectfont\color{navyblue}\bfseries|www.rangdhanu.org}, text align=center}] 
+        ([shift={(283:0.58in)}]center) arc (283:358:0.58in);
+        
+    % --- Three Symmetric Separator Dots ---
+    % All three dots are sized to exactly 0.85pt radius to match the font scale and placed at the midpoints of the 31-degree gaps
+    \fill[deepcyan] ([shift={(166.5:0.58in)}]center) circle (0.85pt);
+    \fill[deepcyan] ([shift={(267.5:0.58in)}]center) circle (0.85pt);
+    \fill[deepcyan] ([shift={(13.5:0.58in)}]center) circle (0.85pt);
+        
+\end{tikzpicture}
+
+\end{document}

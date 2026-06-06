@@ -642,14 +642,14 @@ export default function RequestsPage() {
             setDistributionRequest(null);
             setViewingUser(null);
             setUserPayments([]);
-            fetchRequests();
+            // fetchRequests(); // onSnapshot will handle this
         }
     };
 
     const handleDirectApproveDonation = async (request: any) => {
         if (!confirm("Approve this donation directly without reviewing?")) return;
         const success = await processDonationApproval(request, null);
-        if (success) fetchRequests();
+        // if (success) fetchRequests(); // onSnapshot will handle this
     };
 
     const handleApproveDonation = async (request: any) => {
@@ -756,7 +756,7 @@ export default function RequestsPage() {
             toast({ title: "Rejected", description: "Donation request rejected." });
             setDonationRejection(null);
             setRejectionReason("");
-            fetchRequests();
+            // fetchRequests(); // onSnapshot will handle this
         } catch (error) {
             console.error(error);
             toast({ title: "Error", description: "Failed to reject.", variant: "destructive" });

@@ -1,0 +1,142 @@
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+\documentclass[10pt]{article}
+
+% --- packages ---
+\usepackage[paperwidth=220mm, paperheight=110mm, margin=8mm]{geometry}
+\usepackage{fontspec}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usepackage{qrcode}
+
+% --- Font Configuration (Portable Local Fonts) ---
+\setmainfont[
+    Path = ./,
+    Extension = .ttf,
+    Script = Bengali,
+    BoldFont = NotoSansBengali-Bold,
+    ItalicFont = NotoSansBengali-Regular
+]{NotoSansBengali-Regular}
+
+% Secondary font for English/Latin characters to prevent boxes/tofu
+\newfontfamily\engfont{Arial}
+\newcommand{\eng}[1]{{\engfont #1}}
+
+% --- Colors ---
+\definecolor{navyblue}{HTML}{0D47A1}
+\definecolor{deepcyan}{HTML}{00838F}
+\definecolor{softgray}{HTML}{F8F9FA}
+\definecolor{darkgray}{HTML}{37474F}
+
+\pagestyle{empty}
+
+\begin{document}
+
+% --- Outer Professional Accent Stripes (Left Vertical Edge) ---
+\begin{tikzpicture}[remember picture, overlay]
+    % Coordinates relative to page corners
+    \coordinate (top_left) at ([shift={(0.8cm, -0.8cm)}]current page.north west);
+    \coordinate (bottom_left) at ([shift={(0.8cm, 0.8cm)}]current page.south west);
+    
+    % --- Creative Bottom-Left Corner Wave Accent Pattern (Underneath the lines) ---
+    \begin{scope}[shift={(current page.south west)}]
+        % Faded background wave layers for professional art depth
+        \fill[navyblue!8, opacity=0.60] (0,0) -- (0,5.5cm) .. controls (2.5cm, 4.2cm) and (5.5cm, 2.5cm) .. (8.5cm,0) -- cycle;
+        \fill[deepcyan!12, opacity=0.70] (0,0) -- (0,4.2cm) .. controls (2.8cm, 3.4cm) and (4.8cm, 1.6cm) .. (6.8cm,0) -- cycle;
+        \fill[navyblue!18, opacity=0.50] (0,0) -- (0,2.8cm) .. controls (2.0cm, 2.2cm) and (3.5cm, 0.9cm) .. (5.0cm,0) -- cycle;
+        
+        % Crisp vector outline wave accents (with reduced opacity for a subtle look)
+        \draw[navyblue!60, line width=1.2pt, opacity=0.25] (0, 5.5cm) .. controls (2.5cm, 4.2cm) and (5.5cm, 2.5cm) .. (8.5cm,0);
+        \draw[deepcyan!60, line width=0.8pt, opacity=0.25] (0, 4.2cm) .. controls (2.8cm, 3.4cm) and (4.8cm, 1.6cm) .. (6.8cm,0);
+    \end{scope}
+    
+    % --- Faded Logo Watermark in the Background ---
+    \node[opacity=0.08] at (current page.center) {
+        \includegraphics[width=5.5cm]{Logo_bright.png}
+    };
+    
+    % Draw vertical corporate accent line on the left edge (on top of waves)
+    \draw[navyblue, line width=3pt] (top_left) -- (bottom_left);
+    \draw[deepcyan, line width=1.5pt] ([xshift=4.5pt]top_left) -- ([xshift=4.5pt]bottom_left);
+\end{tikzpicture}
+
+\vspace{0.2cm}
+
+% ==================== ENVELOPE CONTENT GRID ====================
+\begin{minipage}[t]{0.48\textwidth}
+    % --- SENDER SECTION (প্রেরক) ---
+    \begin{tcolorbox}[
+        enhanced,
+        colback=white,
+        colframe=navyblue!15,
+        boxrule=0.8pt,
+        arc=2mm,
+        left=8pt, right=8pt, top=8pt, bottom=8pt,
+        width=\textwidth
+    ]
+        \fontsize{8pt}{10pt}\selectfont
+        \textbf{\color{navyblue} প্রেরক:} \\[6pt]
+        \begin{minipage}{0.25\textwidth}
+            \includegraphics[width=1.3cm]{Logo_bright.png}
+        \end{minipage}
+        \begin{minipage}{0.72\textwidth}
+            \fontsize{9pt}{11pt}\selectfont\textbf{\color{navyblue} রংধনু চ্যারিটি ফাউন্ডেশন} \\[3pt]
+            \fontsize{7.5pt}{9.5pt}\selectfont\color{darkgray}
+            মেঘনা - ৩৫১৫, কুমিল্লা, বাংলাদেশ \\
+            মোবাইল: +৮৮০ ১৮২৯-৯৬৫১৫৩ \\
+            ইমেইল: \eng{info@rangdhanu.org} \\
+            ওয়েবসাইট: \eng{www.rangdhanu.org}
+        \end{minipage}
+    \end{tcolorbox}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+    % --- QR Code Section (ওয়েবসাইট স্ক্যান) at the top right ---
+    \begin{flushright}
+        \begin{tcolorbox}[
+            enhanced,
+            colback=white,
+            colframe=navyblue!15,
+            boxrule=0.8pt,
+            arc=2mm,
+            width=2.6cm,
+            height=3.1cm,
+            halign=center,
+            valign=center,
+            left=0pt, right=0pt, top=4pt, bottom=4pt
+        ]
+            \qrcode[height=1.8cm]{https://www.rangdhanu.org} \\
+            \vspace{4pt}
+            \fontsize{7pt}{8.5pt}\selectfont \color{navyblue}
+            \textbf{ওয়েবসাইট স্ক্যান}
+        \end{tcolorbox}
+    \end{flushright}
+\end{minipage}
+
+\vspace{0.8cm}
+
+% --- RECIPIENT SECTION (প্রাপক) ---
+\begin{flushright}
+    \begin{tcolorbox}[
+        enhanced,
+        colback=softgray,
+        colframe=navyblue,
+        boxrule=1.5pt,
+        arc=3mm,
+        width=115mm,
+        left=10pt, right=10pt, top=10pt, bottom=10pt,
+        shadow={2mm}{-2mm}{0mm}{black!5}
+    ]
+        \fontsize{10pt}{14pt}\selectfont
+        \textbf{\color{navyblue} প্রাপক:} \\[6pt]
+        \fontsize{9.5pt}{15pt}\selectfont \color{darkgray}
+        নাম: \dotfill \\[4pt]
+        ঠিকানা: \dotfill \\[4pt]
+        \phantom{ঠিকানা:} \dotfill \\[4pt]
+        মোবাইল নম্বর: \dotfill
+    \end{tcolorbox}
+\end{flushright}
+
+\end{document}

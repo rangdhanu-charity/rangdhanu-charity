@@ -1,0 +1,365 @@
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+\documentclass[11pt]{article}
+
+% --- packages ---
+\usepackage[a4paper, margin=1.2cm]{geometry}
+\usepackage{fontspec}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usepackage{multicol}
+\usepackage{lipsum}
+\usepackage{hyperref}
+\usepackage{qrcode}
+\usepackage{enumitem}
+
+% --- Font Configuration (Portable Local Fonts) ---
+\setmainfont[
+    Path = ./,
+    Extension = .ttf,
+    Script = Bengali,
+    BoldFont = NotoSansBengali-Bold,
+    ItalicFont = NotoSansBengali-Regular
+]{NotoSansBengali-Regular}
+
+% Secondary font for English/Latin characters to prevent boxes/tofu
+\newfontfamily\engfont{Arial}
+\newcommand{\eng}[1]{{\engfont #1}}
+
+% Redefine list bullets to use the English font to prevent missing character warnings
+\renewcommand{\labelitemi}{\eng{\textbullet}}
+
+% Global list configuration to remove vertical spacing and save space
+\setlist[itemize]{nosep, leftmargin=*, labelsep=5pt, topsep=2pt, partopsep=0pt}
+
+% Control spacing before/after multicol environments to optimize vertical space
+\setlength{\multicolsep}{4pt}
+
+% --- Color Palette (Rangdhanu Theme) ---
+\definecolor{navyblue}{HTML}{0D47A1}
+\definecolor{deepcyan}{HTML}{00838F}
+\definecolor{softgray}{HTML}{F8F9FA}
+\definecolor{charcoal}{HTML}{263238}
+
+\pagestyle{empty} % Remove page numbers
+
+\begin{document}
+
+% --- Outer Professional Border & Background Vector Art ---
+\begin{tikzpicture}[remember picture, overlay]
+    % Coordinates for the outer border corners (offset 0.8cm from edges)
+    \coordinate (nw) at ([shift={(0.8cm,-0.8cm)}]current page.north west);
+    \coordinate (ne) at ([shift={(-0.8cm,-0.8cm)}]current page.north east);
+    \coordinate (se) at ([shift={(-0.8cm,0.8cm)}]current page.south east);
+    \coordinate (sw) at ([shift={(0.8cm,0.8cm)}]current page.south west);
+
+    % --- Diagonal Geometric Mesh Accent (Subtle watermark background texture) ---
+    \begin{scope}[shift={(current page.south west)}]
+        \begin{scope}[opacity=0.04]
+            \foreach \i in {-15,-12,...,30} {
+                \draw[navyblue, line width=0.4pt] (\i*1.0cm, -2cm) -- (\i*1.0cm + 25cm, 32cm);
+            }
+            \foreach \i in {-5,-2,...,35} {
+                \draw[deepcyan, line width=0.3pt] (\i*1.0cm, 32cm) -- (\i*1.0cm - 25cm, -2cm);
+            }
+        \end{scope}
+    \end{scope}
+    
+    % --- Creative Top-Left Corner Wave Accent Pattern (underneath border) ---
+    \begin{scope}[shift={(current page.north west)}]
+        \fill[navyblue!6, opacity=0.55] (0.8cm, -0.8cm) -- (0.8cm, -4.5cm) .. controls (2.0cm, -3.2cm) and (3.5cm, -2.0cm) .. (5.5cm, -0.8cm) -- cycle;
+        \fill[deepcyan!10, opacity=0.65] (0.8cm, -0.8cm) -- (0.8cm, -3.5cm) .. controls (2.0cm, -2.6cm) and (3.0cm, -1.6cm) .. (4.5cm, -0.8cm) -- cycle;
+        \fill[navyblue!14, opacity=0.45] (0.8cm, -0.8cm) -- (0.8cm, -2.2cm) .. controls (1.6cm, -1.8cm) and (2.4cm, -1.1cm) .. (3.2cm, -0.8cm) -- cycle;
+        
+        \draw[navyblue!60, line width=1.0pt, opacity=0.15] (0.8cm, -4.5cm) .. controls (2.0cm, -3.2cm) and (3.5cm, -2.0cm) .. (5.5cm, -0.8cm);
+        \draw[deepcyan!60, line width=0.6pt, opacity=0.15] (0.8cm, -3.5cm) .. controls (2.0cm, -2.6cm) and (3.0cm, -1.6cm) .. (4.5cm, -0.8cm);
+    \end{scope}
+
+    % --- Creative Top-Right Corner Wave Accent Pattern (underneath border) ---
+    \begin{scope}[shift={(current page.north east)}]
+        \fill[navyblue!6, opacity=0.55] (-0.8cm, -0.8cm) -- (-0.8cm, -4.5cm) .. controls (-2.0cm, -3.2cm) and (-3.5cm, -2.0cm) .. (-5.5cm, -0.8cm) -- cycle;
+        \fill[deepcyan!10, opacity=0.65] (-0.8cm, -0.8cm) -- (-0.8cm, -3.5cm) .. controls (-2.0cm, -2.6cm) and (-3.0cm, -1.6cm) .. (-4.5cm, -0.8cm) -- cycle;
+        \fill[navyblue!14, opacity=0.45] (-0.8cm, -0.8cm) -- (-0.8cm, -2.2cm) .. controls (-1.6cm, -1.8cm) and (-2.4cm, -1.1cm) .. (-3.2cm, -0.8cm) -- cycle;
+        
+        \draw[navyblue!60, line width=1.0pt, opacity=0.15] (-0.8cm, -4.5cm) .. controls (-2.0cm, -3.2cm) and (-3.5cm, -2.0cm) .. (-5.5cm, -0.8cm);
+        \draw[deepcyan!60, line width=0.6pt, opacity=0.15] (-0.8cm, -3.5cm) .. controls (-2.0cm, -2.6cm) and (-3.0cm, -1.6cm) .. (-4.5cm, -0.8cm);
+    \end{scope}
+
+    % --- Creative Bottom-Left Corner Wave Accent Pattern (underneath border) ---
+    \begin{scope}[shift={(current page.south west)}]
+        \fill[navyblue!6, opacity=0.55] (0.8cm, 0.8cm) -- (0.8cm, 5.0cm) .. controls (2.5cm, 3.8cm) and (4.5cm, 2.2cm) .. (7.0cm, 0.8cm) -- cycle;
+        \fill[deepcyan!10, opacity=0.65] (0.8cm, 0.8cm) -- (0.8cm, 3.8cm) .. controls (2.5cm, 3.0cm) and (4.0cm, 1.8cm) .. (5.5cm, 0.8cm) -- cycle;
+        \fill[navyblue!14, opacity=0.45] (0.8cm, 0.8cm) -- (0.8cm, 2.6cm) .. controls (2.0cm, 2.0cm) and (3.0cm, 1.2cm) .. (4.2cm, 0.8cm) -- cycle;
+        
+        \draw[navyblue!60, line width=1.0pt, opacity=0.15] (0.8cm, 5.0cm) .. controls (2.5cm, 3.8cm) and (4.5cm, 2.2cm) .. (7.0cm, 0.8cm);
+        \draw[deepcyan!60, line width=0.6pt, opacity=0.15] (0.8cm, 3.8cm) .. controls (2.5cm, 3.0cm) and (4.0cm, 1.8cm) .. (5.5cm, 0.8cm);
+    \end{scope}
+
+    % --- Creative Bottom-Right Corner Wave Accent Pattern (underneath border) ---
+    \begin{scope}[shift={(current page.south east)}]
+        \fill[navyblue!6, opacity=0.55] (-0.8cm, 0.8cm) -- (-0.8cm, 5.0cm) .. controls (-2.5cm, 3.8cm) and (-4.5cm, 2.2cm) .. (-7.0cm, 0.8cm) -- cycle;
+        \fill[deepcyan!10, opacity=0.65] (-0.8cm, 0.8cm) -- (-0.8cm, 3.8cm) .. controls (-2.5cm, 3.0cm) and (-4.0cm, 1.8cm) .. (5.5cm, 0.8cm) -- cycle;
+        \fill[navyblue!14, opacity=0.45] (-0.8cm, 0.8cm) -- (-0.8cm, 2.6cm) .. controls (-2.0cm, 2.0cm) and (-3.0cm, 1.2cm) .. (-4.2cm, 0.8cm) -- cycle;
+        
+        \draw[navyblue!60, line width=1.0pt, opacity=0.15] (-0.8cm, 5.0cm) .. controls (-2.5cm, 3.8cm) and (-4.5cm, 2.2cm) .. (-7.0cm, 0.8cm);
+        \draw[deepcyan!60, line width=0.6pt, opacity=0.15] (-0.8cm, 3.8cm) .. controls (-2.5cm, 3.0cm) and (-4.0cm, 1.8cm) .. (-5.5cm, 0.8cm);
+    \end{scope}
+
+    % Border Corner Highlight Circles (underneath border)
+    \foreach \pt in {nw, ne, se, sw} {
+        \fill[navyblue!40] (\pt) circle (8pt);
+        \fill[deepcyan] (\pt) circle (4pt);
+    }
+
+    % Border L-Brackets in Corners (underneath border, slightly offset inside)
+    \draw[deepcyan, line width=1.5pt] ([shift={(5pt,-15pt)}]nw) -- ([shift={(5pt,-5pt)}]nw) -- ([shift={(15pt,-5pt)}]nw);
+    \draw[deepcyan, line width=1.5pt] ([shift={(-5pt,-15pt)}]ne) -- ([shift={(-5pt,-5pt)}]ne) -- ([shift={(-15pt,-5pt)}]ne);
+    \draw[deepcyan, line width=1.5pt] ([shift={(-5pt,15pt)}]se) -- ([shift={(-5pt,5pt)}]se) -- ([shift={(-15pt,5pt)}]se);
+    \draw[deepcyan, line width=1.5pt] ([shift={(5pt,15pt)}]sw) -- ([shift={(5pt,5pt)}]sw) -- ([shift={(15pt,5pt)}]sw);
+
+    % Faded Logo Watermark in the Background Center
+    \node[opacity=0.035] at (current page.center) {
+        \includegraphics[width=9.5cm]{Logo_bright.png}
+    };
+
+    % --- Main Outer Border Frame & Top Accent Stripe (DRAWN LAST SO THEY SIT ON TOP) ---
+    \draw[navyblue, line width=4pt] (nw) rectangle (se);
+    
+
+\end{tikzpicture}
+
+\vspace{0.1cm}
+
+% ==================== HEADER SECTION ====================
+\begin{tcolorbox}[
+    enhanced,
+    colback=white,
+    colframe=white,
+    halign=center,
+    valign=center,
+    arc=0mm,
+    top=4pt,
+    bottom=4pt
+]
+    \begin{minipage}{0.18\textwidth}
+        \centering
+        \includegraphics[width=2.4cm]{Logo_bright.png}
+    \end{minipage}
+    \begin{minipage}{0.78\textwidth}
+        \flushleft
+        \fontsize{28}{34}\selectfont \textbf{\color{navyblue} রংধনু চ্যারিটি ফাউন্ডেশন} \\[4pt]
+        \fontsize{13}{16}\selectfont \color{deepcyan} \eng{Together for a brighter future} | একত্রে একটি উজ্জ্বল ভবিষ্যতের লক্ষ্যে
+    \end{minipage}
+\end{tcolorbox}
+
+\vspace{-0.4cm}
+\begin{center}
+    \color{navyblue!20}\rule{0.96\textwidth}{1pt}
+\end{center}
+\vspace{-0.25cm}
+
+% ==================== SLOGAN / INTRO ====================
+\begin{tcolorbox}[
+    enhanced,
+    colback=navyblue,
+    colframe=deepcyan,
+    boxrule=1.5pt,
+    coltext=white,
+    arc=3mm,
+    halign=center,
+    shadow={1.5mm}{-1.5mm}{0mm}{black!10},
+    top=8pt, bottom=8pt
+]
+    \fontsize{15}{19}\selectfont \textbf{“আপনার সামান্য অবদান, ফিরিয়ে দিতে পারে একটি পরিবারের মুখের হাসি”}
+\end{tcolorbox}
+
+\vspace{0.05cm}
+
+% ==================== BODY SECTION 1: ABOUT & PROJECTS (2 COLUMNS) ====================
+\begin{multicols}{2}
+
+    % --- Card 1: Our Mission ---
+    \begin{tcolorbox}[
+        enhanced,
+        title=\textbf{আমাদের লক্ষ্য ও উদ্দেশ্য},
+        colback=white,
+        colframe=navyblue,
+        coltitle=white,
+        colbacktitle=navyblue,
+        arc=2mm,
+        fonttitle=\large\bfseries,
+        attach boxed title to top left={xshift=10pt, yshift=-10pt, yshifttext=-1.5ex},
+        boxed title style={colback=navyblue, arc=1mm, boxrule=0pt},
+        top=12pt, bottom=8pt, left=8pt, right=8pt
+    ]
+        \fontsize{9.5}{13.5}\selectfont
+        রংধনু চ্যারিটি ফাউন্ডেশন একটি অলাভজনক ও স্বেচ্ছাসেবামূলক সামাজিক সংগঠন। ২০২০ সালের করোনা মহামারীর সময়ে মুগারচর কে. আলী উচ্চ বিদ্যালয়ের  ২কে১৪ ব্যাচের শিক্ষার্থীদের দ্বারা এই সংগঠনের যাত্রা শুরু হয়। অনগ্রসর শিশুদের মানসম্মত শিক্ষা ও সুবিধাবঞ্চিত মানুষের আর্থিক এবং সামাজিক উন্নয়নে সাহায্য করাই  আমাদের মূল লক্ষ্য। সকলের সম্মিলিত প্রচেষ্টায় একটি সুন্দর সমাজ গড়ে তোলাই আমাদের অঙ্গীকার ।
+    \end{tcolorbox}
+
+    % --- Card 2: Our Projects ---
+    \begin{tcolorbox}[
+        enhanced,
+        title=\textbf{আমাদের মূল কার্যক্রমসমূহ},
+        colback=white,
+        colframe=deepcyan,
+        coltitle=white,
+        colbacktitle=deepcyan,
+        arc=2mm,
+        fonttitle=\large\bfseries,
+        attach boxed title to top left={xshift=10pt, yshift=-10pt, yshifttext=-1.5ex},
+        boxed title style={colback=deepcyan, arc=1mm, boxrule=0pt},
+        top=12pt, bottom=8pt, left=8pt, right=8pt
+    ]
+        \fontsize{9.5}{13.5}\selectfont
+        \begin{itemize}
+            \item \textbf{শিক্ষা প্রকল্প:} সুবিধাবঞ্চিত শিশুদের মধ্যে শিক্ষা উপকরণ বিতরণ।
+            \item \textbf{আর্থিক সাহায্য:} বিশেষ ক্ষেত্রে সমাজের দরিদ্র মানুষদেরকে সরাসরি আর্থিকভাবে সাহায্য প্রদান ।
+            \item \textbf{শীতবস্ত্র বিতরণ:} অসহায় মানুষের মাঝে কম্বল ও শীতবস্ত্র বিতরণ।
+            \item \textbf{জরুরি ত্রাণ:} প্রাকৃতিক দুর্যোগে তাৎক্ষণিক খাদ্য ও ত্রাণ সেবা।
+        \end{itemize}
+    \end{tcolorbox}
+
+\end{multicols}
+
+\vspace{-0.25cm}
+
+% ==================== BODY SECTION 2: MEMBERSHIP PLANS (SINGLE CONTAINER) ====================
+\begin{tcolorbox}[
+    enhanced,
+    title=\textbf{সদস্যপদ ও অনুদানের ধরণ (\eng{Membership \& Donation Plans})},
+    colback=white,
+    colframe=navyblue,
+    coltitle=white,
+    colbacktitle=navyblue,
+    arc=3mm,
+    fonttitle=\large\bfseries\centering,
+    attach boxed title to top center={yshift=-10pt, yshifttext=-1.5ex},
+    boxed title style={colback=navyblue, arc=1.5mm, boxrule=0pt, left=15pt, right=15pt},
+    top=14pt, bottom=10pt, left=10pt, right=10pt,
+    shadow={1.5mm}{-1.5mm}{0mm}{black!5}
+]
+    \begin{minipage}[t]{0.485\textwidth}
+        \vspace{0pt}
+        \begin{tcolorbox}[
+            enhanced,
+            colback=navyblue!5,
+            colframe=navyblue!60,
+            arc=2mm,
+            boxrule=0.8pt,
+            title=\textbf{\color{navyblue}মাসিক সদস্যপদ (\eng{Monthly Membership})},
+            coltitle=navyblue,
+            colbacktitle=navyblue!8,
+            top=10pt, bottom=8pt, left=8pt, right=8pt,
+            height=4.3cm
+        ]
+            \fontsize{9.5}{13.5}\selectfont
+            মাসিক সদস্যপদ গ্রহণ করে নিয়মিত একটি নির্দিষ্ট পরিমান অর্থ দান করে আপনিও এই মহান কাজে অংশ নিতে পারেন।
+            \begin{itemize}
+                \item প্রতি মাসে ন্যূনতম \textbf{\eng{100} টাকা} অনুদান দিতে হবে।
+                \item সাধারণত প্রতি মাসের \textbf{\eng{10} তারিখের} মধ্যে প্রদেয়।
+                \item এক বা একাধিক মাসের অনুদান একসাথে অগ্রিম দেওয়া যায়।
+            \end{itemize}
+        \end{tcolorbox}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.485\textwidth}
+        \vspace{0pt}
+        \begin{tcolorbox}[
+            enhanced,
+            colback=deepcyan!5,
+            colframe=deepcyan!60,
+            arc=2mm,
+            boxrule=0.8pt,
+            title=\textbf{\color{deepcyan}এককালীন অনুদান (\eng{One-time Donation})},
+            coltitle=deepcyan,
+            colbacktitle=deepcyan!8,
+            top=10pt, bottom=8pt, left=8pt, right=8pt,
+            height=4.3cm
+        ]
+            \fontsize{9.5}{13.5}\selectfont
+            এটি সাধারণ জনগণের জন্য উন্মুক্ত একটি সহজ ও তাৎক্ষণিক সাহায্য মাধ্যম।
+            \begin{itemize}
+                \item সাধারণ জনগণ ও অ-সদস্যদের জন্য উন্মুক্ত (নিবন্ধনের প্রয়োজন নেই)।
+                \item  আপনার সামর্থ্য অনুযায়ী যেকোনো সময়ে যেকোনো পরিমাণ অর্থ অনুদান দিতে পারেন
+             
+            \end{itemize}
+        \end{tcolorbox}
+    \end{minipage}
+\end{tcolorbox}
+
+\vspace{-0.22cm}
+
+% ==================== CALL TO ACTION (DONATION) ====================
+\begin{tcolorbox}[
+    enhanced,
+    title=\textbf{ডোনেশন মাধ্যম ও ব্যাংক তথ্য (\eng{Donation Channels})},
+    colback=softgray,
+    colframe=navyblue,
+    coltitle=white,
+    colbacktitle=navyblue,
+    arc=3mm,
+    fonttitle=\large\bfseries\centering,
+    attach boxed title to top center={yshift=-10pt, yshifttext=-1.5ex},
+    boxed title style={colback=navyblue, arc=1.5mm, boxrule=0pt, left=15pt, right=15pt},
+    top=12pt, bottom=10pt, left=12pt, right=12pt,
+    shadow={1.5mm}{-1.5mm}{0mm}{black!5}
+]
+    \centering
+    \fontsize{9.5}{12.5}\selectfont
+    আমাদের যেকোনো মানবিক প্রজেক্টে আপনি আপনার সামর্থ্য অনুযায়ী আর্থিক অনুদান পাঠাতে পারেন। \\
+    আপনার পাঠানো প্রতিটি টাকা সরাসরি অসহায় ও দুস্থ মানুষের কল্যাণে ব্যবহার করা হয়। \par
+    \vspace{0.3cm}
+    \begin{minipage}[t]{0.34\textwidth}
+        \centering
+        \vspace{0pt}
+        \textbf{\color{navyblue}মোবাইল ব্যাংকিং (\eng{Personal})} \\[4pt]
+        \textbf{\color{deepcyan}বিকাশ / নগদ} \\
+        \fontsize{12}{14}\selectfont \textbf{\eng{+880 1829-965153}} \\[4pt]
+        \fontsize{9}{11}\selectfont হিসাব নাম: মোহাম্মদ ফুল মিয়া
+    \end{minipage}
+    \hfill
+    \color{navyblue!20}\vrule\color{black}
+    \hfill
+    \begin{minipage}[t]{0.38\textwidth}
+        \centering
+        \vspace{0pt}
+        \textbf{\color{navyblue}ব্যাংক হিসাব (\eng{DBBL})} \\[4pt]
+        ব্যাংক: ডাচ-বাংলা ব্যাংক লিমিটেড \\
+        হিসাব নাম: \textbf{\eng{Mohammad Ful Mia}} \\
+        হিসাব নম্বর: \textbf{\eng{2261510170962}}
+    \end{minipage}
+    \hfill
+    \color{navyblue!20}\vrule\color{black}
+    \hfill
+    \begin{minipage}[t]{0.18\textwidth}
+        \centering
+        \vspace{0pt}
+        \qrcode[height=1.5cm]{https://www.rangdhanu.org} \\[4pt]
+        \fontsize{8}{10}\selectfont \textbf{\color{navyblue}ওয়েবসাইট স্ক্যান}
+    \end{minipage}
+\end{tcolorbox}
+
+\vspace{0.08cm}
+
+% ==================== FOOTER SECTION ====================
+\begin{tcolorbox}[
+    enhanced,
+    colback=navyblue,
+    colframe=navyblue,
+    coltext=white,
+    arc=0mm,
+    boxrule=0mm,
+    top=6pt, bottom=6pt, left=15pt, right=15pt
+]
+    \centering
+    \fontsize{9.5}{13}\selectfont
+    \textbf{রংধনু চ্যারিটি ফাউন্ডেশন} \\
+    কার্যালয়: মেঘনা - ৩৫১৫, কুমিল্লা, বাংলাদেশ \\
+    মোবাইল: \eng{+880 1829-965153} \quad | \quad ইমেইল: \eng{info@rangdhanu.org} \quad | \quad ওয়েবসাইট: \eng{www.rangdhanu.org} \\
+    \vspace{0.05cm}
+    \fontsize{7.5}{9.5}\selectfont \color{white!80} \eng{\copyright\ 2026 Rangdhanu Charity Foundation. All rights reserved.}
+\end{tcolorbox}
+
+\end{document}

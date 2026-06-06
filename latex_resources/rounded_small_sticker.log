@@ -1,0 +1,652 @@
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.4) (preloaded format=xelatex 2026.3.17)  3 JUN 2026 01:09
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**./rounded_small_sticker.tex
+(rounded_small_sticker.tex
+LaTeX2e <2024-11-01> patch level 2
+L3 programming layer <2025-04-14>
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/base\article.cls
+Document Class: article 2024/06/29 v1.4n Standard LaTeX document class
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/base\size10.clo
+File: size10.clo 2024/06/29 v1.4n Standard LaTeX file (size option)
+)
+\c@part=\count268
+\c@section=\count269
+\c@subsection=\count270
+\c@subsubsection=\count271
+\c@paragraph=\count272
+\c@subparagraph=\count273
+\c@figure=\count274
+\c@table=\count275
+\abovecaptionskip=\skip49
+\belowcaptionskip=\skip50
+\bibindent=\dimen146
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.sty
+Package: geometry 2020/01/02 v5.9 Page Geometry
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty
+Package: keyval 2022/05/29 v1.15 key=value parser (DPC)
+\KV@toks@=\toks17
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty
+Package: ifvtex 2019/10/25 v1.7 ifvtex legacy package. Use iftex instead.
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty
+Package: iftex 2024/12/12 v1.0g TeX engine tests
+))
+\Gm@cnth=\count276
+\Gm@cntv=\count277
+\c@Gm@tempcnt=\count278
+\Gm@bindingoffset=\dimen147
+\Gm@wd@mp=\dimen148
+\Gm@odd@mp=\dimen149
+\Gm@even@mp=\dimen150
+\Gm@layoutwidth=\dimen151
+\Gm@layoutheight=\dimen152
+\Gm@layouthoffset=\dimen153
+\Gm@layoutvoffset=\dimen154
+\Gm@dimlist=\toks18
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.cfg))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec.sty
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/l3packages/xparse\xpars
+e.sty
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/l3kernel\expl3.sty
+Package: expl3 2025-04-14 L3 programming layer (loader) 
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend-xet
+ex.def
+File: l3backend-xetex.def 2025-04-14 L3 backend support: XeTeX
+\g__graphics_track_int=\count279
+\g__pdfannot_backend_int=\count280
+\g__pdfannot_backend_link_int=\count281
+))
+Package: xparse 2024-08-16 L3 Experimental document command parser
+)
+Package: fontspec 2024/05/11 v2.9e Font selection for XeLaTeX and LuaLaTeX
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec-xetex
+.sty
+Package: fontspec-xetex 2024/05/11 v2.9e Font selection for XeLaTeX and LuaLaTe
+X
+\l__fontspec_script_int=\count282
+\l__fontspec_language_int=\count283
+\l__fontspec_strnum_int=\count284
+\l__fontspec_tmp_int=\count285
+\l__fontspec_tmpa_int=\count286
+\l__fontspec_tmpb_int=\count287
+\l__fontspec_tmpc_int=\count288
+\l__fontspec_em_int=\count289
+\l__fontspec_emdef_int=\count290
+\l__fontspec_strong_int=\count291
+\l__fontspec_strongdef_int=\count292
+\l__fontspec_tmpa_dim=\dimen155
+\l__fontspec_tmpb_dim=\dimen156
+\l__fontspec_tmpc_dim=\dimen157
+ (C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty
+Package: fontenc 2021/04/29 v2.0v Standard LaTeX package
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec.cfg))
+) (C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/xcolor\xcolor.sty
+Package: xcolor 2024/09/29 v3.02 LaTeX color extensions (UK)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\color.cfg
+File: color.cfg 2016/01/02 v1.6 sample color configuration
+)
+Package xcolor Info: Driver file: xetex.def on input line 274.
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\xetex.def
+File: xetex.def 2022/09/22 v5.0n Graphics/color driver for xetex
+) (C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\mathcolor.lt
+x)
+Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1349.
+Package xcolor Info: Model `RGB' extended on input line 1365.
+Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1367.
+Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1368.
+Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1369.
+Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1370.
+Package xcolor Info: Model `Gray' substituted by `gray' on input line 1371.
+Package xcolor Info: Model `wave' substituted by `hsb' on input line 1372.
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.sty
+Package: graphicx 2021/09/16 v1.2d Enhanced LaTeX Graphics (DPC,SPQR)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.sty
+Package: graphics 2024/08/06 v1.4g Standard LaTeX Graphics (DPC,SPQR)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty
+Package: trig 2023/12/02 v1.11 sin cos tan (DPC)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphics.c
+fg
+File: graphics.cfg 2016/06/04 v1.11 sample graphics configuration
+)
+Package graphics Info: Driver file: xetex.def on input line 106.
+)
+\Gin@req@height=\dimen158
+\Gin@req@width=\dimen159
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/frontendlayer\tikz.
+sty
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/basiclayer\pgf.sty
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/utilities\pgfrcs.st
+y
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfutil
+-common.tex
+\pgfutil@everybye=\toks19
+\pgfutil@tempdima=\dimen160
+\pgfutil@tempdimb=\dimen161
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfutil
+-latex.def
+\pgfutil@abb=\box53
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfrcs.
+code.tex
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf\pgf.revision.tex)
+Package: pgfrcs 2023-01-15 v3.1.10 (3.1.10)
+))
+Package: pgf 2023-01-15 v3.1.10 (3.1.10)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/basiclayer\pgfcore.
+sty
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/systemlayer\pgfsys.
+sty
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+s.code.tex
+Package: pgfsys 2023-01-15 v3.1.10 (3.1.10)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfkeys
+.code.tex
+\pgfkeys@pathtoks=\toks20
+\pgfkeys@temptoks=\toks21
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfkeys
+libraryfiltered.code.tex
+\pgfkeys@tmptoks=\toks22
+))
+\pgf@x=\dimen162
+\pgf@y=\dimen163
+\pgf@xa=\dimen164
+\pgf@ya=\dimen165
+\pgf@xb=\dimen166
+\pgf@yb=\dimen167
+\pgf@xc=\dimen168
+\pgf@yc=\dimen169
+\pgf@xd=\dimen170
+\pgf@yd=\dimen171
+\w@pgf@writea=\write3
+\r@pgf@reada=\read2
+\c@pgf@counta=\count293
+\c@pgf@countb=\count294
+\c@pgf@countc=\count295
+\c@pgf@countd=\count296
+\t@pgf@toka=\toks23
+\t@pgf@tokb=\toks24
+\t@pgf@tokc=\toks25
+\pgf@sys@id@count=\count297
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgf.c
+fg
+File: pgf.cfg 2023-01-15 v3.1.10 (3.1.10)
+)
+Driver file for pgf: pgfsys-xetex.def
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+s-xetex.def
+File: pgfsys-xetex.def 2023-01-15 v3.1.10 (3.1.10)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+s-dvipdfmx.def
+File: pgfsys-dvipdfmx.def 2023-01-15 v3.1.10 (3.1.10)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+s-common-pdf.def
+File: pgfsys-common-pdf.def 2023-01-15 v3.1.10 (3.1.10)
+)
+\pgfsys@objnum=\count298
+)))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+ssoftpath.code.tex
+File: pgfsyssoftpath.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgfsyssoftpath@smallbuffer@items=\count299
+\pgfsyssoftpath@bigbuffer@items=\count300
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/systemlayer\pgfsy
+sprotocol.code.tex
+File: pgfsysprotocol.code.tex 2023-01-15 v3.1.10 (3.1.10)
+))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+e.code.tex
+Package: pgfcore 2023-01-15 v3.1.10 (3.1.10)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmath.code
+.tex
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathutil.
+code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathparse
+r.code.tex
+\pgfmath@dimen=\dimen172
+\pgfmath@count=\count301
+\pgfmath@box=\box54
+\pgfmath@toks=\toks26
+\pgfmath@stack@operand=\toks27
+\pgfmath@stack@operation=\toks28
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.basic.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.trigonometric.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.random.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.comparison.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.base.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.round.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.misc.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfunct
+ions.integerarithmetics.code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathcalc.
+code.tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmathfloat
+.code.tex
+\c@pgfmathroundto@lastzeros=\count302
+))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfint.code.
+tex)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epoints.code.tex
+File: pgfcorepoints.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgf@picminx=\dimen173
+\pgf@picmaxx=\dimen174
+\pgf@picminy=\dimen175
+\pgf@picmaxy=\dimen176
+\pgf@pathminx=\dimen177
+\pgf@pathmaxx=\dimen178
+\pgf@pathminy=\dimen179
+\pgf@pathmaxy=\dimen180
+\pgf@xx=\dimen181
+\pgf@xy=\dimen182
+\pgf@yx=\dimen183
+\pgf@yy=\dimen184
+\pgf@zx=\dimen185
+\pgf@zy=\dimen186
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epathconstruct.code.tex
+File: pgfcorepathconstruct.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgf@path@lastx=\dimen187
+\pgf@path@lasty=\dimen188
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epathusage.code.tex
+File: pgfcorepathusage.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgf@shorten@end@additional=\dimen189
+\pgf@shorten@start@additional=\dimen190
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+escopes.code.tex
+File: pgfcorescopes.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgfpic=\box55
+\pgf@hbox=\box56
+\pgf@layerbox@main=\box57
+\pgf@picture@serial@count=\count303
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+egraphicstate.code.tex
+File: pgfcoregraphicstate.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgflinewidth=\dimen191
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+etransformations.code.tex
+File: pgfcoretransformations.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgf@pt@x=\dimen192
+\pgf@pt@y=\dimen193
+\pgf@pt@temp=\dimen194
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+equick.code.tex
+File: pgfcorequick.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+eobjects.code.tex
+File: pgfcoreobjects.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epathprocessing.code.tex
+File: pgfcorepathprocessing.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+earrows.code.tex
+File: pgfcorearrows.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgfarrowsep=\dimen195
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+eshade.code.tex
+File: pgfcoreshade.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgf@max=\dimen196
+\pgf@sys@shading@range@num=\count304
+\pgf@shadingcount=\count305
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+eimage.code.tex
+File: pgfcoreimage.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+eexternal.code.tex
+File: pgfcoreexternal.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgfexternal@startupbox=\box58
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+elayers.code.tex
+File: pgfcorelayers.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+etransparency.code.tex
+File: pgfcoretransparency.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+epatterns.code.tex
+File: pgfcorepatterns.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/basiclayer\pgfcor
+erdf.code.tex
+File: pgfcorerdf.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
+shapes.code.tex
+File: pgfmoduleshapes.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgfnodeparttextbox=\box59
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
+plot.code.tex
+File: pgfmoduleplot.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/compatibility\pgfco
+mp-version-0-65.sty
+Package: pgfcomp-version-0-65 2023-01-15 v3.1.10 (3.1.10)
+\pgf@nodesepstart=\dimen197
+\pgf@nodesepend=\dimen198
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/compatibility\pgfco
+mp-version-1-18.sty
+Package: pgfcomp-version-1-18 2023-01-15 v3.1.10 (3.1.10)
+))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/utilities\pgffor.st
+y
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/utilities\pgfkeys.s
+ty
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgfkeys
+.code.tex))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/latex/pgf/math\pgfmath.sty
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/math\pgfmath.code
+.tex))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/utilities\pgffor.
+code.tex
+Package: pgffor 2023-01-15 v3.1.10 (3.1.10)
+\pgffor@iter=\dimen199
+\pgffor@skip=\dimen256
+\pgffor@stack=\toks29
+\pgffor@toks=\toks30
+))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z\tikz.code.tex
+Package: tikz 2023-01-15 v3.1.10 (3.1.10)
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries\pgflibr
+aryplothandlers.code.tex
+File: pgflibraryplothandlers.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgf@plot@mark@count=\count306
+\pgfplotmarksize=\dimen257
+)
+\tikz@lastx=\dimen258
+\tikz@lasty=\dimen259
+\tikz@lastxsaved=\dimen260
+\tikz@lastysaved=\dimen261
+\tikz@lastmovetox=\dimen262
+\tikz@lastmovetoy=\dimen263
+\tikzleveldistance=\dimen264
+\tikzsiblingdistance=\dimen265
+\tikz@figbox=\box60
+\tikz@figbox@bg=\box61
+\tikz@tempbox=\box62
+\tikz@tempbox@bg=\box63
+\tikztreelevel=\count307
+\tikznumberofchildren=\count308
+\tikznumberofcurrentchild=\count309
+\tikz@fig@count=\count310
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
+matrix.code.tex
+File: pgfmodulematrix.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgfmatrixcurrentrow=\count311
+\pgfmatrixcurrentcolumn=\count312
+\pgf@matrix@numberofcolumns=\count313
+)
+\tikz@expandcount=\count314
+
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibrarytopaths.code.tex
+File: tikzlibrarytopaths.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)))
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibrarydecorations.text.code.tex
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/frontendlayer/tik
+z/libraries\tikzlibrarydecorations.code.tex
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/modules\pgfmodule
+decorations.code.tex
+\pgfdecoratedcompleteddistance=\dimen266
+\pgfdecoratedremainingdistance=\dimen267
+\pgfdecoratedinputsegmentcompleteddistance=\dimen268
+\pgfdecoratedinputsegmentremainingdistance=\dimen269
+\pgf@decorate@distancetomove=\dimen270
+\pgf@decorate@repeatstate=\count315
+\pgfdecorationsegmentamplitude=\dimen271
+\pgfdecorationsegmentlength=\dimen272
+)
+\tikz@lib@dec@box=\box64
+)
+(C:\Users\hmsha\AppData\Local\Programs\MiKTeX\tex/generic/pgf/libraries/decorat
+ions\pgflibrarydecorations.text.code.tex
+\pgf@lib@dec@text@box=\box65
+)
+\tikz@lib@dec@te@box=\box66
+)
+
+Package fontspec Info: 
+(fontspec)             Font family 'NotoSansBengali-Regular(0)' created for
+(fontspec)             font 'NotoSansBengali-Regular' with options
+(fontspec)             [Ligatures=TeX,Path = ./,Extension = .ttf,Script =
+(fontspec)             Bengali,BoldFont = NotoSansBengali-Bold,ItalicFont =
+(fontspec)             NotoSansBengali-Regular].
+(fontspec)              
+(fontspec)              This font family consists of the following NFSS
+(fontspec)             series/shapes:
+(fontspec)              
+(fontspec)             - 'normal' (m/n) with NFSS spec.:
+(fontspec)             <->"[./NotoSansBengali-Regular.ttf]/OT:script=bng2;langu
+age=dflt;mapping=tex-text;"
+(fontspec)             - 'bold' (b/n) with NFSS spec.:
+(fontspec)             <->"[./NotoSansBengali-Bold.ttf]/OT:script=bng2;language
+=dflt;mapping=tex-text;"
+(fontspec)             - 'italic' (m/it) with NFSS spec.:
+(fontspec)             <->"[./NotoSansBengali-Regular.ttf]/OT:script=bng2;langu
+age=dflt;mapping=tex-text;"
+
+
+Package fontspec Info: 
+(fontspec)             Font family 'Arial(0)' created for font 'Arial' with
+(fontspec)             options [].
+(fontspec)              
+(fontspec)              This font family consists of the following NFSS
+(fontspec)             series/shapes:
+(fontspec)              
+(fontspec)             - 'normal' (m/n) with NFSS spec.:
+(fontspec)             <->"Arial/OT:script=latn;language=dflt;"
+(fontspec)             - 'small caps'  (m/sc) with NFSS spec.:
+(fontspec)             <->"Arial/OT:script=latn;language=dflt;+smcp;"
+(fontspec)             - 'bold' (b/n) with NFSS spec.:
+(fontspec)             <->"Arial/B/OT:script=latn;language=dflt;"
+(fontspec)             - 'bold small caps'  (b/sc) with NFSS spec.:
+(fontspec)             <->"Arial/B/OT:script=latn;language=dflt;+smcp;"
+(fontspec)             - 'italic' (m/it) with NFSS spec.:
+(fontspec)             <->"Arial/I/OT:script=latn;language=dflt;"
+(fontspec)             - 'italic small caps'  (m/scit) with NFSS spec.:
+(fontspec)             <->"Arial/I/OT:script=latn;language=dflt;+smcp;"
+(fontspec)             - 'bold italic' (b/it) with NFSS spec.:
+(fontspec)             <->"Arial/BI/OT:script=latn;language=dflt;"
+(fontspec)             - 'bold italic small caps'  (b/scit) with NFSS spec.:
+(fontspec)             <->"Arial/BI/OT:script=latn;language=dflt;+smcp;"
+
+
+
+LaTeX Warning: Unused global option(s):
+    [9pt].
+
+(rounded_small_sticker.aux)
+\openout1 = `rounded_small_sticker.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 33.
+LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 33.
+LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 33.
+LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 33.
+LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 33.
+LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 33.
+LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 33.
+LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 33.
+LaTeX Font Info:    ... okay on input line 33.
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: xetex
+*geometry* verbose mode - [ preamble ] result:
+* driver: xetex
+* paper: custom
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(1.4457pt, 112.74104pt, 1.4457pt)
+* v-part:(T,H,B)=(1.4457pt, 112.74104pt, 1.4457pt)
+* \paperwidth=115.63243pt
+* \paperheight=115.63243pt
+* \textwidth=112.74104pt
+* \textheight=112.74104pt
+* \oddsidemargin=-70.8243pt
+* \evensidemargin=-70.8243pt
+* \topmargin=-107.8243pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=10.0pt
+* \footskip=30.0pt
+* \marginparwidth=65.0pt
+* \marginparsep=11.0pt
+* \columnsep=10.0pt
+* \skip\footins=9.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+
+Package fontspec Info: 
+(fontspec)             Adjusting the maths setup (use [no-math] to avoid
+(fontspec)             this).
+
+\symlegacymaths=\mathgroup4
+LaTeX Font Info:    Overwriting symbol font `legacymaths' in version `bold'
+(Font)                  OT1/cmr/m/n --> OT1/cmr/bx/n on input line 33.
+LaTeX Font Info:    Redeclaring math accent \acute on input line 33.
+LaTeX Font Info:    Redeclaring math accent \grave on input line 33.
+LaTeX Font Info:    Redeclaring math accent \ddot on input line 33.
+LaTeX Font Info:    Redeclaring math accent \tilde on input line 33.
+LaTeX Font Info:    Redeclaring math accent \bar on input line 33.
+LaTeX Font Info:    Redeclaring math accent \breve on input line 33.
+LaTeX Font Info:    Redeclaring math accent \check on input line 33.
+LaTeX Font Info:    Redeclaring math accent \hat on input line 33.
+LaTeX Font Info:    Redeclaring math accent \dot on input line 33.
+LaTeX Font Info:    Redeclaring math accent \mathring on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \colon on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Gamma on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Delta on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Theta on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Lambda on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Xi on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Pi on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Sigma on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Upsilon on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Phi on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Psi on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \Omega on input line 33.
+LaTeX Font Info:    Redeclaring math symbol \mathdollar on input line 33.
+LaTeX Font Info:    Redeclaring symbol font `operators' on input line 33.
+LaTeX Font Info:    Encoding `OT1' has changed to `TU' for symbol font
+(Font)              `operators' in the math version `normal' on input line 33.
+LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
+(Font)                  OT1/cmr/m/n --> TU/NotoSansBengali-Regular(0)/m/n on in
+put line 33.
+LaTeX Font Info:    Encoding `OT1' has changed to `TU' for symbol font
+(Font)              `operators' in the math version `bold' on input line 33.
+LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
+(Font)                  OT1/cmr/bx/n --> TU/NotoSansBengali-Regular(0)/m/n on i
+nput line 33.
+LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
+(Font)                  TU/NotoSansBengali-Regular(0)/m/n --> TU/NotoSansBengal
+i-Regular(0)/m/n on input line 33.
+LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
+(Font)                  OT1/cmr/m/it --> TU/NotoSansBengali-Regular(0)/m/it on 
+input line 33.
+LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
+(Font)                  OT1/cmr/bx/n --> TU/NotoSansBengali-Regular(0)/b/n on i
+nput line 33.
+LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
+(Font)                  OT1/cmss/m/n --> TU/lmss/m/n on input line 33.
+LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
+(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 33.
+LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
+(Font)                  TU/NotoSansBengali-Regular(0)/m/n --> TU/NotoSansBengal
+i-Regular(0)/b/n on input line 33.
+LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
+(Font)                  OT1/cmr/bx/it --> TU/NotoSansBengali-Regular(0)/b/it on
+ input line 33.
+LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
+(Font)                  OT1/cmss/bx/n --> TU/lmss/b/n on input line 33.
+LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
+(Font)                  OT1/cmtt/m/n --> TU/lmtt/b/n on input line 33.
+File: Logo_bright.png Graphic file (type bmp)
+<Logo_bright.png>
+
+
+[1
+
+] (rounded_small_sticker.aux)
+ ***********
+LaTeX2e <2024-11-01> patch level 2
+L3 programming layer <2025-04-14>
+ ***********
+ ) 
+Here is how much of TeX's memory you used:
+ 15418 strings out of 405056
+ 365677 string characters out of 5499557
+ 768244 words of memory out of 5000000
+ 41834 multiletter control sequences out of 15000+600000
+ 627001 words of font info for 62 fonts, out of 8000000 for 9000
+ 1348 hyphenation exceptions out of 8191
+ 84i,5n,93p,446b,1303s stack positions out of 10000i,1000n,20000p,200000b,200000s
+
+Output written on rounded_small_sticker.pdf (1 page).

@@ -27,6 +27,7 @@ export function HomeDonateModal({
     const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
     const setIsOpen = controlledOnOpenChange !== undefined ? controlledOnOpenChange : setInternalOpen;
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [middleName, setMiddleName] = useState(""); // Honeypot state
     const [formData, setFormData] = useState({
         name: "",
         contact: "",
@@ -39,6 +40,27 @@ export function HomeDonateModal({
 
     const handlePublicDonationSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // If the honeypot is filled, it's a bot. Silently succeed.
+        if (middleName) {
+            toast({
+                title: "Thank You!",
+                description: "Your donation request has been received. Our team will verify it shortly."
+            });
+            setIsOpen(false);
+            setFormData({
+                name: "",
+                contact: "",
+                amount: "",
+                method: "bkash",
+                transactionId: "",
+                date: new Date().toISOString().split('T')[0],
+                notes: ""
+            });
+            setMiddleName("");
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -158,6 +180,18 @@ export function HomeDonateModal({
                             </p>
                         </div>
                         <form onSubmit={handlePublicDonationSubmit} className="space-y-4">
+                            {/* Honeypot field (hidden from users, bot protection) */}
+                            <div className="hidden" aria-hidden="true">
+                                <Label htmlFor="guest-middleName">Middle Name</Label>
+                                <Input
+                                    id="guest-middleName"
+                                    type="text"
+                                    value={middleName}
+                                    onChange={(e) => setMiddleName(e.target.value)}
+                                    autoComplete="off"
+                                    tabIndex={-1}
+                                />
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="guest-name">Full Name</Label>
