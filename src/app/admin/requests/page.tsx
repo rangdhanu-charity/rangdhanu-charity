@@ -832,8 +832,63 @@ export default function RequestsPage() {
     };
 
     useEffect(() => {
-        fetchRequests();
-    }, []);
+        if (!user || (!user.roles.includes('admin') && !user.roles.includes('moderator'))) return;
+
+        setLoading(true);
+
+        // 1. Real-time listener for registration requests
+        const regQuery = query(
+            collection(db, "registration_requests"), 
+            where("status", "==", "pending")
+        );
+        const unsubReg = onSnapshot(regQuery, (snap) => {
+            const regData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setRequests(regData.sort((a: any, b: any) => {
+                const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return timeB - timeA;
+            }));
+            setLoading(false);
+        }, (error) => {
+            console.error("Failed to subscribe to registration requests:", error);
+            setLoading(false);
+        });
+
+        // 2. Real-time listener for donation requests
+        const donationQuery = query(
+            collection(db, "donation_requests"), 
+            where("status", "==", "pending")
+        );
+        const unsubDonation = onSnapshot(donationQuery, (snap) => {
+            const donationData = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                .sort((a: any, b: any) => {
+                    const timeA = a.createdAt?.seconds || 0;
+                    const timeB = b.createdAt?.seconds || 0;
+                    return timeB - timeA;
+                });
+            setDonationRequests(donationData);
+        }, (error) => {
+            console.error("Failed to subscribe to donation requests:", error);
+        });
+
+        // 3. Real-time listener for password reset requests
+        const pwdQuery = query(
+            collection(db, "password_reset_requests"), 
+            where("status", "==", "pending")
+        );
+        const unsubPwd = onSnapshot(pwdQuery, (snap) => {
+            const pwdResetData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setPasswordResetRequests(pwdResetData);
+        }, (error) => {
+            console.error("Failed to subscribe to password reset requests:", error);
+        });
+
+        return () => {
+            unsubReg();
+            unsubDonation();
+            unsubPwd();
+        };
+    }, [user]);
 
     return (
         <div className="space-y-6">

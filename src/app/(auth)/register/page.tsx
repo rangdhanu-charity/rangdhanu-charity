@@ -15,6 +15,7 @@ export default function RegisterPage() {
     const [email, setEmail] = useState("");
     const [reason, setReason] = useState("");
     const [phone, setPhone] = useState("");
+    const [middleName, setMiddleName] = useState(""); // Honeypot state
     const { submitRegistrationRequest } = useAuth();
     const { settings } = useSettings();
     const orgLogoURL = settings?.orgLogoURL || "";
@@ -24,6 +25,13 @@ export default function RegisterPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // If the honeypot is filled, it's a bot. Silently succeed.
+        if (middleName) {
+            setSuccess(true);
+            return;
+        }
+
         setLoading(true);
         setError("");
 
@@ -91,7 +99,7 @@ export default function RegisterPage() {
                 <CardContent>
                     {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2">
+                         <div className="space-y-2">
                             <label htmlFor="name">Full Name</label>
                             <Input
                                 id="name"
@@ -99,6 +107,18 @@ export default function RegisterPage() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 required
+                            />
+                        </div>
+                        {/* Honeypot field (hidden from users, bot protection) */}
+                        <div className="hidden" aria-hidden="true">
+                            <label htmlFor="middleName">Middle Name</label>
+                            <Input
+                                id="middleName"
+                                type="text"
+                                value={middleName}
+                                onChange={(e) => setMiddleName(e.target.value)}
+                                autoComplete="off"
+                                tabIndex={-1}
                             />
                         </div>
                         <div className="space-y-2">
