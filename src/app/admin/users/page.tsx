@@ -51,6 +51,42 @@ interface User {
     createdAt?: any;
     photoURL?: string;
     lastActiveAt?: number;
+    startYear?: number;
+    startMonth?: number;
+}
+
+function getEarliestCollectionDate(settings: any) {
+    if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) {
+        const currentYear = new Date().getFullYear();
+        return { year: currentYear, month: 1 };
+    }
+    const sortedYears = [...settings.collectionYears].sort((a, b) => a - b);
+    const earliestYear = sortedYears[0];
+    const activeMonths = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const earliestMonth = activeMonths.length > 0 ? Math.min(...activeMonths) : 1;
+    return { year: earliestYear, month: earliestMonth };
+}
+
+function getAvailableStartMonthsAndYears(settings: any) {
+    if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) {
+        return [];
+    }
+    const list: { year: number; month: number; label: string }[] = [];
+    const monthsNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const sortedYears = [...settings.collectionYears].sort((a, b) => a - b);
+    
+    sortedYears.forEach((year: number) => {
+        const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        const sortedMonths = [...activeMonths].sort((a, b) => a - b);
+        sortedMonths.forEach((month: number) => {
+            list.push({
+                year,
+                month,
+                label: `${monthsNames[month - 1]} ${year}`
+            });
+        });
+    });
+    return list;
 }
 
 export default function UsersPage() {
@@ -108,14 +144,45 @@ function UsersContent() {
     // New User State
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
     const [isAddingUser, setIsAddingUser] = useState(false);
-    const [newUserForm, setNewUserForm] = useState({
+    const [newUserForm, setNewUserForm] = useState<{
+        name: string;
+        email: string;
+        username: string;
+        phone: string;
+        roles: string[];
+        password: string;
+        startYear: number | null;
+        startMonth: number | null;
+    }>({
         name: "",
         email: "",
         username: "",
         phone: "",
-        roles: ["member"] as string[],
-        password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4)
+        roles: ["member"],
+        password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4),
+        startYear: null,
+        startMonth: null
     });
+
+    // Conflict Resolution State
+    const [conflictPayments, setConflictPayments] = useState<any[]>([]);
+    const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+    const [conflictPendingSave, setConflictPendingSave] = useState<{
+        userId: string;
+        cleanData: any;
+        conflictingPmts: any[];
+    } | null>(null);
+
+    useEffect(() => {
+        if (isAddUserOpen && settings) {
+            const earliest = getEarliestCollectionDate(settings);
+            setNewUserForm(prev => ({
+                ...prev,
+                startYear: earliest.year,
+                startMonth: earliest.month
+            }));
+        }
+    }, [isAddUserOpen, settings]);
 
     // View Profile State
     const [viewingUser, setViewingUser] = useState<User | null>(null);
@@ -327,7 +394,69 @@ function UsersContent() {
 
     const handleEditClick = (user: User) => {
         setEditingUser(user);
-        setEditForm({ ...user });
+        const earliest = getEarliestCollectionDate(settings);
+        setEditForm({
+            ...user,
+            startYear: user.startYear || earliest.year,
+            startMonth: user.startMonth || earliest.month
+        });
+    };
+
+    const handleResolveConflict = async (action: 'convert' | 'delete') => {
+        if (!conflictPendingSave) return;
+        setIsSaving(true);
+        setIsConflictDialogOpen(false);
+
+        try {
+            const { userId, cleanData, conflictingPmts } = conflictPendingSave;
+            const batch = writeBatch(db);
+
+            if (action === 'convert') {
+                conflictingPmts.forEach(p => {
+                    const pRef = doc(db, "payments", p.id);
+                    batch.update(pRef, {
+                        type: "one-time",
+                        note: p.note ? `${p.note} (Converted from monthly subscription on start date change)` : "Converted from monthly subscription on start date change"
+                    });
+                });
+            } else if (action === 'delete') {
+                for (const p of conflictingPmts) {
+                    await RecycleService.softDelete("payments", p.id, "payment", `Payment (৳${p.amount}) by ${editingUser?.name || 'Member'}`, currentUser?.username || "admin");
+                }
+            }
+
+            await batch.commit();
+
+            // Proceed with user save
+            const res = await adminUpdateUser(userId, cleanData);
+            if (res.success) {
+                const updatedEmail = cleanData.email || editingUser?.email;
+                if (updatedEmail) {
+                    const bannedRef = collection(db, "banned_emails");
+                    const bannedQ = query(bannedRef, where("email", "==", updatedEmail));
+                    const bannedSnap = await getDocs(bannedQ);
+                    if (!bannedSnap.empty) {
+                        const bBatch = writeBatch(db);
+                        bannedSnap.docs.forEach(d => bBatch.delete(doc(db, "banned_emails", d.id)));
+                        await bBatch.commit();
+                    }
+                }
+
+                toast({
+                    title: "User Updated",
+                    description: `User start date updated and ${conflictingPmts.length} payments ${action === 'convert' ? 'converted' : 'deleted'}.`
+                });
+                setEditingUser(null);
+            } else {
+                toast({ title: "Error", description: res.error || "Failed to update user.", variant: "destructive" });
+            }
+        } catch (error) {
+            console.error("Conflict resolution failed:", error);
+            toast({ title: "Error", description: "Failed to resolve payment conflicts.", variant: "destructive" });
+        } finally {
+            setIsSaving(false);
+            setConflictPendingSave(null);
+        }
     };
 
     const handleSaveUser = async () => {
@@ -346,6 +475,40 @@ function UsersContent() {
         // Prepare data for update
         const { id, ...data } = editForm as any;
         const cleanData: Record<string, any> = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
+
+        // Conflict check
+        try {
+            const paymentsRef = collection(db, "payments");
+            const q = query(paymentsRef, where("userId", "==", editingUser.id), where("type", "==", "monthly"));
+            const snap = await getDocs(q);
+            const userMonthlyPmts = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+
+            const earliest = getEarliestCollectionDate(settings);
+            const newStartYear = cleanData.startYear || earliest.year;
+            const newStartMonth = cleanData.startMonth || earliest.month;
+
+            const conflictingPmts = userMonthlyPmts.filter(p => {
+                const pYear = Number(p.year);
+                const pMonth = Number(p.month);
+                const startY = Number(newStartYear);
+                const startM = Number(newStartMonth);
+                return pYear < startY || (pYear === startY && pMonth < startM);
+            });
+
+            if (conflictingPmts.length > 0) {
+                setConflictPayments(conflictingPmts);
+                setConflictPendingSave({
+                    userId: editingUser.id,
+                    cleanData,
+                    conflictingPmts
+                });
+                setIsConflictDialogOpen(true);
+                setIsSaving(false);
+                return; // halt and show dialog
+            }
+        } catch (e) {
+            console.error("Error querying user payments for conflicts:", e);
+        }
 
         const res = await adminUpdateUser(editingUser.id, cleanData);
 
@@ -522,7 +685,9 @@ function UsersContent() {
                 username: "",
                 phone: "",
                 roles: ["member"],
-                password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4)
+                password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4),
+                startYear: null,
+                startMonth: null
             });
         } catch (error) {
             console.error("Error creating user:", error);
@@ -648,6 +813,16 @@ function UsersContent() {
         const currentDayNum = currentDate.getDate();
 
         if (payment) return { status: 'paid', payment };
+
+        if (viewingUser) {
+            const earliest = getEarliestCollectionDate(settings);
+            const startYear = viewingUser.startYear || earliest.year;
+            const startMonth = viewingUser.startMonth || earliest.month;
+
+            if (year < startYear || (year === startYear && month < startMonth)) {
+                return { status: 'inactive' };
+            }
+        }
 
         if (year > currentYearNum || (year === currentYearNum && month > currentMonthNum)) {
             return { status: 'future' };
@@ -839,7 +1014,6 @@ function UsersContent() {
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
                                                             <Button variant="ghost" size="icon" onClick={() => {
-                                                                setViewingUser(user);
                                                                 handleEditClick(user);
                                                             }}>
                                                                 <Pencil className="h-4 w-4" />
@@ -1064,7 +1238,13 @@ function UsersContent() {
                                         <CardContent>
                                             {(() => {
                                                 const totalContributed = userPayments.reduce((sum, item) => sum + Number(item.amount), 0);
+                                                const totalMonthly = userPayments.filter(p => p.type === 'monthly').reduce((sum, item) => sum + Number(item.amount), 0);
+                                                const totalOneTime = userPayments.filter(p => p.type === 'one-time').reduce((sum, item) => sum + Number(item.amount), 0);
                                                 const paidMonthsCount = new Set(userPayments.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`)).size;
+
+                                                const earliest = getEarliestCollectionDate(settings);
+                                                const startYear = viewingUser?.startYear || earliest.year;
+                                                const startMonth = viewingUser?.startMonth || earliest.month;
 
                                                 let totalPassedMonths = 0;
                                                 const currentMonth = new Date().getMonth() + 1;
@@ -1072,33 +1252,45 @@ function UsersContent() {
 
                                                 if (settings?.collectionYears) {
                                                     settings.collectionYears.forEach((year: number) => {
-                                                        const activeM = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                                                        if (year < currentYearNum) {
-                                                            totalPassedMonths += activeM.length;
-                                                        } else if (year === currentYearNum) {
-                                                            totalPassedMonths += activeM.filter((m: number) => m <= currentMonth).length;
+                                                        if (year >= startYear) {
+                                                            const activeM = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                            const filteredMonths = activeM.filter((m: number) => {
+                                                                if (year === startYear && m < startMonth) return false;
+                                                                if (year > currentYearNum) return false;
+                                                                if (year === currentYearNum && m > currentMonth) return false;
+                                                                return true;
+                                                            });
+                                                            totalPassedMonths += filteredMonths.length;
                                                         }
                                                     });
                                                 }
                                                 const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
 
                                                 return (
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/10 flex flex-col items-center text-center justify-center">
-                                                            <span className="text-sm text-muted-foreground mb-1">Total Donated</span>
-                                                            <span className="text-2xl font-bold text-primary">৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}</span>
+                                                    <div className="grid grid-cols-3 gap-3">
+                                                        <div className="p-3 bg-primary/5 rounded-lg border border-primary/10 flex flex-col items-center text-center justify-center col-span-3">
+                                                            <span className="text-xs text-muted-foreground mb-1">Total Donated</span>
+                                                            <span className="text-xl font-bold text-primary">৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}</span>
                                                         </div>
-                                                        <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col items-center text-center justify-center">
-                                                            <span className="text-sm text-muted-foreground mb-1">Months Paid</span>
-                                                            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{loadingPayments ? "..." : paidMonthsCount}</span>
+                                                        <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-100 dark:border-green-900/50 flex flex-col items-center text-center justify-center">
+                                                            <span className="text-xs text-muted-foreground mb-1">Monthly Subscriptions</span>
+                                                            <span className="text-sm font-bold text-green-600 dark:text-green-400">৳ {loadingPayments ? "..." : totalMonthly.toLocaleString()}</span>
                                                         </div>
-                                                        <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-800 flex flex-col items-center text-center justify-center">
-                                                            <span className="text-sm text-muted-foreground mb-1">Months Due</span>
-                                                            <span className="text-2xl font-bold text-red-600 dark:text-red-400">{loadingPayments ? "..." : monthsDue}</span>
+                                                        <div className="p-3 bg-pink-50 dark:bg-pink-950/20 rounded-lg border border-pink-100 dark:border-pink-900/50 flex flex-col items-center text-center justify-center">
+                                                            <span className="text-xs text-muted-foreground mb-1">One-Time Donations</span>
+                                                            <span className="text-sm font-bold text-pink-600 dark:text-pink-400">৳ {loadingPayments ? "..." : totalOneTime.toLocaleString()}</span>
                                                         </div>
-                                                        <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-lg border flex flex-col items-center text-center justify-center">
-                                                            <span className="text-sm text-muted-foreground mb-1">Total Active Months</span>
-                                                            <span className="text-2xl font-bold">{loadingPayments ? "..." : totalPassedMonths}</span>
+                                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col items-center text-center justify-center">
+                                                            <span className="text-xs text-muted-foreground mb-1">Months Paid</span>
+                                                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{loadingPayments ? "..." : paidMonthsCount}</span>
+                                                        </div>
+                                                        <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-800 flex flex-col items-center text-center justify-center">
+                                                            <span className="text-xs text-muted-foreground mb-1">Months Due</span>
+                                                            <span className="text-sm font-bold text-red-600 dark:text-red-400">{loadingPayments ? "..." : monthsDue}</span>
+                                                        </div>
+                                                        <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg border flex flex-col items-center text-center justify-center col-span-2">
+                                                            <span className="text-xs text-muted-foreground mb-1">Total Active Months</span>
+                                                            <span className="text-sm font-bold">{loadingPayments ? "..." : totalPassedMonths}</span>
                                                         </div>
                                                     </div>
                                                 );
@@ -1251,6 +1443,64 @@ function UsersContent() {
                             <Label htmlFor="new-phone">Phone</Label>
                             <Input id="new-phone" type="tel" value={newUserForm.phone} onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })} placeholder="+880..." />
                         </div>
+                        <div className="grid gap-2">
+                            <Label>Fund Collection Start Date</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Select
+                                    value={newUserForm.startYear?.toString() || ""}
+                                    onValueChange={(yrStr) => {
+                                        const yr = Number(yrStr);
+                                        const activeMons = settings?.collectionMonths?.[yr] || [1];
+                                        const firstMon = Math.min(...activeMons);
+                                        setNewUserForm({
+                                            ...newUserForm,
+                                            startYear: yr,
+                                            startMonth: newUserForm.startMonth && activeMons.includes(newUserForm.startMonth)
+                                                ? newUserForm.startMonth
+                                                : firstMon
+                                        });
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(settings?.collectionYears || []).map((yr: number) => (
+                                            <SelectItem key={yr} value={yr.toString()}>{yr}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={newUserForm.startMonth?.toString() || ""}
+                                    onValueChange={(monStr) => {
+                                        setNewUserForm({
+                                            ...newUserForm,
+                                            startMonth: Number(monStr)
+                                        });
+                                    }}
+                                    disabled={!newUserForm.startYear}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Month" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(() => {
+                                            const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                                            const activeMons = newUserForm.startYear
+                                                ? (settings?.collectionMonths?.[newUserForm.startYear] && settings.collectionMonths[newUserForm.startYear].length > 0
+                                                    ? settings.collectionMonths[newUserForm.startYear]
+                                                    : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+                                                : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                            const sortedMons = [...activeMons].sort((a, b) => a - b);
+                                            return sortedMons.map((m: number) => (
+                                                <SelectItem key={m} value={m.toString()}>{monthsNames[m - 1]}</SelectItem>
+                                            ));
+                                        })()}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                         <div className="flex justify-end pt-4">
                             <Button type="submit" disabled={isAddingUser}>
                                 {isAddingUser ? "Creating..." : "Create User"}
@@ -1312,6 +1562,64 @@ function UsersContent() {
                                 onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                                 className="col-span-3"
                             />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label className="text-right">Fund Start</Label>
+                            <div className="col-span-3 grid grid-cols-2 gap-2">
+                                <Select
+                                    value={editForm.startYear?.toString() || ""}
+                                    onValueChange={(yrStr) => {
+                                        const yr = Number(yrStr);
+                                        const activeMons = settings?.collectionMonths?.[yr] || [1];
+                                        const firstMon = Math.min(...activeMons);
+                                        setEditForm({
+                                            ...editForm,
+                                            startYear: yr,
+                                            startMonth: editForm.startMonth && activeMons.includes(editForm.startMonth)
+                                                ? editForm.startMonth
+                                                : firstMon
+                                        });
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(settings?.collectionYears || []).map((yr: number) => (
+                                            <SelectItem key={yr} value={yr.toString()}>{yr}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={editForm.startMonth?.toString() || ""}
+                                    onValueChange={(monStr) => {
+                                        setEditForm({
+                                            ...editForm,
+                                            startMonth: Number(monStr)
+                                        });
+                                    }}
+                                    disabled={!editForm.startYear}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Month" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(() => {
+                                            const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                                            const activeMons = editForm.startYear
+                                                ? (settings?.collectionMonths?.[editForm.startYear] && settings.collectionMonths[editForm.startYear].length > 0
+                                                    ? settings.collectionMonths[editForm.startYear]
+                                                    : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+                                                : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                            const sortedMons = [...activeMons].sort((a, b) => a - b);
+                                            return sortedMons.map((m: number) => (
+                                                <SelectItem key={m} value={m.toString()}>{monthsNames[m - 1]}</SelectItem>
+                                            ));
+                                        })()}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label className="text-right self-start pt-2">Roles</Label>
@@ -1433,6 +1741,59 @@ function UsersContent() {
                             variant="secondary"
                             onClick={() => setDeleteModalUser(null)}
                             disabled={isDeleting}
+                        >
+                            Cancel
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Conflict Resolution Dialog */}
+            <Dialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
+                <DialogContent className="sm:max-w-[450px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-amber-600 flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5" /> Adjust Member Payments
+                        </DialogTitle>
+                        <DialogDescription className="text-sm mt-2">
+                            You have shifted this member's start date forward. We found <strong>{conflictPayments.length} monthly subscription payment(s)</strong> recorded before the new start date.
+                            Please select how you want to manage these historical collections:
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex flex-col gap-3 my-4">
+                        <Button
+                            type="button"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => handleResolveConflict('convert')}
+                        >
+                            Convert to One-Time Donations
+                        </Button>
+                        <p className="text-xs text-muted-foreground px-1">
+                            This preserves the funds and gives the member credit as one-time donations. They won't count as monthly dues.
+                        </p>
+
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            className="w-full hover:bg-red-700"
+                            onClick={() => handleResolveConflict('delete')}
+                        >
+                            Delete Payments
+                        </Button>
+                        <p className="text-xs text-muted-foreground px-1">
+                            This soft-deletes the conflicting payments from the system, moving them to the recycle bin.
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => {
+                                setIsConflictDialogOpen(false);
+                                setConflictPendingSave(null);
+                            }}
                         >
                             Cancel
                         </Button>

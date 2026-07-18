@@ -440,11 +440,13 @@ export default function RequestsPage() {
                         try {
                             const { doc: fDoc, getDoc: fGet, collection: fCol, getDocs: fGetDocs } = await import('firebase/firestore');
                             const { db: fDb } = await import('@/lib/firebase');
-                            const [settingsSnap, paymentsSnap] = await Promise.all([
+                            const [settingsSnap, paymentsSnap, userSnap] = await Promise.all([
                                 fGet(fDoc(fDb, 'admin', 'settings')),
-                                fGetDocs(fCol(fDb, 'payments'))
+                                fGetDocs(fCol(fDb, 'payments')),
+                                fGet(fDoc(fDb, 'users', request.userId))
                             ]);
                             const sData = settingsSnap.exists() ? settingsSnap.data() : { collectionYears: [], collectionMonths: {} };
+                            const uData = userSnap.exists() ? userSnap.data() : {};
                             const allPayments = paymentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
                             const userPmts = allPayments.filter((p: any) => p.userId === request.userId && p.type === 'monthly');
                             // Build paid set (including the just-approved months)
@@ -455,38 +457,49 @@ export default function RequestsPage() {
                             const now2 = new Date();
                             const cYear = now2.getFullYear();
                             const cMonth = now2.getMonth() + 1;
+
+                            const earliestYear = sData.collectionYears?.length > 0 ? Math.min(...sData.collectionYears) : cYear;
+                            const earliestMonthArr = sData.collectionMonths?.[earliestYear] || [1];
+                            const earliestMonth = Math.min(...earliestMonthArr);
+
+                            const startYear = uData.startYear || earliestYear;
+                            const startMonth = uData.startMonth || earliestMonth;
+
                             let totalPassed = 0;
                             if (sData.collectionYears?.length > 0) {
                                 sData.collectionYears.forEach((yr: number) => {
-                                    const mons: number[] = sData.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                                    if (yr < cYear) totalPassed += mons.length;
-                                    else if (yr === cYear) totalPassed += mons.filter((m: number) => m <= cMonth).length;
+                                    if (yr >= startYear) {
+                                        const mons: number[] = sData.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                        const filteredMons = mons.filter((m: number) => {
+                                            if (yr === startYear && m < startMonth) return false;
+                                            if (yr > cYear) return false;
+                                            if (yr === cYear && m > cMonth) return false;
+                                            return true;
+                                        });
+                                        totalPassed += filteredMons.length;
+                                    }
                                 });
                             }
                             const totalPaidCount = paidSet.size;
-                            let periodString = 'Months Passed';
-                            if (sData && sData.collectionYears && sData.collectionYears.length > 0) {
-                                const sortedYears = [...sData.collectionYears].sort();
-                                const firstYear = sortedYears[0];
-                                const firstMonthArr = sData.collectionMonths?.[firstYear] || [1];
-                                const firstMonth = Math.min(...firstMonthArr);
-                                const firstMonthName = new Date(2000, firstMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
-                                periodString = `From ${firstMonthName} ${firstYear} to Present`;
-                            }
+                            const startMonthName = new Date(2000, startMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
+                            const periodString = `From ${startMonthName} ${startYear} to Present`;
+
                             const totalDue = Math.max(0, totalPassed - totalPaidCount);
                             // Build year grid
                             const yearGridRows = (sData.collectionYears || []).map((yr: number) => {
+                                if (yr < startYear) return '';
                                 const mons: number[] = sData.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                                 const relevant = mons.filter((m: number) => {
+                                    if (yr === startYear && m < startMonth) return false;
                                     const isPast = (yr < cYear) || (yr === cYear && m <= cMonth);
                                     return isPast || paidSet.has(`${m}-${yr}`);
                                 });
                                 if (relevant.length === 0) return '';
-
+ 
                                 const pL2 = relevant.filter((m: number) => paidSet.has(`${m}-${yr}`)).map((m: number) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
                                 const dL2 = relevant.filter((m: number) => !paidSet.has(`${m}-${yr}`)).map((m: number) => new Date(2000, m - 1, 1).toLocaleString('en-US', { month: 'short' })).join(', ') || '—';
                                 const hasDue2 = relevant.some((m: number) => !paidSet.has(`${m}-${yr}`));
-
+ 
                                 return `<div style="padding:10px 18px;border-bottom:1px solid #f1f5f9">
                                     <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px">${yr}</div>
                                     <table style="width:100%;border-collapse:collapse;font-size:12px">

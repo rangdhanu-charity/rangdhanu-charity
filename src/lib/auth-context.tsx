@@ -20,6 +20,8 @@ export interface User {
     photoURL?: string;
     createdAt?: any;
     lastActiveAt?: number;
+    startYear?: number;
+    startMonth?: number;
 }
 
 interface AuthContextType {

@@ -64,7 +64,7 @@ const ADMIN_NAV_LINKS: NavLink[] = [
     },
 
     { href: "/admin/collections", label: "Collections", icon: Coins },
-    { href: "/admin/finance", label: "Finance", icon: PiggyBank },
+    { href: "/admin/finance", label: "Finance", icon: BarChart3 },
     { href: "/admin/reports", label: "Reports", icon: FileText },
     { href: "/admin/users", label: "Members", icon: Users },
     { href: "/admin/requests", label: "Requests", icon: MessageSquareQuote },

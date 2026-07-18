@@ -185,7 +185,17 @@ export default function CollectionsPage() {
         if (editingCell && inputRef.current) inputRef.current.focus();
     }, [editingCell]);
 
-    // --- Helper Functions ---
+    const getEarliestCollectionDate = (settings: any) => {
+        if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) {
+            const currentYear = new Date().getFullYear();
+            return { year: currentYear, month: 1 };
+        }
+        const sortedYears = [...settings.collectionYears].sort((a, b) => a - b);
+        const earliestYear = sortedYears[0];
+        const activeMonths = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        const earliestMonth = activeMonths.length > 0 ? Math.min(...activeMonths) : 1;
+        return { year: earliestYear, month: earliestMonth };
+    };
 
     const getCellStatus = (userId: string, col: ColumnConfig) => {
         const monthPayments = payments.filter(p =>
@@ -198,6 +208,17 @@ export default function CollectionsPage() {
         if (monthPayments.length > 0) {
             const totalAmount = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
             return { status: 'paid', payment: { ...monthPayments[0], amount: totalAmount } };
+        }
+
+        const user = users.find(u => u.id === userId);
+        if (user) {
+            const earliest = getEarliestCollectionDate(settings);
+            const startYear = user.startYear || earliest.year;
+            const startMonth = user.startMonth || earliest.month;
+
+            if (col.year < startYear || (col.year === startYear && col.month < startMonth)) {
+                return { status: 'inactive' };
+            }
         }
 
         const currentYear = new Date().getFullYear();
@@ -1030,41 +1051,60 @@ export default function CollectionsPage() {
                                                             {user.name || user.username}
                                                         </TableCell>
                                                         {visibleColumns.map(col => {
-                                                            const status = getCellStatus(user.id, col);
-                                                            const isEditing = editingCell?.userId === user.id && editingCell?.colId === col.id;
+                                                             const status = getCellStatus(user.id, col);
+                                                             const isEditing = editingCell?.userId === user.id && editingCell?.colId === col.id;
 
-                                                            let bgClass = "";
-                                                            if (!isEditing) {
-                                                                if (status.status === 'paid') bgClass = "bg-green-50/50 dark:bg-green-900/10 text-green-700 font-bold";
-                                                                else if (status.status === 'due-yellow') bgClass = "bg-yellow-50/50 dark:bg-yellow-900/10";
-                                                                else if (status.status === 'due-red' || status.status === 'due') bgClass = "bg-red-50/50 dark:bg-red-900/10";
-                                                            }
+                                                             let bgClass = "";
+                                                             let tooltipText = "";
+                                                             if (!isEditing) {
+                                                                 if (status.status === 'paid') {
+                                                                     bgClass = "bg-green-50/50 dark:bg-green-900/10 text-green-700 font-bold";
+                                                                 } else if (status.status === 'due-yellow') {
+                                                                     bgClass = "bg-yellow-50/50 dark:bg-yellow-900/10";
+                                                                 } else if (status.status === 'due-red' || status.status === 'due') {
+                                                                     bgClass = "bg-red-50/50 dark:bg-red-900/10";
+                                                                 } else if (status.status === 'inactive') {
+                                                                     bgClass = "bg-muted/30 opacity-40 cursor-not-allowed";
+                                                                     const earliest = getEarliestCollectionDate(settings);
+                                                                     const startYear = user.startYear || earliest.year;
+                                                                     const startMonth = user.startMonth || earliest.month;
+                                                                     const monthName = new Date(2000, startMonth - 1, 1).toLocaleString('en-US', { month: 'long' });
+                                                                     tooltipText = `Inactive (Membership starts ${monthName} ${startYear})`;
+                                                                 }
+                                                             }
 
-                                                            return (
-                                                                <TableCell
-                                                                    key={col.id}
-                                                                    className={`p-0 h-[45px] text-center border-r border-b relative ${bgClass}`}
-                                                                    onClick={() => !isEditing && (setEditingCell({ userId: user.id, colId: col.id }), setEditValue(status.payment ? status.payment.amount.toString() : ""))}
-                                                                >
-                                                                    {isEditing ? (
-                                                                        <Input
-                                                                            ref={inputRef}
-                                                                            value={editValue}
-                                                                            onChange={e => setEditValue(e.target.value)}
-                                                                            onBlur={handleInlineSave}
-                                                                            onKeyDown={handleKeyDown}
-                                                                            className="h-full w-full border-none text-center bg-transparent focus-visible:ring-2 focus-visible:ring-primary px-0 rounded-none"
-                                                                            placeholder="-"
-                                                                            autoFocus
-                                                                        />
-                                                                    ) : (
-                                                                        <div className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-xs sm:text-sm">
-                                                                            {status.status === 'paid' ? `৳${status.payment?.amount} ` : ''}
-                                                                        </div>
-                                                                    )}
-                                                                </TableCell>
-                                                            );
-                                                        })}
+                                                             return (
+                                                                 <TableCell
+                                                                     key={col.id}
+                                                                     className={`p-0 h-[45px] text-center border-r border-b relative ${bgClass}`}
+                                                                     onClick={() => {
+                                                                         if (status.status === 'inactive') return;
+                                                                         if (!isEditing) {
+                                                                             setEditingCell({ userId: user.id, colId: col.id });
+                                                                             setEditValue(status.payment ? status.payment.amount.toString() : "");
+                                                                         }
+                                                                     }}
+                                                                     title={tooltipText}
+                                                                 >
+                                                                     {isEditing ? (
+                                                                         <Input
+                                                                             ref={inputRef}
+                                                                             value={editValue}
+                                                                             onChange={e => setEditValue(e.target.value)}
+                                                                             onBlur={handleInlineSave}
+                                                                             onKeyDown={handleKeyDown}
+                                                                             className="h-full w-full border-none text-center bg-transparent focus-visible:ring-2 focus-visible:ring-primary px-0 rounded-none"
+                                                                             placeholder="-"
+                                                                             autoFocus
+                                                                         />
+                                                                     ) : (
+                                                                         <div className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-xs sm:text-sm">
+                                                                             {status.status === 'paid' ? `৳${status.payment?.amount}` : status.status === 'inactive' ? 'N/A' : ''}
+                                                                         </div>
+                                                                     )}
+                                                                 </TableCell>
+                                                             );
+                                                         })}
                                                         <TableCell className="text-center font-bold text-muted-foreground border-l bg-muted/10">
                                                             {rowTotal > 0 ? `৳${rowTotal} ` : '-'}
                                                         </TableCell>
@@ -1385,6 +1425,11 @@ export default function CollectionsPage() {
                                                             const currentMonth = new Date().getMonth() + 1;
                                                             const currentDate = new Date().getDate();
 
+                                                            const earliest = getEarliestCollectionDate(settings);
+                                                            const startYear = selectedMemberSummary?.startYear || earliest.year;
+                                                            const startMonth = selectedMemberSummary?.startMonth || earliest.month;
+                                                            const isPreStart = yearNum < startYear || (yearNum === startYear && m < startMonth);
+
                                                             let status = 'future';
                                                             if (isAlreadyPaid) {
                                                                 status = 'paid';
@@ -1399,8 +1444,8 @@ export default function CollectionsPage() {
                                                             }
 
                                                             let baseStyle = "";
-                                                            if (!isActive) {
-                                                                baseStyle = "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed";
+                                                            if (!isActive || isPreStart) {
+                                                                baseStyle = "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed opacity-40";
                                                             } else if (isSelected) {
                                                                 if (status === 'paid') baseStyle = "bg-green-600 border-green-700 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
                                                                 else if (status === 'due-red') baseStyle = "bg-red-600 border-red-700 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
@@ -1416,8 +1461,9 @@ export default function CollectionsPage() {
                                                             return (
                                                                 <div
                                                                     key={m}
-                                                                    onClick={() => isActive && toggleMultiMonth(m)}
+                                                                    onClick={() => isActive && !isPreStart && toggleMultiMonth(m)}
                                                                     className={`text-center text-xs py-1.5 rounded border select-none transition-colors ${baseStyle}`}
+                                                                    title={isPreStart ? `Inactive (Membership starts ${format(new Date(2000, startMonth - 1, 1), 'MMMM')} ${startYear})` : ""}
                                                                 >
                                                                     {format(new Date(2000, m - 1, 1), 'MMM')}
                                                                 </div>

@@ -60,16 +60,32 @@ export async function GET(request: Request) {
             const passedMonthsList: { month: number; year: number }[] = [];
             let totalPassedMonths = 0;
 
+            const earliestYear = settings.collectionYears?.length > 0 ? Math.min(...settings.collectionYears) : currentYear;
+            const earliestMonthArr = settings.collectionMonths?.[earliestYear] || [1];
+            const earliestMonth = Math.min(...earliestMonthArr);
+
+            const startYear = user.startYear || earliestYear;
+            const startMonth = user.startMonth || earliestMonth;
+
             if (settings && settings.collectionYears) {
                 settings.collectionYears.forEach((year: number) => {
-                    const activeMonthsInYear = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                    if (year < currentYear) {
-                        activeMonthsInYear.forEach((m: number) => passedMonthsList.push({ month: m, year }));
-                        totalPassedMonths += activeMonthsInYear.length;
-                    } else if (year === currentYear) {
-                        const passedInYear = activeMonthsInYear.filter((m: number) => m <= currentMonth);
-                        passedInYear.forEach((m: number) => passedMonthsList.push({ month: m, year }));
-                        totalPassedMonths += passedInYear.length;
+                    if (year >= startYear) {
+                        const activeMonthsInYear = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                        if (year < currentYear) {
+                            const filteredMons = activeMonthsInYear.filter((m: number) => {
+                                if (year === startYear && m < startMonth) return false;
+                                return true;
+                            });
+                            filteredMons.forEach((m: number) => passedMonthsList.push({ month: m, year }));
+                            totalPassedMonths += filteredMons.length;
+                        } else if (year === currentYear) {
+                            const passedInYear = activeMonthsInYear.filter((m: number) => {
+                                if (year === startYear && m < startMonth) return false;
+                                return m <= currentMonth;
+                            });
+                            passedInYear.forEach((m: number) => passedMonthsList.push({ month: m, year }));
+                            totalPassedMonths += passedInYear.length;
+                        }
                     }
                 });
             }
@@ -82,8 +98,10 @@ export async function GET(request: Request) {
                 // Build per-year due-month grid for the email (reuse paidMonthsSet from above)
 
                 const yearGridHtml = (settings.collectionYears || []).map((yr: number) => {
+                    if (yr < startYear) return '';
                     const mons: number[] = settings.collectionMonths?.[yr] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                     const relevant = mons.filter((m: number) => {
+                        if (yr === startYear && m < startMonth) return false;
                         const isPast = (yr < currentYear) || (yr === currentYear && m <= currentMonth);
                         return isPast || paidMonthsSet.has(`${m}-${yr}`);
                     });
@@ -105,15 +123,8 @@ export async function GET(request: Request) {
                     </div>`;
                 }).join('');
 
-                let periodString = 'Months Passed';
-                if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
-                    const sortedYears = [...settings.collectionYears].sort();
-                    const firstYear = sortedYears[0];
-                    const firstMonthArr = settings.collectionMonths?.[firstYear] || [1];
-                    const firstMonth = Math.min(...firstMonthArr);
-                    const firstMonthName = new Date(2000, firstMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
-                    periodString = `From ${firstMonthName} ${firstYear} to Present`;
-                }
+                const startMonthName = new Date(2000, startMonth - 1, 1).toLocaleString('en-US', { month: 'short' });
+                const periodString = `From ${startMonthName} ${startYear} to Present`;
 
                 const mailOptions = {
                     from: `"${process.env.NEXT_PUBLIC_SITE_NAME || 'Rangdhanu Charity'}" <${process.env.ZOHO_EMAIL_USER}>`,

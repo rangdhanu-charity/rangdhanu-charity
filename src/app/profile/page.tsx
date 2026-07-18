@@ -51,6 +51,18 @@ import { ImageCropper } from "@/components/image-cropper";
 import { TopContributorBadge, TopContributorNameBadge } from "@/components/ui/top-contributor-badge";
 import { MemberTestimonialTab } from "./components/member-testimonial-tab";
 
+function getEarliestCollectionDate(settings: any) {
+    if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) {
+        const currentYear = new Date().getFullYear();
+        return { year: currentYear, month: 1 };
+    }
+    const sortedYears = [...settings.collectionYears].sort((a, b) => a - b);
+    const earliestYear = sortedYears[0];
+    const activeMonths = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const earliestMonth = activeMonths.length > 0 ? Math.min(...activeMonths) : 1;
+    return { year: earliestYear, month: earliestMonth };
+}
+
 // ─── Member Finance Transparency Tab ─────────────────────────────────────────
 function MemberFinanceTab() {
     const { payments, expenses, totalCollection, totalExpenses, currentBalance, loading, topContributors } = useFinance();
@@ -666,6 +678,11 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
                                 const currentMonth = new Date().getMonth() + 1;
                                 const currentDate = new Date().getDate();
 
+                                const earliest = getEarliestCollectionDate(settings);
+                                const startYear = user.startYear || earliest.year;
+                                const startMonth = user.startMonth || earliest.month;
+                                const isPreStart = yearNum < startYear || (yearNum === startYear && m < startMonth);
+
                                 let status = 'future';
                                 if (isAlreadyPaid) {
                                     status = 'paid';
@@ -680,8 +697,8 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
                                 }
 
                                 let baseStyle = "";
-                                if (!isActive) {
-                                    baseStyle = "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed";
+                                if (!isActive || isPreStart) {
+                                    baseStyle = "bg-muted/50 text-muted-foreground/50 border-input/50 cursor-not-allowed opacity-40";
                                 } else if (isSelected) {
                                     if (status === 'paid') baseStyle = "bg-green-600 border-green-700 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
                                     else if (status === 'due-red') baseStyle = "bg-red-600 border-red-700 text-white font-bold cursor-pointer shadow-inner ring-2 ring-primary ring-offset-1";
@@ -697,8 +714,9 @@ function DonationRequestForm({ user, paymentHistory, onSuccess }: { user: any, p
                                 return (
                                     <div
                                         key={m}
-                                        onClick={() => isActive && toggleMonth(m)}
+                                        onClick={() => isActive && !isPreStart && toggleMonth(m)}
                                         className={`text-center text-xs py-2 rounded border select-none transition-colors ${baseStyle}`}
+                                        title={isPreStart ? `Inactive (Membership starts ${format(new Date(2000, startMonth - 1, 1), 'MMMM')} ${startYear})` : ""}
                                     >
                                         {format(new Date(2000, m - 1, 1), 'MMM')}
                                     </div>
@@ -909,6 +927,16 @@ function ProfileContent() {
         if (monthPayments.length > 0) {
             const totalAmount = monthPayments.reduce((sum, p) => sum + Number(p.amount), 0);
             return { status: 'paid', payment: { ...monthPayments[0], amount: totalAmount } };
+        }
+
+        if (user) {
+            const earliest = getEarliestCollectionDate(settings);
+            const startYear = user.startYear || earliest.year;
+            const startMonth = user.startMonth || earliest.month;
+
+            if (year < startYear || (year === startYear && month < startMonth)) {
+                return { status: 'inactive' };
+            }
         }
 
         const currentYear = new Date().getFullYear();
@@ -1547,41 +1575,45 @@ function ProfileContent() {
                                             </CardHeader>
                                             <CardContent className="space-y-4">
                                                 {(() => {
-                                                    // Financial logic
                                                     const totalContributed = paymentHistory.reduce((sum, item) => sum + Number(item.amount), 0);
+                                                    const totalMonthly = paymentHistory.filter(p => p.type === 'monthly').reduce((sum, item) => sum + Number(item.amount), 0);
+                                                    const totalOneTime = paymentHistory.filter(p => p.type === 'one-time').reduce((sum, item) => sum + Number(item.amount), 0);
                                                     const paidMonthsCount = new Set(paymentHistory.filter(p => p.type === 'monthly').map(p => `${p.month}-${p.year}`)).size;
 
-                                                    // Passed months calculation
+                                                    const earliest = getEarliestCollectionDate(settings);
+                                                    const startYear = user?.startYear || earliest.year;
+                                                    const startMonth = user?.startMonth || earliest.month;
+
                                                     let totalPassedMonths = 0;
                                                     const currentMonth = new Date().getMonth() + 1;
                                                     const currentYear = new Date().getFullYear();
 
                                                     if (settings && settings.collectionYears) {
                                                         settings.collectionYears.forEach(year => {
-                                                            const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                                                            if (year < currentYear) {
-                                                                totalPassedMonths += activeMonths.length;
-                                                            } else if (year === currentYear) {
-                                                                totalPassedMonths += activeMonths.filter(m => m <= currentMonth).length;
+                                                            if (year >= startYear) {
+                                                                const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                                                                const filteredMonths = activeMonths.filter(m => {
+                                                                    if (year === startYear && m < startMonth) return false;
+                                                                    if (year > currentYear) return false;
+                                                                    if (year === currentYear && m > currentMonth) return false;
+                                                                    return true;
+                                                                });
+                                                                totalPassedMonths += filteredMonths.length;
                                                             }
                                                         });
                                                     }
 
                                                     const monthsDue = Math.max(0, totalPassedMonths - paidMonthsCount);
 
-                                                    // Period label calculation based on actual admin settings
+                                                    // Period label calculation based on member's customized start date
                                                     let periodLabel = "Lifetime";
                                                     if (settings && settings.collectionYears && settings.collectionYears.length > 0) {
-                                                        const earliestYear = Math.min(...settings.collectionYears);
-                                                        const monthsForYear = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                                                        const earliestMonth = Math.min(...monthsForYear);
-
                                                         try {
-                                                            const dateObj = new Date(earliestYear, earliestMonth - 1, 1);
+                                                            const dateObj = new Date(startYear, startMonth - 1, 1);
                                                             const d1 = dateObj.toLocaleDateString('default', { month: 'short', year: 'numeric' });
                                                             periodLabel = `From ${d1} - Present`;
                                                         } catch (e) {
-                                                            periodLabel = `From ${earliestYear} - Present`;
+                                                            periodLabel = `From ${startYear} - Present`;
                                                         }
                                                     } else if (paymentHistory.length > 0) {
                                                         // Fallback if settings are somehow unavailable
@@ -1596,35 +1628,47 @@ function ProfileContent() {
                                                     }
 
                                                     return (
-                                                        <>
-                                                            <div className="flex justify-between items-center pb-2 border-b w-full min-w-0 gap-2">
-                                                                <div className="min-w-0 flex-1">
-                                                                    <span className="text-sm text-muted-foreground block truncate">Total Contributed</span>
-                                                                    <span className="text-[10px] text-muted-foreground block truncate">{periodLabel}</span>
-                                                                </div>
-                                                                <span className="font-bold text-green-600">
-                                                                    ৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center pb-2 border-b">
-                                                                <span className="text-sm text-muted-foreground">Total Passed Months</span>
-                                                                <span className="font-medium">
-                                                                    {loadingPayments ? "..." : totalPassedMonths}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center pb-2 border-b">
-                                                                <span className="text-sm text-muted-foreground">Months Paid</span>
-                                                                <span className="font-medium text-blue-600">
-                                                                    {loadingPayments ? "..." : paidMonthsCount}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center pb-2 border-b">
-                                                                <span className="text-sm text-muted-foreground">Months Due</span>
-                                                                <span className="font-medium text-red-600">
-                                                                    {loadingPayments ? "..." : monthsDue}
-                                                                </span>
-                                                            </div>
-                                                        </>
+                                                         <>
+                                                             <div className="flex justify-between items-center pb-2 border-b w-full min-w-0 gap-2">
+                                                                 <div className="min-w-0 flex-1">
+                                                                     <span className="text-sm text-muted-foreground block truncate">Total Donated</span>
+                                                                     <span className="text-[10px] text-muted-foreground block truncate">{periodLabel}</span>
+                                                                 </div>
+                                                                 <span className="font-bold text-green-600">
+                                                                     ৳ {loadingPayments ? "..." : totalContributed.toLocaleString()}
+                                                                 </span>
+                                                             </div>
+                                                             <div className="flex justify-between items-center pb-2 border-b">
+                                                                 <span className="text-sm text-muted-foreground">Monthly Subscriptions</span>
+                                                                 <span className="font-semibold text-green-700 dark:text-green-400">
+                                                                     ৳ {loadingPayments ? "..." : totalMonthly.toLocaleString()}
+                                                                 </span>
+                                                             </div>
+                                                             <div className="flex justify-between items-center pb-2 border-b">
+                                                                 <span className="text-sm text-muted-foreground">One-Time Donations</span>
+                                                                 <span className="font-semibold text-pink-600">
+                                                                     ৳ {loadingPayments ? "..." : totalOneTime.toLocaleString()}
+                                                                 </span>
+                                                             </div>
+                                                             <div className="flex justify-between items-center pb-2 border-b">
+                                                                 <span className="text-sm text-muted-foreground">Total Passed Months</span>
+                                                                 <span className="font-medium">
+                                                                     {loadingPayments ? "..." : totalPassedMonths}
+                                                                 </span>
+                                                             </div>
+                                                             <div className="flex justify-between items-center pb-2 border-b">
+                                                                 <span className="text-sm text-muted-foreground">Months Paid</span>
+                                                                 <span className="font-medium text-blue-600">
+                                                                     {loadingPayments ? "..." : paidMonthsCount}
+                                                                 </span>
+                                                             </div>
+                                                             <div className="flex justify-between items-center pb-2 border-b">
+                                                                 <span className="text-sm text-muted-foreground">Months Due</span>
+                                                                 <span className="font-medium text-red-600">
+                                                                     {loadingPayments ? "..." : monthsDue}
+                                                                 </span>
+                                                             </div>
+                                                         </>
                                                     );
                                                 })()}
                                                 <div className="pt-2">
@@ -1710,10 +1754,21 @@ function ProfileContent() {
                                                                 textClass = "text-red-700 dark:text-red-400 font-medium";
                                                                 valueDisplayMobile = null;
                                                                 valueDisplayDesktop = "Overdue";
+                                                            } else if (statusData.status === 'inactive') {
+                                                                bgClass = "bg-muted/30 border-solid border-2 opacity-40 cursor-not-allowed";
+                                                                textClass = "text-muted-foreground line-through";
+                                                                valueDisplayDesktop = "N/A";
                                                             }
 
+                                                            const earliest = getEarliestCollectionDate(settings);
+                                                            const startYear = user?.startYear || earliest.year;
+                                                            const startMonth = user?.startMonth || earliest.month;
+                                                            const tooltipText = statusData.status === 'inactive'
+                                                                ? `Inactive (Membership starts ${format(new Date(2000, startMonth - 1, 1), 'MMMM')} ${startYear})`
+                                                                : "";
+
                                                             return (
-                                                                <div key={month.value} className={`flex flex-col justify-center items-center p-2 md:p-3 rounded-md md:rounded-lg transition-all ${bgClass}`}>
+                                                                <div key={month.value} className={`flex flex-col justify-center items-center p-2 md:p-3 rounded-md md:rounded-lg transition-all ${bgClass}`} title={tooltipText}>
                                                                     <span className={`text-xs md:text-sm tracking-wide ${statusData.status === 'future' ? textClass : 'text-foreground font-semibold'}`}>{month.label}</span>
                                                                     <div className={`text-[10px] md:text-sm mt-0.5 md:mt-1 ${textClass} w-full text-center`}>
                                                                         <span className="md:hidden">{valueDisplayMobile}</span>

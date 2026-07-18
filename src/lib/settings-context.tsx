@@ -44,8 +44,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             if (docSnap.exists()) {
                 setSettings(docSnap.data() as SystemSettings);
             } else {
-                // Initial setup if missing
-                setDoc(docRef, DEFAULT_SETTINGS).catch(console.error);
+                // Just use default settings locally, do NOT write to database from a passive listener!
                 setSettings(DEFAULT_SETTINGS);
             }
             setLoading(false);
