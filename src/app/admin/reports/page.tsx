@@ -51,27 +51,17 @@ export default function ReportsPage() {
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
 
-    // Calculate total passed months based on settings
-    const calculatePassedMonths = () => {
-        if (!settings || !settings.collectionYears) return 0;
-
-        let totalPassed = 0;
-
-        settings.collectionYears.forEach(year => {
-            const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-
-            if (year < currentYear) {
-                totalPassed += activeMonths.length;
-            } else if (year === currentYear) {
-                // Count active months up to and including the current month
-                totalPassed += activeMonths.filter(m => m <= currentMonth).length;
-            }
-        });
-
-        return totalPassed;
+    const getEarliestCollectionDate = (settings: any) => {
+        if (!settings || !settings.collectionYears || settings.collectionYears.length === 0) {
+            const currentYear = new Date().getFullYear();
+            return { year: currentYear, month: 1 };
+        }
+        const sortedYears = [...settings.collectionYears].sort((a, b) => a - b);
+        const earliestYear = sortedYears[0];
+        const activeMonths = settings.collectionMonths?.[earliestYear] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        const earliestMonth = activeMonths.length > 0 ? Math.min(...activeMonths) : 1;
+        return { year: earliestYear, month: earliestMonth };
     };
-
-    const totalPassedMonths = calculatePassedMonths();
 
     // Process Data
     const userReports = users.map(user => {
@@ -86,18 +76,45 @@ export default function ReportsPage() {
         // Total months paid across all time
         const totalMonthsPaidCount = monthlyPaymentsAllTime.length;
 
+        // Calculate member-specific passed months
+        const earliest = getEarliestCollectionDate(settings);
+        const startYear = user.startYear || earliest.year;
+        const startMonth = user.startMonth || earliest.month;
+
+        let userPassedMonths = 0;
+        if (settings && settings.collectionYears) {
+            settings.collectionYears.forEach((year: number) => {
+                if (year >= startYear) {
+                    const activeMonths = settings.collectionMonths?.[year] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                    if (year < currentYear) {
+                        const filtered = activeMonths.filter(m => {
+                            if (year === startYear && m < startMonth) return false;
+                            return true;
+                        });
+                        userPassedMonths += filtered.length;
+                    } else if (year === currentYear) {
+                        const filtered = activeMonths.filter(m => {
+                            if (year === startYear && m < startMonth) return false;
+                            return m <= currentMonth;
+                        });
+                        userPassedMonths += filtered.length;
+                    }
+                }
+            });
+        }
+
         // Simple logic for checking current month status
-        // We assume they pay for months sequentially or at least checking if CURRENT month is paid
-        const isPaidCurrentMonth = monthlyPaymentsCurrentYear.some(p => p.month === currentMonth);
+        const isPreStart = currentYear < startYear || (currentYear === startYear && currentMonth < startMonth);
+        const isPaidCurrentMonth = isPreStart || monthlyPaymentsCurrentYear.some(p => p.month === currentMonth);
 
         // Due Check: Passed months - paid months
-        const monthsDueCount = Math.max(0, totalPassedMonths - totalMonthsPaidCount);
+        const monthsDueCount = Math.max(0, userPassedMonths - totalMonthsPaidCount);
 
         return {
             ...user,
             totalPaid,
             oneTimeTotal: oneTimePayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
-            totalPassedMonths,
+            totalPassedMonths: userPassedMonths,
             totalMonthsPaidCount,
             monthsDueCount,
             isPaidCurrentMonth
